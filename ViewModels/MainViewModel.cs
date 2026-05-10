@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -25,7 +24,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly FiioK13BleLightService _bleLightService = new();
     private readonly AutoEqGitHubProfileService _githubProfileService = new();
     private readonly LocalPresetLibraryService _localLibraryService = new();
-    private readonly WindowsAudioFormatService _windowsAudioFormatService = new();
     private readonly SlotLightingProfileService _slotLightingProfileService = new();
     private readonly AppLogService _log = new();
     private readonly DispatcherTimer _profileAutosaveTimer;
@@ -35,7 +33,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _liveDeviceEqSyncStatus = "Live sync on - connect K13 to save edits";
     private string _deviceProfileName = "ANANDA";
     private string _deviceVolumeDisplay = "Vol --";
-    private string _deviceInputDisplay = "Input --";
+    private string _deviceInputDisplay = "Current input has not been read yet.";
     private string _githubProfileSearchText = "Ananda";
     private string _githubProfileStatus = "Online source ready";
     private string _connectionText = "Disconnected";
@@ -51,7 +49,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private LedColorOption _selectedKnobLedColorOption;
     private LedModeOption _selectedTopLedModeOption;
     private LedModeOption _selectedKnobLedModeOption;
-    private WindowsAudioFormatOption? _selectedWindowsAudioFormat;
     private AutoEqProfileIndexEntry? _selectedGitHubProfile;
     private AutoEqProfileIndexEntry? _githubPreviewProfile;
     private EqPreset? _githubPreviewPreset;
@@ -63,9 +60,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _favoritesOnly;
     private EqPreset? _comparePreset;
     private byte? _currentDevicePresetId;
-    private string _windowsAudioFormatStatus = "Select the default playback format Windows reports for this device.";
-    private bool _isLoadingWindowsAudioFormats;
-    private bool _isApplyingWindowsAudioFormat;
     private bool _isLoadingPreset;
     private bool _liveDeviceEqSyncEnabled = true;
     private bool _pendingLivePreampSync;
@@ -150,20 +144,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
             new DeviceInputSourceOption("COAX", 0x04)
         ];
         _selectedDeviceInputSource = DeviceInputSources[0];
-        K13FeatureRows =
-        [
-            new K13FeatureRow("Save to Device", "PEQ edits save through live sync", "Ready"),
-            new K13FeatureRow("Live Device Sync", "Preamp and band edits write to K13", "Ready"),
-            new K13FeatureRow("Output Mode", "Headphones and line out controls", "Next"),
-            new K13FeatureRow("Gain Mode", "Low and high gain controls", "Next"),
-            new K13FeatureRow("Sampling Mode", "OS / NOS switching", "Next"),
-            new K13FeatureRow("DSD Mode", "DSD playback behavior", "Next"),
-            new K13FeatureRow("Balance", "Left and right level balance", "Next"),
-            new K13FeatureRow("Light Brightness", "Color and mode work now; brightness comes next", "Next")
-        ];
-        WindowsAudioFormats = [];
-        LoadWindowsAudioFormats();
-
         GitHubProfiles = [];
         DeviceLog = [];
         AddLog("Ready. Device reads, USER switching, input, lighting, EQ on/off, live preamp, and single-band EQ writes are guarded.");
@@ -207,6 +187,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SwapCompareCommand = new RelayCommand(SwapComparePreset);
         ClearCompareCommand = new RelayCommand(ClearComparePreset);
         DuplicatePresetCommand = new RelayCommand(DuplicateSelectedPreset);
+        DeletePresetCommand = new RelayCommand(DeleteSelectedPreset, () => SelectedPreset is not null);
         CreateFlatPresetCommand = new RelayCommand(CreateFlatPreset);
         EnableAllBandsCommand = new RelayCommand(EnableAllBands);
         BypassAllBandsCommand = new RelayCommand(BypassAllBands);
@@ -217,7 +198,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AddWarmTiltCommand = new RelayCommand(AddWarmTiltPreset);
         AddTrebleTamerCommand = new RelayCommand(AddTrebleTamerPreset);
         AddGamingClarityCommand = new RelayCommand(AddGamingClarityPreset);
-        OpenWindowsSoundSettingsCommand = new RelayCommand(OpenWindowsSoundSettings);
         OpenFiioSupportCommand = new RelayCommand(OpenFiioSupport);
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync);
         OpenReleasesCommand = new RelayCommand(() => OpenUrl("https://github.com/audioslayer/wolfeq/releases", "WolfEQ releases"));
@@ -233,8 +213,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<LedSceneOption> LedSceneOptions { get; }
     public ObservableCollection<DeviceUserPresetOption> DeviceUserPresets { get; }
     public ObservableCollection<DeviceInputSourceOption> DeviceInputSources { get; }
-    public ObservableCollection<K13FeatureRow> K13FeatureRows { get; }
-    public ObservableCollection<WindowsAudioFormatOption> WindowsAudioFormats { get; }
     public ObservableCollection<EqBand> Bands { get; private set; }
     public ObservableCollection<AutoEqProfileIndexEntry> GitHubProfiles { get; }
     public ObservableCollection<string> DeviceLog { get; }
@@ -516,24 +494,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _selectedDeviceInputSource, value);
     }
 
-    public WindowsAudioFormatOption? SelectedWindowsAudioFormat
-    {
-        get => _selectedWindowsAudioFormat;
-        set
-        {
-            if (value is not null && SetField(ref _selectedWindowsAudioFormat, value) && !_isLoadingWindowsAudioFormats)
-            {
-                ApplySelectedWindowsAudioFormat();
-            }
-        }
-    }
-
-    public string WindowsAudioFormatStatus
-    {
-        get => _windowsAudioFormatStatus;
-        private set => SetField(ref _windowsAudioFormatStatus, value);
-    }
-
     public AutoEqProfileIndexEntry? SelectedGitHubProfile
     {
         get => _selectedGitHubProfile;
@@ -627,6 +587,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand SwapCompareCommand { get; }
     public ICommand ClearCompareCommand { get; }
     public ICommand DuplicatePresetCommand { get; }
+    public ICommand DeletePresetCommand { get; }
     public ICommand CreateFlatPresetCommand { get; }
     public ICommand EnableAllBandsCommand { get; }
     public ICommand BypassAllBandsCommand { get; }
@@ -637,7 +598,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand AddWarmTiltCommand { get; }
     public ICommand AddTrebleTamerCommand { get; }
     public ICommand AddGamingClarityCommand { get; }
-    public ICommand OpenWindowsSoundSettingsCommand { get; }
     public ICommand OpenFiioSupportCommand { get; }
     public ICommand CheckForUpdatesCommand { get; }
     public ICommand OpenReleasesCommand { get; }
@@ -645,6 +605,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool CanWriteToHardware => false;
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public async Task AutoConnectAndReadDeviceAsync()
+    {
+        await DetectDeviceAsync();
+
+        if (IsDeviceConnected)
+        {
+            await ReadDeviceEqAsync();
+        }
+    }
 
     private async Task DetectDeviceAsync()
     {
@@ -711,7 +681,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             var readbackPreset = UpsertReadbackPreset(snapshot);
-            SelectedPreset = readbackPreset;
+            if (ReferenceEquals(SelectedPreset, readbackPreset))
+            {
+                LoadSelectedPreset();
+            }
+            else
+            {
+                SelectedPreset = readbackPreset;
+            }
+
+            if (!TrySaveProfileLibraryQuietly(out var saveError))
+            {
+                AddLog($"Device EQ readback was not saved locally: {saveError}");
+            }
 
             Status = $"Read {snapshot.Bands.Count} band(s) from {snapshot.PresetDisplayName}.";
             AddLog(Status);
@@ -732,6 +714,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private async Task SelectUserPresetAsync()
     {
         var option = SelectedDeviceUserPreset;
+        SelectDeviceEqPresetForSlot(option.PresetId, createIfMissing: false);
+
         Status = $"Switching K13 to {option.DisplayName}...";
         AddLog($"Guarded USER preset switch requested: {option.DisplayName} (0x{option.PresetId:X2}).");
 
@@ -741,6 +725,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             SetConnectionState(true);
             _currentDevicePresetId = result.AfterPresetId;
             SelectDeviceUserPresetOption(result.AfterPresetId);
+            SelectDeviceEqPresetForSlot(result.AfterPresetId, createIfMissing: true);
 
             foreach (var line in result.TransportLog)
             {
@@ -1026,7 +1011,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var snapshot = await _bleLightService.ReadInputSourceAsync();
             LogBleSnapshot(snapshot);
             SelectInputSourceOption(snapshot.After);
-            DeviceInputDisplay = $"Input {snapshot.AfterName}";
+            DeviceInputDisplay = $"Current input: {snapshot.AfterName}";
             Status = $"Input source: {snapshot.AfterName}";
             AddLog(Status);
         }
@@ -1065,7 +1050,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var snapshot = await _bleLightService.SetInputSourceAsync(option.Value);
             LogBleSnapshot(snapshot);
             SelectInputSourceOption(snapshot.After);
-            DeviceInputDisplay = $"Input {snapshot.AfterName}";
+            DeviceInputDisplay = $"Current input: {snapshot.AfterName}";
             Status = snapshot.Confirmed
                 ? $"Input switched: {snapshot.BeforeName} -> {snapshot.AfterName}"
                 : $"Input switch unconfirmed. Requested {snapshot.RequestedName}, read back {snapshot.AfterName}.";
@@ -1092,94 +1077,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             Status = $"BLE input source write failed: {ex.Message}";
             AddLog(Status);
-        }
-    }
-
-    private void LoadWindowsAudioFormats()
-    {
-        _isLoadingWindowsAudioFormats = true;
-        WindowsAudioFormats.Clear();
-
-        try
-        {
-            var catalog = _windowsAudioFormatService.GetDefaultRenderFormats();
-            foreach (var option in catalog.Options)
-            {
-                WindowsAudioFormats.Add(option);
-            }
-
-            _selectedWindowsAudioFormat = catalog.Current ?? WindowsAudioFormats.FirstOrDefault();
-            OnPropertyChanged(nameof(SelectedWindowsAudioFormat));
-            WindowsAudioFormatStatus = WindowsAudioFormats.Count == 0
-                ? "No playback quality options were found for the current device."
-                : $"Current quality: {SelectedWindowsAudioFormat?.DisplayName}.";
-        }
-        catch (Exception ex) when (ex is COMException or InvalidOperationException or UnauthorizedAccessException)
-        {
-            WindowsAudioFormatStatus = $"Playback quality could not be loaded: {ex.Message}";
-            AddLog(WindowsAudioFormatStatus);
-        }
-        finally
-        {
-            _isLoadingWindowsAudioFormats = false;
-        }
-    }
-
-    private void ApplySelectedWindowsAudioFormat()
-    {
-        if (_isApplyingWindowsAudioFormat)
-        {
-            return;
-        }
-
-        if (SelectedWindowsAudioFormat is null)
-        {
-            LoadWindowsAudioFormats();
-            if (SelectedWindowsAudioFormat is null)
-            {
-                WindowsAudioFormatStatus = "No playback quality options were found for the current device.";
-                Status = WindowsAudioFormatStatus;
-                AddLog(WindowsAudioFormatStatus);
-                return;
-            }
-        }
-
-        try
-        {
-            _isApplyingWindowsAudioFormat = true;
-            var result = _windowsAudioFormatService.SetDefaultRenderFormat(SelectedWindowsAudioFormat);
-
-            WindowsAudioFormatStatus = $"Playback quality saved: {result.DisplayText}.";
-            Status = WindowsAudioFormatStatus;
-            AddLog($"Windows audio format applied: {result.DisplayText}");
-        }
-        catch (Exception ex) when (ex is COMException or ArgumentOutOfRangeException or InvalidOperationException or UnauthorizedAccessException)
-        {
-            WindowsAudioFormatStatus = $"Playback quality was not accepted: {ex.Message}";
-            Status = WindowsAudioFormatStatus;
-            AddLog(WindowsAudioFormatStatus);
-        }
-        finally
-        {
-            _isApplyingWindowsAudioFormat = false;
-        }
-    }
-
-    private void OpenWindowsSoundSettings()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "ms-settings:sound",
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            WindowsAudioFormatStatus = $"Windows Sound settings could not be opened: {ex.Message}";
-            Status = WindowsAudioFormatStatus;
-            AddLog(WindowsAudioFormatStatus);
         }
     }
 
@@ -1750,20 +1647,54 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _status = $"Saved profile library could not be loaded: {ex.Message}";
         }
 
-        return
-        [
-            EqPreset.AnandaMusic(),
-            EqPreset.AnandaGamingAtmos(),
-            EqPreset.AnandaHarmanStarter(),
-            EqPreset.AnandaOratoryStarter(),
-            EqPreset.AnandaBassFun()
-        ];
+        return [CreateFlatPresetModel("Flat")];
     }
 
     private static IReadOnlyList<EqPreset> RemoveLegacyReadbackPresets(IReadOnlyList<EqPreset> presets)
-        => presets
-            .Where(preset => !preset.Name.StartsWith("K13 Readback -", StringComparison.Ordinal))
-            .ToList();
+    {
+        var cleaned = new List<EqPreset>();
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenDeviceSlots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var preset in presets)
+        {
+            if (preset.Name.StartsWith("K13 Readback -", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (IsRetiredStarterPreset(preset))
+            {
+                continue;
+            }
+
+            if (TryGetDeviceEqSlotKey(preset.Name, out var deviceSlotKey) &&
+                !seenDeviceSlots.Add(deviceSlotKey))
+            {
+                continue;
+            }
+
+            var presetKey = $"{preset.Category}|{preset.SourceName}|{preset.Name}";
+            if (!seenKeys.Add(presetKey))
+            {
+                continue;
+            }
+
+            cleaned.Add(preset);
+        }
+
+        return cleaned.Count == 0
+            ? [CreateFlatPresetModel("Flat")]
+            : cleaned;
+    }
+
+    private static bool IsRetiredStarterPreset(EqPreset preset)
+        => preset.SourceName is "Manual" or "AutoEQ-style" or "Oratory1990-style"
+           && preset.Name is "Ananda Music - Warm Detail"
+               or "Ananda Gaming - Atmos"
+               or "Ananda Harman Starter"
+               or "Ananda Oratory-Style Starter"
+               or "Ananda Bass Fun - Safe";
 
     private void SaveProfileLibrary()
     {
@@ -1799,7 +1730,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void AddPresetAndSelect(EqPreset preset, string selectedCategory)
     {
-        Presets.Add(preset);
+        var existingMatches = Presets
+            .Where(existing => IsSameLibraryPreset(existing, preset))
+            .ToList();
+
+        if (existingMatches.Count > 0)
+        {
+            var replaceIndex = Presets.IndexOf(existingMatches[0]);
+            Presets[replaceIndex] = preset;
+            foreach (var duplicate in existingMatches.Skip(1).ToList())
+            {
+                Presets.Remove(duplicate);
+            }
+        }
+        else
+        {
+            Presets.Add(preset);
+        }
+
         ProfileSearchText = string.Empty;
         SelectedProfileCategory = "All";
         RefreshProfileLibrary();
@@ -1813,6 +1761,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SelectedPreset = preset;
         FilteredPresets.MoveCurrentTo(preset);
     }
+
+    private static bool IsSameLibraryPreset(EqPreset left, EqPreset right)
+        => left.Name.Equals(right.Name, StringComparison.OrdinalIgnoreCase)
+           && left.Category.Equals(right.Category, StringComparison.OrdinalIgnoreCase)
+           && left.SourceName.Equals(right.SourceName, StringComparison.OrdinalIgnoreCase);
 
     private void ImportApoFromFile()
     {
@@ -2176,6 +2129,49 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AddLog(Status);
     }
 
+    private void DeleteSelectedPreset()
+    {
+        var preset = SelectedPreset;
+        var index = Presets.IndexOf(preset);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"Delete \"{preset.Name}\" from WolfEQ?",
+            "Delete preset",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        Presets.RemoveAt(index);
+        if (Presets.Count == 0)
+        {
+            Presets.Add(CreateFlatPresetModel("Flat"));
+            index = 0;
+        }
+
+        ProfileSearchText = string.Empty;
+        SelectedProfileCategory = "All";
+        RefreshProfileLibrary();
+
+        var nextIndex = Math.Clamp(index, 0, Presets.Count - 1);
+        SelectedPreset = Presets[nextIndex];
+        FilteredPresets.MoveCurrentTo(SelectedPreset);
+
+        Status = $"Deleted preset: {preset.Name}.";
+        AddLog(Status);
+        if (!TrySaveProfileLibraryQuietly(out var saveError))
+        {
+            Status = $"Deleted preset, but local save failed: {saveError}";
+            AddLog(Status);
+        }
+    }
+
     private void EnableAllBands()
     {
         foreach (var band in Bands)
@@ -2295,7 +2291,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void CreateFlatPreset()
     {
-        var preset = CreateFlatPresetModel();
+        var preset = CreateFlatPresetModel(
+            Presets.Any(preset => preset.Name.Equals("Flat", StringComparison.OrdinalIgnoreCase))
+                ? $"Flat - {DateTime.Now:HHmmss}"
+                : "Flat");
         Presets.Add(preset);
         RefreshProfileLibrary();
         SelectedProfileCategory = "Reference";
@@ -3247,9 +3246,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         var stableName = BuildReadbackPresetName(snapshot);
         var legacyPrefix = $"K13 Readback - {snapshot.PresetDisplayName}";
+        var slotKey = BuildDeviceEqSlotKey(snapshot.PresetId);
         var matches = Presets
             .Where(preset => preset.Name == stableName ||
-                             preset.Name.StartsWith(legacyPrefix, StringComparison.Ordinal))
+                             preset.Name.StartsWith(legacyPrefix, StringComparison.Ordinal) ||
+                             IsDeviceEqPresetForSlot(preset, slotKey))
             .ToList();
         var target = matches.FirstOrDefault(preset => preset.Name == stableName);
 
@@ -3268,6 +3269,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Presets.Remove(duplicate);
         }
 
+        return target;
+    }
+
+    private EqPreset? SelectDeviceEqPresetForSlot(byte presetId, bool createIfMissing)
+    {
+        var slotKey = BuildDeviceEqSlotKey(presetId);
+        var target = Presets.FirstOrDefault(preset => IsDeviceEqPresetForSlot(preset, slotKey));
+
+        if (target is null && createIfMissing)
+        {
+            target = CreateDeviceSlotPlaceholderPreset(presetId);
+            Presets.Add(target);
+        }
+
+        if (target is null)
+        {
+            return null;
+        }
+
+        ProfileSearchText = string.Empty;
+        SelectedProfileCategory = "All";
+        RefreshProfileLibrary();
+        SelectedPreset = target;
+        FilteredPresets.MoveCurrentTo(target);
         return target;
     }
 
@@ -3294,8 +3319,52 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Bands = new ObservableCollection<EqBand>(CreateReadbackBands(snapshot))
         };
 
+    private static EqPreset CreateDeviceSlotPlaceholderPreset(byte presetId)
+    {
+        var preset = CreateFlatPresetModel(BuildDeviceEqPresetName(presetId));
+        return new EqPreset
+        {
+            Name = preset.Name,
+            Category = "Device",
+            SourceName = "K13",
+            Description = "Waiting for the K13 readback for this USER slot.",
+            PreampDb = preset.PreampDb,
+            Bands = preset.Bands
+        };
+    }
+
     private static string BuildReadbackPresetName(K13EqReadback snapshot)
-        => $"Device EQ - {snapshot.PresetDisplayName}";
+        => BuildDeviceEqPresetName(snapshot.PresetId);
+
+    private static string BuildDeviceEqPresetName(byte presetId)
+        => $"Device EQ - {BuildReadbackSlotDisplay(presetId)}";
+
+    private static string BuildReadbackSlotDisplay(byte presetId)
+        => presetId is >= 160 and <= 169
+            ? $"USER {presetId - 159} (0x{presetId:X2})"
+            : K13EqReadback.GetPresetDisplayName(presetId);
+
+    private static string BuildDeviceEqSlotKey(byte presetId)
+        => $"0x{presetId:X2}";
+
+    private static bool IsDeviceEqPresetForSlot(EqPreset preset, string slotKey)
+        => preset.Name.StartsWith("Device EQ -", StringComparison.OrdinalIgnoreCase)
+           && preset.Name.Contains(slotKey, StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryGetDeviceEqSlotKey(string presetName, out string slotKey)
+    {
+        var start = presetName.LastIndexOf("(0x", StringComparison.OrdinalIgnoreCase);
+        if (presetName.StartsWith("Device EQ -", StringComparison.OrdinalIgnoreCase) &&
+            start >= 0 &&
+            presetName.Length >= start + 6)
+        {
+            slotKey = presetName.Substring(start + 1, 4).ToUpperInvariant();
+            return true;
+        }
+
+        slotKey = string.Empty;
+        return false;
+    }
 
     private static IEnumerable<EqBand> CreateReadbackBands(K13EqReadback snapshot)
     {
@@ -3310,9 +3379,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             });
     }
 
-    private static EqPreset CreateFlatPresetModel() => new()
+    private static EqPreset CreateFlatPresetModel(string name = "Flat") => new()
     {
-        Name = $"Flat Reference - {DateTime.Now:HHmmss}",
+        Name = name,
         Category = "Reference",
         SourceName = "WolfEQ",
         Description = "Flat 10-band reference profile for manual tuning.",
@@ -3459,9 +3528,10 @@ public sealed record DeviceUserPresetOption(int Slot, byte PresetId)
     public string DisplayName => $"USER {Slot}";
 }
 
-public sealed record DeviceInputSourceOption(string DisplayName, byte Value);
-
-public sealed record K13FeatureRow(string Name, string Detail, string State);
+public sealed record DeviceInputSourceOption(string DisplayName, byte Value)
+{
+    public override string ToString() => DisplayName;
+}
 
 public sealed record AccentColorOption(string Name, string Hex)
 {

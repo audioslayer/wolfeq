@@ -12,7 +12,8 @@ namespace WolfEQ;
 
 public partial class MainWindow : Window
 {
-    private const double ExpandedEqBandCardWidth = 158;
+    private const double ExpandedEqBandCardWidth = 168;
+    private const double CollapsedEqBandCardMinWidth = 124;
     private const double ExpandedInspectorDrawerWidth = 420;
     private const double EqBandCardGap = 8;
     private const int EqBandCardCount = 10;
@@ -26,14 +27,13 @@ public partial class MainWindow : Window
         DataContext = new MainViewModel();
     }
 
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         SetInspectorDrawerCollapsed(true);
 
-        if (DataContext is MainViewModel viewModel &&
-            viewModel.ConnectCommand.CanExecute(null))
+        if (DataContext is MainViewModel viewModel)
         {
-            viewModel.ConnectCommand.Execute(null);
+            await viewModel.AutoConnectAndReadDeviceAsync();
         }
     }
 
@@ -267,7 +267,14 @@ public partial class MainWindow : Window
 
         var totalGapWidth = EqBandCardGap * (EqBandCardCount - 1);
         var cardWidth = Math.Floor((viewportWidth - totalGapWidth - 2) / EqBandCardCount);
-        EqBandItemsControl.Tag = Math.Max(96, cardWidth);
+        if (cardWidth < CollapsedEqBandCardMinWidth)
+        {
+            EqBandItemsControl.Tag = CollapsedEqBandCardMinWidth;
+            EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+            return;
+        }
+
+        EqBandItemsControl.Tag = cardWidth;
         EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
     }
 

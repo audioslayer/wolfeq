@@ -10,9 +10,9 @@
         mc:Ignorable="d"
         Title="WolfEQ"
         Icon="Assets/icon/wolfeq.png"
-        Width="1440"
+        Width="1640"
         Height="900"
-        MinWidth="1100"
+        MinWidth="1280"
         MinHeight="720"
         WindowStyle="None"
         ResizeMode="CanResize"
@@ -281,7 +281,7 @@
                                                   SizeChanged="EqBandScrollViewer_SizeChanged">
                                         <ItemsControl x:Name="EqBandItemsControl"
                                                       ItemsSource="{Binding Bands}"
-                                                      Tag="158">
+                                                      Tag="168">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <StackPanel Orientation="Horizontal"/>
@@ -338,14 +338,14 @@
                                                                 </Border>
                                                             </DockPanel>
 
-                                                            <StackPanel Grid.Row="1" Margin="0,0,0,10">
+                                                            <StackPanel Grid.Row="1" Margin="0,0,0,8">
                                                                 <TextBlock Text="Filter type" Style="{StaticResource TinyLabel}"/>
                                                                 <ComboBox SelectedItem="{Binding FilterType}"
                                                                           ItemsSource="{Binding Source={x:Static controls:EqFilterTypeValues.All}}"
                                                                           Margin="0,4,0,0"/>
                                                             </StackPanel>
 
-                                                            <StackPanel Grid.Row="2" Margin="0,0,0,10">
+                                                            <StackPanel Grid.Row="2" Margin="0,0,0,8">
                                                                 <DockPanel>
                                                                     <TextBlock Text="Gain" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
                                                                     <StackPanel DockPanel.Dock="Right"
@@ -368,7 +368,7 @@
                                                                                        ShowLabel="False"/>
                                                             </StackPanel>
 
-                                                            <StackPanel Grid.Row="3" Margin="0,0,0,10">
+                                                            <StackPanel Grid.Row="3" Margin="0,0,0,8">
                                                                 <DockPanel>
                                                                     <TextBlock Text="Freq" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
                                                                     <StackPanel DockPanel.Dock="Right"
@@ -513,15 +513,6 @@
                                             Command="{Binding ApplyAutoHeadroomCommand}"
                                             HorizontalAlignment="Left"
                                             Margin="0,10,0,0"/>
-                                    <Border Style="{StaticResource SourceTileBorder}" Margin="0,12,0,0">
-                                        <StackPanel>
-                                            <TextBlock Text="Live Sync"
-                                                       FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding LiveDeviceEqSyncStatus}"
-                                                       Style="{StaticResource DimText}"
-                                                       Margin="0,3,0,0"/>
-                                        </StackPanel>
-                                    </Border>
                                 </StackPanel>
                             </Border>
 
@@ -750,22 +741,6 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel>
-                                                <TextBlock Text="Device EQ" FontWeight="SemiBold"/>
-                                            </StackPanel>
-                                            <Button Grid.Column="1"
-                                                    Content="Read EQ"
-                                                    Command="{Binding ReadDeviceCommand}"
-                                                    Style="{StaticResource QuietButton}"/>
-                                        </Grid>
-                                    </Border>
-
-                                    <Border Style="{StaticResource SourceTileBorder}">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel>
                                                 <TextBlock Text="Local File" FontWeight="SemiBold"/>
                                             </StackPanel>
                                             <Button Grid.Column="1"
@@ -806,19 +781,6 @@
                                                     Style="{StaticResource QuietButton}"/>
                                         </Grid>
                                     </Border>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="Profile Check" Style="{StaticResource SectionTitle}"/>
-                                    <TextBlock Text="{Binding TonalSnapshotText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding K13ReadinessText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding TuningConfidenceText}" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
-                                    <ProgressBar Minimum="0"
-                                                 Maximum="100"
-                                                 Value="{Binding TuningConfidenceScore, Mode=OneWay}"
-                                                 Height="8"/>
                                 </StackPanel>
                             </Border>
 
@@ -881,7 +843,7 @@
                                                 <Button Content="Save Preset" Command="{Binding SaveProfileLibraryCommand}" Style="{StaticResource AccentButton}"/>
                                                 <Button Content="New" Command="{Binding CreateFlatPresetCommand}"/>
                                                 <Button Content="Duplicate" Command="{Binding DuplicatePresetCommand}"/>
-                                                <Button Content="Favorite" Command="{Binding ToggleFavoriteCommand}"/>
+                                                <Button Content="Delete" Command="{Binding DeletePresetCommand}" Style="{StaticResource WarningButton}"/>
                                             </WrapPanel>
                                         </DockPanel>
                                         <Expander Header="More"
@@ -1061,8 +1023,6 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
@@ -1134,157 +1094,47 @@
 
                         <Border Grid.Row="1" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
                             <StackPanel>
-                                <TextBlock Text="EQ Slots" Style="{StaticResource SectionTitle}"/>
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                        <TextBlock Text="Active slot" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
-                                        <ComboBox ItemsSource="{Binding DeviceUserPresets}"
-                                                  SelectedItem="{Binding SelectedDeviceUserPreset}"
-                                                  DisplayMemberPath="DisplayName"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1"
-                                            Content="Switch"
-                                            Command="{Binding SelectUserPresetCommand}"
-                                            Style="{StaticResource AccentButton}"
-                                            VerticalAlignment="Bottom"/>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                        <TextBlock Text="Name on device" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
-                                        <TextBox Text="{Binding DeviceProfileName, UpdateSourceTrigger=PropertyChanged}"
-                                                 MaxLength="8"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1"
-                                            Content="Rename"
-                                            Command="{Binding RenameUserSlotCommand}"
-                                            Style="{StaticResource QuietButton}"
-                                            VerticalAlignment="Bottom"/>
-                                </Grid>
-
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                        <TextBlock Text="Input" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
-                                        <ComboBox ItemsSource="{Binding DeviceInputSources}"
-                                                  SelectedItem="{Binding SelectedDeviceInputSource}"
-                                                  DisplayMemberPath="DisplayName"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1"
-                                            Content="Use"
-                                            Command="{Binding SetInputSourceCommand}"
-                                            Style="{StaticResource QuietButton}"
-                                            VerticalAlignment="Bottom"
-                                            Margin="0,0,8,0"/>
-                                    <Button Grid.Column="2"
-                                            Content="Read EQ"
-                                            Command="{Binding ReadDeviceCommand}"
-                                            Style="{StaticResource QuietButton}"
-                                            VerticalAlignment="Bottom"/>
-                                </Grid>
-                                <TextBlock Text="{Binding DeviceInputDisplay}"
-                                           Style="{StaticResource DimText}"
-                                           Margin="0,8,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="2" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-                            <StackPanel>
-                                <DockPanel Margin="0,0,0,12">
-                                    <TextBlock Text="More Device Controls"
+                                <DockPanel Margin="0,0,0,14">
+                                    <TextBlock Text="Input"
                                                Style="{StaticResource SectionTitle}"
                                                DockPanel.Dock="Left"
                                                Margin="0"/>
-                                    <Button Content="Support"
-                                            Command="{Binding OpenFiioSupportCommand}"
+                                    <Button Content="Refresh"
+                                            Command="{Binding ReadInputSourceCommand}"
                                             Style="{StaticResource QuietButton}"
                                             DockPanel.Dock="Right"
                                             HorizontalAlignment="Right"/>
                                 </DockPanel>
 
-                                <ItemsControl ItemsSource="{Binding K13FeatureRows}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Columns="2"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,10,10">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
-                                                        <TextBlock Text="{Binding Name}"
-                                                                   FontSize="14"
-                                                                   FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding Detail}"
-                                                                   Style="{StaticResource DimText}"
-                                                                   Margin="0,4,0,0"
-                                                                   TextWrapping="Wrap"/>
-                                                    </StackPanel>
-                                                    <Border Grid.Column="1"
-                                                            Background="{StaticResource WolfShellBrush}"
-                                                            BorderBrush="{StaticResource WolfLineSoftBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="7"
-                                                            Padding="9,4"
-                                                            VerticalAlignment="Top">
-                                                        <TextBlock Text="{Binding State}"
-                                                                   Style="{StaticResource TinyLabel}"/>
-                                                    </Border>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <Border Style="{StaticResource SourceTileBorder}" Padding="12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                            <TextBlock Text="K13 input" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                            <ComboBox ItemsSource="{Binding DeviceInputSources}"
+                                                      SelectedItem="{Binding SelectedDeviceInputSource}"
+                                                      DisplayMemberPath="DisplayName"
+                                                      MinWidth="260"/>
+                                            <TextBlock Text="{Binding DeviceInputDisplay}"
+                                                       Style="{StaticResource DimText}"
+                                                       Margin="0,8,0,0"/>
+                                        </StackPanel>
+
+                                        <Button Grid.Column="1"
+                                                Content="Apply"
+                                                Command="{Binding SetInputSourceCommand}"
+                                                Style="{StaticResource AccentButton}"
+                                                VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Row="3" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-                            <StackPanel>
-                                <TextBlock Text="Playback Quality" Style="{StaticResource SectionTitle}"/>
-                                <Grid Margin="0,2,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                        <TextBlock Text="Quality" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
-                                        <ComboBox ItemsSource="{Binding WindowsAudioFormats}"
-                                                  SelectedItem="{Binding SelectedWindowsAudioFormat}"
-                                                  DisplayMemberPath="DisplayName"/>
-                                    </StackPanel>
-
-                                    <Button Grid.Column="1"
-                                            Content="Windows Sound"
-                                            Command="{Binding OpenWindowsSoundSettingsCommand}"
-                                            Style="{StaticResource QuietButton}"
-                                            VerticalAlignment="Bottom"/>
-                                </Grid>
-
-                                <TextBlock Text="{Binding WindowsAudioFormatStatus}"
-                                           Style="{StaticResource DimText}"
-                                           TextWrapping="Wrap"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="4" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                        <Border Grid.Row="2" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,14">
                                     <TextBlock Text="Profile Lights"
@@ -1532,7 +1382,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Row="5" Style="{StaticResource PanelBorder}">
+                        <Border Grid.Row="3" Style="{StaticResource PanelBorder}">
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,14">
                                     <TextBlock Text="About"
