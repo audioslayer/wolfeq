@@ -1,0 +1,1865 @@
+<Window x:Class="WolfEQ.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:WolfEQ.Controls"
+        xmlns:local="clr-namespace:WolfEQ"
+        xmlns:models="clr-namespace:WolfEQ.Models"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        mc:Ignorable="d"
+        Title="WolfEQ"
+        Icon="Assets/icon/wolfeq.png"
+        Width="1440"
+        Height="900"
+        MinWidth="1100"
+        MinHeight="720"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WolfBgBrush}"
+        Foreground="{StaticResource WolfTextBrush}"
+        Loaded="MainWindow_Loaded">
+    <Window.Resources>
+        <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
+        <DataTemplate x:Key="EqPresetComboItemTemplate" DataType="{x:Type models:EqPreset}">
+            <TextBlock Text="{Binding Name}"
+                       TextTrimming="CharacterEllipsis"/>
+        </DataTemplate>
+    </Window.Resources>
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource WolfBgBrush}"
+                BorderBrush="{StaticResource WolfLineBrush}"
+                BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid Margin="14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Image Source="Assets/icon/wolfeq.png"
+                           Width="42"
+                           Height="42"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"/>
+                    <TextBlock VerticalAlignment="Center">
+                        <Run Text="WOLF"
+                             FontFamily="Segoe UI Black"
+                             FontSize="16"
+                             FontWeight="Black"
+                             Foreground="{DynamicResource WolfCyanBrush}"/>
+                        <Run Text=" " FontSize="4"/>
+                        <Run Text="EQ"
+                             FontFamily="Segoe UI Black"
+                             FontSize="16"
+                             FontWeight="Black"
+                             Foreground="{DynamicResource WolfCyanBrush}"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="12,0,0,0">
+                    <Ellipse Width="8"
+                             Height="8"
+                             Margin="0,0,8,0"
+                             VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource WolfDimBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource WolfGreenBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding ConnectionText}"
+                               Foreground="{StaticResource WolfMutedBrush}"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+                    <TextBlock Text="{Binding AppVersionText}"
+                               Foreground="{StaticResource WolfDimBrush}"
+                               FontSize="10"
+                               VerticalAlignment="Center"
+                               Margin="0,0,16,0"/>
+                    <Button Style="{StaticResource MacWindowMinimizeButton}"
+                            Click="MinimizeWindow_Click"
+                            Margin="0,0,2,0"
+                            ToolTip="Minimize">
+                        <Viewbox Width="8" Height="8">
+                            <Canvas Width="10" Height="10">
+                                <Path Data="M 2 5 L 8 5"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                      StrokeThickness="1.8"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
+                    <Button Style="{StaticResource MacWindowMaximizeButton}"
+                            Click="MaximizeRestoreWindow_Click"
+                            Margin="0,0,2,0"
+                            ToolTip="Maximize / Restore">
+                        <Viewbox Width="8" Height="8">
+                            <Canvas Width="10" Height="10">
+                                <Path Data="M 2 4 L 4 2 L 4 4 Z M 8 6 L 6 8 L 6 6 Z"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
+                    <Button Style="{StaticResource MacWindowCloseButton}"
+                            Click="CloseWindow_Click"
+                            Margin="0"
+                            ToolTip="Close">
+                        <Viewbox Width="8" Height="8">
+                            <Canvas Width="10" Height="10">
+                                <Path Data="M 2 2 L 8 8 M 8 2 L 2 8"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                      StrokeThickness="1.7"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl x:Name="MainTabs"
+                    Grid.Row="1"
+                    TabStripPlacement="Left"
+                    Style="{StaticResource SidebarTabControl}"
+                    ItemContainerStyle="{StaticResource SidebarTabItem}">
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel>
+                        <controls:PhosphorIcon IconName="SlidersHorizontal"
+                                               IconSize="22"
+                                               IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type TabItem}}}"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,0,0,3"/>
+                        <TextBlock Text="Tune"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type TabItem}}}"/>
+                    </StackPanel>
+                </TabItem.Header>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="24">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition x:Name="InspectorDrawerHandleColumn" Width="36"/>
+                            <ColumnDefinition x:Name="InspectorDrawerColumn" Width="0"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <Border Style="{StaticResource PanelBorder}" Padding="0" Margin="0,0,0,16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="280"/>
+                                    </Grid.RowDefinitions>
+                                    <DockPanel Margin="16,14,16,6">
+                                        <TextBlock Text="Live EQ Response"
+                                                   Style="{StaticResource SectionTitle}"
+                                                   DockPanel.Dock="Left"
+                                                   Margin="0"/>
+                                        <TextBlock Text="20 Hz - 20 kHz"
+                                                   Style="{StaticResource DimText}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <Grid Grid.Row="1" Margin="12,0,12,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="112"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Style="{StaticResource BandCellBorder}" Padding="8">
+                                            <StackPanel HorizontalAlignment="Stretch">
+                                                <TextBlock Text="Global"
+                                                           Style="{StaticResource TinyLabel}"
+                                                           HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{Binding PreampDb, StringFormat={}{0:F1} dB}"
+                                                           Style="{StaticResource ValueText}"
+                                                           HorizontalAlignment="Center"
+                                                           Margin="0,4,0,6"/>
+                                                <controls:StyledSlider Minimum="-24"
+                                                                       Maximum="12"
+                                                                       Value="{Binding PreampDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                       Step="0.5"
+                                                                       AccentColor="{DynamicResource WolfGreen}"
+                                                                       Orientation="Vertical"
+                                                                       ShowLabel="False"
+                                                                       Width="28"
+                                                                       Height="196"
+                                                                       HorizontalAlignment="Center"
+                                                                       Margin="0,10,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <controls:EqResponseGraphControl Grid.Column="1"
+                                                                          Bands="{Binding Bands}"
+                                                                          PreampDb="{Binding PreampDb}"
+                                                                          CompareBands="{Binding ComparePreset.Bands}"
+                                                                          ComparePreampDb="{Binding ComparePreset.PreampDb, TargetNullValue=0}"
+                                                                          Margin="12,0,0,0"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource PanelBorder}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <DockPanel Margin="0,0,0,12">
+                                        <TextBlock Text="10-Band PEQ"
+                                                   Style="{StaticResource SectionTitle}"
+                                                   DockPanel.Dock="Left"
+                                                   Margin="0"/>
+                                        <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                            <Button Content="All On" Command="{Binding EnableAllBandsCommand}"/>
+                                            <Button Content="Bypass" Command="{Binding BypassAllBandsCommand}"/>
+                                            <Button Content="Reset" Command="{Binding ZeroAllGainsCommand}"/>
+                                        </WrapPanel>
+                                    </DockPanel>
+
+                                    <DockPanel Grid.Row="1" Margin="0,0,0,12">
+                                        <TextBlock Text="{Binding PresetEditSummaryText}"
+                                                   Style="{StaticResource MutedText}"
+                                                   DockPanel.Dock="Left"
+                                                   VerticalAlignment="Center"/>
+                                        <Expander Header="More"
+                                                  DockPanel.Dock="Right"
+                                                  HorizontalAlignment="Right"
+                                                  Foreground="{StaticResource WolfMutedBrush}">
+                                            <WrapPanel Margin="0,8,0,0">
+                                                <Button Content="Sort" Command="{Binding SortBandsByFrequencyCommand}"/>
+                                                <Button Content="Make Device Copy" Command="{Binding PrepareK13PresetCommand}"/>
+                                                <Button Content="Smooth Copy" Command="{Binding SmoothK13PresetCommand}"/>
+                                            </WrapPanel>
+                                        </Expander>
+                                    </DockPanel>
+
+                                    <ScrollViewer x:Name="EqBandScrollViewer"
+                                                  Grid.Row="2"
+                                                  HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Disabled"
+                                                  Margin="0"
+                                                  SizeChanged="EqBandScrollViewer_SizeChanged">
+                                        <ItemsControl x:Name="EqBandItemsControl"
+                                                      ItemsSource="{Binding Bands}"
+                                                      Tag="158">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource EqBandCardBorder}"
+                                                            Width="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                            AllowDrop="True"
+                                                            DragEnter="BandCard_DragEnter"
+                                                            DragOver="BandCard_DragOver"
+                                                            DragLeave="BandCard_DragLeave"
+                                                            Drop="BandCard_Drop">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                                                                <ToggleButton IsChecked="{Binding Enabled}"
+                                                                              Style="{StaticResource BandPowerToggle}"
+                                                                              DockPanel.Dock="Right"
+                                                                              ToolTip="Toggle this EQ band."/>
+                                                                <Border Background="Transparent"
+                                                                        Cursor="SizeAll"
+                                                                        Padding="0,2,8,2"
+                                                                        PreviewMouseLeftButtonDown="BandDragHandle_PreviewMouseLeftButtonDown"
+                                                                        MouseMove="BandDragHandle_MouseMove"
+                                                                        ToolTip="Drag to reorder this EQ band.">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding Number, StringFormat={}Band {0}}"
+                                                                                   FontSize="15"
+                                                                                   FontWeight="SemiBold">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Enabled}" Value="False">
+                                                                                            <Setter Property="Foreground" Value="{StaticResource WolfDimBrush}"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                        <TextBlock Text="::"
+                                                                                   Style="{StaticResource TinyLabel}"
+                                                                                   Margin="7,2,0,0"/>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </DockPanel>
+
+                                                            <StackPanel Grid.Row="1" Margin="0,0,0,10">
+                                                                <TextBlock Text="Filter type" Style="{StaticResource TinyLabel}"/>
+                                                                <ComboBox SelectedItem="{Binding FilterType}"
+                                                                          ItemsSource="{Binding Source={x:Static controls:EqFilterTypeValues.All}}"
+                                                                          Margin="0,4,0,0"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Row="2" Margin="0,0,0,10">
+                                                                <DockPanel>
+                                                                    <TextBlock Text="Gain" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
+                                                                    <StackPanel DockPanel.Dock="Right"
+                                                                                Orientation="Horizontal"
+                                                                                HorizontalAlignment="Right">
+                                                                        <TextBox Text="{Binding GainDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150, StringFormat={}{0:F1}}"
+                                                                                 Style="{StaticResource BandValueTextBox}"
+                                                                                 Width="42"
+                                                                                 KeyDown="BandValueTextBox_KeyDown"/>
+                                                                        <TextBlock Text=" dB"
+                                                                                   Style="{StaticResource ValueText}"
+                                                                                   VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </DockPanel>
+                                                                <controls:StyledSlider Minimum="-12"
+                                                                                       Maximum="12"
+                                                                                       Value="{Binding GainDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                       Step="0.5"
+                                                                                       AccentColor="{DynamicResource WolfGreen}"
+                                                                                       ShowLabel="False"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Row="3" Margin="0,0,0,10">
+                                                                <DockPanel>
+                                                                    <TextBlock Text="Freq" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
+                                                                    <StackPanel DockPanel.Dock="Right"
+                                                                                Orientation="Horizontal"
+                                                                                HorizontalAlignment="Right">
+                                                                        <TextBox Text="{Binding FrequencyHz, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150}"
+                                                                                 Style="{StaticResource BandValueTextBox}"
+                                                                                 Width="52"
+                                                                                 KeyDown="BandValueTextBox_KeyDown"/>
+                                                                        <TextBlock Text=" Hz"
+                                                                                   Style="{StaticResource ValueText}"
+                                                                                   VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </DockPanel>
+                                                                <controls:StyledSlider Minimum="20"
+                                                                                       Maximum="20000"
+                                                                                       Value="{Binding FrequencyHz, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                       Step="100"
+                                                                                       AccentColor="{DynamicResource WolfGreen}"
+                                                                                       ShowLabel="False"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Row="4">
+                                                                <DockPanel>
+                                                                    <TextBlock Text="Q" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
+                                                                    <TextBox Text="{Binding Q, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150, StringFormat={}{0:F2}}"
+                                                                             Style="{StaticResource BandValueTextBox}"
+                                                                             Width="42"
+                                                                             DockPanel.Dock="Right"
+                                                                             KeyDown="BandValueTextBox_KeyDown"/>
+                                                                </DockPanel>
+                                                                <controls:StyledSlider Minimum="0.1"
+                                                                                       Maximum="10"
+                                                                                       Value="{Binding Q, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                       Step="0.1"
+                                                                                       AccentColor="{DynamicResource WolfGreen}"
+                                                                                       ShowLabel="False"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+
+                        <Button x:Name="InspectorDrawerToggleButton"
+                                Grid.Column="1"
+                                Click="ToggleInspectorDrawer_Click"
+                                Width="24"
+                                Height="42"
+                                VerticalAlignment="Top"
+                                HorizontalAlignment="Right"
+                                Margin="0,12,2,0"
+                                Padding="0"
+                                ToolTip="Show side panel"
+                                Tag="Collapsed"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                Foreground="{StaticResource WolfMutedBrush}"
+                                AutomationProperties.Name="Show side panel">
+                            <Button.Template>
+                                <ControlTemplate TargetType="{x:Type Button}">
+                                    <Grid Background="{TemplateBinding Background}">
+                                        <Border x:Name="HandleChrome"
+                                                Width="20"
+                                                Height="40"
+                                                CornerRadius="6"
+                                                Background="{StaticResource WolfBgBrush}"
+                                                BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                                BorderThickness="1"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Top">
+                                            <Path x:Name="InspectorDrawerChevron"
+                                                  Data="M 5 3 L 12 10 L 5 17"
+                                                  Stroke="{TemplateBinding Foreground}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Fill="Transparent"
+                                                  Width="16"
+                                                  Height="20"
+                                                  Stretch="Uniform"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
+                                            <Setter TargetName="HandleChrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                            <Setter TargetName="HandleChrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="Tag" Value="Collapsed">
+                                            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+                                            <Setter TargetName="HandleChrome" Property="Background" Value="{StaticResource WolfBgBrush}"/>
+                                            <Setter TargetName="HandleChrome" Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+                                            <Setter TargetName="InspectorDrawerChevron" Property="Data" Value="M 5 3 L 12 10 L 5 17"/>
+                                            <Setter Property="ToolTip" Value="Show side panel"/>
+                                            <Setter Property="AutomationProperties.Name" Value="Show side panel"/>
+                                        </Trigger>
+                                        <Trigger Property="Tag" Value="Expanded">
+                                            <Setter TargetName="HandleChrome" Property="Background" Value="{StaticResource WolfShellBrush}"/>
+                                            <Setter TargetName="HandleChrome" Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+                                            <Setter TargetName="InspectorDrawerChevron" Property="Data" Value="M 12 3 L 5 10 L 12 17"/>
+                                            <Setter Property="ToolTip" Value="Hide side panel"/>
+                                            <Setter Property="AutomationProperties.Name" Value="Hide side panel"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <StackPanel x:Name="InspectorDrawerHost" Grid.Column="2" Visibility="Collapsed">
+                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Preset" Style="{StaticResource SectionTitle}"/>
+                                    <ComboBox ItemsSource="{Binding FilteredPresets}"
+                                              SelectedItem="{Binding SelectedPreset}"
+                                              ItemTemplate="{StaticResource EqPresetComboItemTemplate}"
+                                              Margin="0,0,0,10"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <controls:StyledSlider Minimum="-24"
+                                                               Maximum="12"
+                                                               Value="{Binding PreampDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                               Step="0.5"
+                                                               AccentColor="{DynamicResource WolfGreen}"
+                                                               ShowLabel="False"
+                                                               Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding PreampDb, StringFormat={}{0:F1} dB}"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <Button Content="Auto Headroom"
+                                            Command="{Binding ApplyAutoHeadroomCommand}"
+                                            HorizontalAlignment="Left"
+                                            Margin="0,10,0,0"/>
+                                    <Border Style="{StaticResource SourceTileBorder}" Margin="0,12,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Live Sync"
+                                                       FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding LiveDeviceEqSyncStatus}"
+                                                       Style="{StaticResource DimText}"
+                                                       Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,10">
+                                        <TextBlock Text="Profile Lights"
+                                                   Style="{StaticResource SectionTitle}"
+                                                   DockPanel.Dock="Left"
+                                                   Margin="0"/>
+                                        <ComboBox ItemsSource="{Binding DeviceUserPresets}"
+                                                  SelectedItem="{Binding SelectedDeviceUserPreset}"
+                                                  DisplayMemberPath="DisplayName"
+                                                  SelectionChanged="SlotLightingUserComboBox_SelectionChanged"
+                                                  Width="168"
+                                                  DockPanel.Dock="Right"/>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding SlotLightingSummary}"
+                                               Style="{StaticResource MutedText}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,12"/>
+
+                                    <DockPanel Margin="0,0,0,8">
+                                        <TextBlock Text="Top LED"
+                                                   FontWeight="SemiBold"
+                                                   DockPanel.Dock="Left"/>
+                                        <Button Click="TopLedPower_Click"
+                                                Style="{StaticResource QuietButton}"
+                                                DockPanel.Dock="Right"
+                                                HorizontalAlignment="Right"
+                                                Margin="0">
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="{x:Type TextBlock}">
+                                                        <Setter Property="Text" Value="Off"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TopLedOn}" Value="False">
+                                                                <Setter Property="Text" Value="On"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Button>
+                                    </DockPanel>
+                                    <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,8">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Click="TopLedColorSwatch_Click"
+                                                        Width="28"
+                                                        Height="28"
+                                                        Margin="0,0,6,6"
+                                                        Padding="0"
+                                                        Cursor="Hand"
+                                                        ToolTip="{Binding Name}"
+                                                        Background="Transparent"
+                                                        BorderBrush="Transparent">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="{x:Type Button}">
+                                                            <Grid Width="28" Height="28">
+                                                                <Border x:Name="Dot"
+                                                                        Width="22"
+                                                                        Height="22"
+                                                                        CornerRadius="11"
+                                                                        Background="{Binding Brush}"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"/>
+                                                            </Grid>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
+                                                                </Trigger>
+                                                                <DataTrigger Value="True">
+                                                                    <DataTrigger.Binding>
+                                                                        <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                            <Binding/>
+                                                                            <Binding Path="DataContext.SelectedTopLedColorOption"
+                                                                                     RelativeSource="{RelativeSource AncestorType={x:Type Window}}"/>
+                                                                        </MultiBinding>
+                                                                    </DataTrigger.Binding>
+                                                                    <Setter TargetName="Dot" Property="Width" Value="26"/>
+                                                                    <Setter TargetName="Dot" Property="Height" Value="26"/>
+                                                                    <Setter TargetName="Dot" Property="CornerRadius" Value="13"/>
+                                                                </DataTrigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding LedModeOptions}" Margin="0,0,0,14">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding Name}"
+                                                        Click="TopLedMode_Click"
+                                                        Style="{StaticResource QuietButton}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <DockPanel Margin="0,0,0,8">
+                                        <TextBlock Text="Knob LED"
+                                                   FontWeight="SemiBold"
+                                                   DockPanel.Dock="Left"/>
+                                        <Button Click="KnobLedPower_Click"
+                                                Style="{StaticResource QuietButton}"
+                                                DockPanel.Dock="Right"
+                                                HorizontalAlignment="Right"
+                                                Margin="0">
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="{x:Type TextBlock}">
+                                                        <Setter Property="Text" Value="Off"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding KnobLedOn}" Value="False">
+                                                                <Setter Property="Text" Value="On"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Button>
+                                    </DockPanel>
+                                    <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,8">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Click="KnobLedColorSwatch_Click"
+                                                        Width="28"
+                                                        Height="28"
+                                                        Margin="0,0,6,6"
+                                                        Padding="0"
+                                                        Cursor="Hand"
+                                                        ToolTip="{Binding Name}"
+                                                        Background="Transparent"
+                                                        BorderBrush="Transparent">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="{x:Type Button}">
+                                                            <Grid Width="28" Height="28">
+                                                                <Border x:Name="Dot"
+                                                                        Width="22"
+                                                                        Height="22"
+                                                                        CornerRadius="11"
+                                                                        Background="{Binding Brush}"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"/>
+                                                            </Grid>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
+                                                                </Trigger>
+                                                                <DataTrigger Value="True">
+                                                                    <DataTrigger.Binding>
+                                                                        <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                            <Binding/>
+                                                                            <Binding Path="DataContext.SelectedKnobLedColorOption"
+                                                                                     RelativeSource="{RelativeSource AncestorType={x:Type Window}}"/>
+                                                                        </MultiBinding>
+                                                                    </DataTrigger.Binding>
+                                                                    <Setter TargetName="Dot" Property="Width" Value="26"/>
+                                                                    <Setter TargetName="Dot" Property="Height" Value="26"/>
+                                                                    <Setter TargetName="Dot" Property="CornerRadius" Value="13"/>
+                                                                </DataTrigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding LedModeOptions}" Margin="0,0,0,12">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding Name}"
+                                                        Click="KnobLedMode_Click"
+                                                        Style="{StaticResource QuietButton}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <ItemsControl ItemsSource="{Binding LedSceneOptions}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="4"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding Name}"
+                                                        Click="LedScene_Click"
+                                                        Style="{StaticResource QuietButton}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Add Profile" Style="{StaticResource SectionTitle}"/>
+
+                                    <Border Style="{StaticResource SourceTileBorder}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="Device EQ" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Content="Read EQ"
+                                                    Command="{Binding ReadDeviceCommand}"
+                                                    Style="{StaticResource QuietButton}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource SourceTileBorder}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="Local File" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Content="Import"
+                                                    Command="{Binding ImportJsonFromFileCommand}"
+                                                    Style="{StaticResource QuietButton}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource SourceTileBorder}" Margin="0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="Equalizer APO" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Content="Import"
+                                                    Command="{Binding ImportApoFromFileCommand}"
+                                                    Style="{StaticResource QuietButton}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Style="{StaticResource SourceTileBorder}" Margin="0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="FiiO XML" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Content="Import"
+                                                    Command="{Binding ImportFiioXmlFromFileCommand}"
+                                                    Style="{StaticResource QuietButton}"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Profile Check" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="{Binding TonalSnapshotText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{Binding K13ReadinessText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{Binding TuningConfidenceText}" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
+                                    <ProgressBar Minimum="0"
+                                                 Maximum="100"
+                                                 Value="{Binding TuningConfidenceScore, Mode=OneWay}"
+                                                 Height="8"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource PanelBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="A/B" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="{Binding CompareStatus}" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                    <TextBlock Text="{Binding CompareDeltaText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <WrapPanel>
+                                        <Button Content="Capture" Command="{Binding CaptureCompareCommand}"/>
+                                        <Button Content="Swap" Command="{Binding SwapCompareCommand}"/>
+                                        <Button Content="Clear" Command="{Binding ClearCompareCommand}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel>
+                        <controls:PhosphorIcon IconName="Folder"
+                                               IconSize="22"
+                                               IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type TabItem}}}"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,0,0,3"/>
+                        <TextBlock Text="Library"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type TabItem}}}"/>
+                    </StackPanel>
+                </TabItem.Header>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0">
+                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0">
+                                        <TextBlock Text="Preset Library" Style="{StaticResource SectionTitle}"/>
+                                        <ComboBox ItemsSource="{Binding FilteredPresets}"
+                                                  SelectedItem="{Binding SelectedPreset}"
+                                                  ItemTemplate="{StaticResource EqPresetComboItemTemplate}"
+                                                  Margin="0,0,0,10"/>
+                                        <DockPanel>
+                                            <WrapPanel DockPanel.Dock="Left">
+                                                <Button Content="Save Preset" Command="{Binding SaveProfileLibraryCommand}" Style="{StaticResource AccentButton}"/>
+                                                <Button Content="New" Command="{Binding CreateFlatPresetCommand}"/>
+                                                <Button Content="Duplicate" Command="{Binding DuplicatePresetCommand}"/>
+                                                <Button Content="Favorite" Command="{Binding ToggleFavoriteCommand}"/>
+                                            </WrapPanel>
+                                        </DockPanel>
+                                        <Expander Header="More"
+                                                  Margin="3,10,0,0"
+                                                  Foreground="{StaticResource WolfMutedBrush}">
+                                            <WrapPanel Margin="0,8,0,0">
+                                                <Button Content="Import APO" Command="{Binding ImportApoFromFileCommand}"/>
+                                                <Button Content="Paste APO" Command="{Binding ImportApoFromClipboardCommand}"/>
+                                                <Button Content="Export APO" Command="{Binding ExportApoToFileCommand}"/>
+                                                <Button Content="Copy APO" Command="{Binding ExportApoToClipboardCommand}"/>
+                                                <Button Content="Import FiiO XML" Command="{Binding ImportFiioXmlFromFileCommand}"/>
+                                                <Button Content="Export FiiO XML" Command="{Binding ExportFiioXmlToFileCommand}"/>
+                                                <Button Content="Import JSON" Command="{Binding ImportJsonFromFileCommand}"/>
+                                                <Button Content="Export JSON" Command="{Binding ExportJsonToFileCommand}"/>
+                                                <Button Content="Import Library" Command="{Binding ImportLibraryJsonCommand}"/>
+                                                <Button Content="Export Library" Command="{Binding ExportLibraryJsonCommand}"/>
+                                                <Button Content="Copy Report" Command="{Binding CopyTuningReportCommand}"/>
+                                            </WrapPanel>
+                                        </Expander>
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="1" Margin="0,16,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock Text="Selected curve"
+                                                       Style="{StaticResource TinyLabel}"
+                                                       DockPanel.Dock="Left"/>
+                                            <TextBlock Text="{Binding SelectedPreset.Name}"
+                                                       Style="{StaticResource DimText}"
+                                                       HorizontalAlignment="Right"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                        <controls:EqResponseGraphControl Grid.Row="1"
+                                                                         Bands="{Binding SelectedPreset.Bands}"
+                                                                         PreampDb="{Binding SelectedPreset.PreampDb}"
+                                                                         Height="180"
+                                                                         MinHeight="0"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource PanelBorder}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text="Online Library" Style="{StaticResource SectionTitle}"/>
+
+                                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="0,0,8,0"
+                                                 ToolTip="Search online presets"/>
+                                        <Button Grid.Column="1"
+                                                Content="Search"
+                                                Command="{Binding SearchGitHubProfilesCommand}"
+                                                Style="{StaticResource FiioButton}"/>
+                                    </Grid>
+
+                                    <ListBox Grid.Row="2"
+                                             ItemsSource="{Binding GitHubProfiles}"
+                                             SelectedItem="{Binding SelectedGitHubProfile}"
+                                             MinHeight="220"
+                                             MaxHeight="260">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="4,5">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="13"
+                                                               FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Row="1"
+                                                               Text="{Binding SourceSummary}"
+                                                               Style="{StaticResource MutedText}"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+
+                                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock Text="Online curve"
+                                                       Style="{StaticResource TinyLabel}"
+                                                       DockPanel.Dock="Left"/>
+                                            <TextBlock Text="{Binding GitHubProfileStatus}"
+                                                       Style="{StaticResource DimText}"
+                                                       HorizontalAlignment="Right"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                        <controls:EqResponseGraphControl Grid.Row="1"
+                                                                         Bands="{Binding GitHubPreviewPreset.Bands}"
+                                                                         PreampDb="{Binding GitHubPreviewPreset.PreampDb, TargetNullValue=0}"
+                                                                         IsInteractive="False"
+                                                                         Height="150"
+                                                                         MinHeight="0"/>
+                                    </Grid>
+
+                                    <DockPanel Grid.Row="4" Margin="0,10,0,0">
+                                        <Button Content="Download"
+                                                Command="{Binding ImportGitHubProfileCommand}"
+                                                Style="{StaticResource AccentButton}"
+                                                DockPanel.Dock="Right"
+                                                HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1">
+                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Quick Tuning" Style="{StaticResource SectionTitle}"/>
+                                    <WrapPanel>
+                                        <Button Content="Warm Tilt" Command="{Binding AddWarmTiltCommand}"/>
+                                        <Button Content="Treble Tamer" Command="{Binding AddTrebleTamerCommand}"/>
+                                        <Button Content="Gaming Clarity" Command="{Binding AddGamingClarityCommand}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource PanelBorder}">
+                                <StackPanel>
+                                    <TextBlock Text="Device Fit" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="{Binding K13ReadinessText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{Binding TuningConfidenceText}" Style="{StaticResource MutedText}" Margin="0,6,0,8"/>
+                                    <ProgressBar Minimum="0"
+                                                 Maximum="100"
+                                                 Value="{Binding TuningConfidenceScore, Mode=OneWay}"
+                                                 Height="8"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem x:Name="SettingsTab" Tag="HiddenRail">
+                <TabItem.Header>
+                    <StackPanel>
+                        <controls:PhosphorIcon IconName="Gear"
+                                               IconSize="22"
+                                               IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type TabItem}}}"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,0,0,3"/>
+                        <TextBlock Text="Settings"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Center"
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type TabItem}}}"/>
+                    </StackPanel>
+                </TabItem.Header>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Theme" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="Color"
+                                           Style="{StaticResource TinyLabel}"
+                                           Margin="0,0,0,8"/>
+                                <ItemsControl ItemsSource="{Binding AccentColorOptions}" Margin="0,0,0,12">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Click="AccentColorSwatch_Click"
+                                                    Width="44"
+                                                    Height="44"
+                                                    Margin="0,0,8,8"
+                                                    Padding="0"
+                                                    Cursor="Hand"
+                                                    ToolTip="{Binding Name}"
+                                                    Background="Transparent"
+                                                    BorderBrush="Transparent">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="{x:Type Button}">
+                                                        <Grid Width="44" Height="44">
+                                                            <Border x:Name="SelectionRing"
+                                                                    Width="42"
+                                                                    Height="42"
+                                                                    CornerRadius="21"
+                                                                    BorderBrush="Transparent"
+                                                                    BorderThickness="0"
+                                                                    HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center"/>
+                                                            <Border x:Name="Dot"
+                                                                    Width="34"
+                                                                    Height="34"
+                                                                    CornerRadius="17"
+                                                                    Background="{Binding Brush}"
+                                                                    HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
+                                                            </Trigger>
+                                                            <DataTrigger Value="True">
+                                                                <DataTrigger.Binding>
+                                                                    <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                        <Binding/>
+                                                                        <Binding Path="DataContext.SelectedAccentColorOption"
+                                                                                 RelativeSource="{RelativeSource AncestorType={x:Type Window}}"/>
+                                                                    </MultiBinding>
+                                                                </DataTrigger.Binding>
+                                                                <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{StaticResource WolfTextBrush}"/>
+                                                                <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
+                                                            </DataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="EQ Slots" Style="{StaticResource SectionTitle}"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Active slot" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                        <ComboBox ItemsSource="{Binding DeviceUserPresets}"
+                                                  SelectedItem="{Binding SelectedDeviceUserPreset}"
+                                                  DisplayMemberPath="DisplayName"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Switch"
+                                            Command="{Binding SelectUserPresetCommand}"
+                                            Style="{StaticResource AccentButton}"
+                                            VerticalAlignment="Bottom"/>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Name on device" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                        <TextBox Text="{Binding DeviceProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="8"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Rename"
+                                            Command="{Binding RenameUserSlotCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            VerticalAlignment="Bottom"/>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Input" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                        <ComboBox ItemsSource="{Binding DeviceInputSources}"
+                                                  SelectedItem="{Binding SelectedDeviceInputSource}"
+                                                  DisplayMemberPath="DisplayName"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Use"
+                                            Command="{Binding SetInputSourceCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            VerticalAlignment="Bottom"
+                                            Margin="0,0,8,0"/>
+                                    <Button Grid.Column="2"
+                                            Content="Read EQ"
+                                            Command="{Binding ReadDeviceCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            VerticalAlignment="Bottom"/>
+                                </Grid>
+                                <TextBlock Text="{Binding DeviceInputDisplay}"
+                                           Style="{StaticResource DimText}"
+                                           Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="2" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,12">
+                                    <TextBlock Text="More Device Controls"
+                                               Style="{StaticResource SectionTitle}"
+                                               DockPanel.Dock="Left"
+                                               Margin="0"/>
+                                    <Button Content="Support"
+                                            Command="{Binding OpenFiioSupportCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            DockPanel.Dock="Right"
+                                            HorizontalAlignment="Right"/>
+                                </DockPanel>
+
+                                <ItemsControl ItemsSource="{Binding K13FeatureRows}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="2"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,10,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontSize="14"
+                                                                   FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Detail}"
+                                                                   Style="{StaticResource DimText}"
+                                                                   Margin="0,4,0,0"
+                                                                   TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                    <Border Grid.Column="1"
+                                                            Background="{StaticResource WolfShellBrush}"
+                                                            BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="7"
+                                                            Padding="9,4"
+                                                            VerticalAlignment="Top">
+                                                        <TextBlock Text="{Binding State}"
+                                                                   Style="{StaticResource TinyLabel}"/>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="3" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Playback Quality" Style="{StaticResource SectionTitle}"/>
+                                <Grid Margin="0,2,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="Quality" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                        <ComboBox ItemsSource="{Binding WindowsAudioFormats}"
+                                                  SelectedItem="{Binding SelectedWindowsAudioFormat}"
+                                                  DisplayMemberPath="DisplayName"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1"
+                                            Content="Windows Sound"
+                                            Command="{Binding OpenWindowsSoundSettingsCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            VerticalAlignment="Bottom"/>
+                                </Grid>
+
+                                <TextBlock Text="{Binding WindowsAudioFormatStatus}"
+                                           Style="{StaticResource DimText}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="4" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <TextBlock Text="Profile Lights"
+                                               Style="{StaticResource SectionTitle}"
+                                               DockPanel.Dock="Left"
+                                               Margin="0"/>
+                                    <Button Content="Refresh"
+                                            Command="{Binding ReadLightsCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            DockPanel.Dock="Right"
+                                            HorizontalAlignment="Right"/>
+                                </DockPanel>
+
+                                <StackPanel>
+                                    <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,12">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,12">
+                                                <StackPanel DockPanel.Dock="Left">
+                                                    <TextBlock Text="Top Light" FontWeight="SemiBold" FontSize="14"/>
+                                                    <TextBlock Text="{Binding TopLedSummary}"
+                                                               Style="{StaticResource DimText}"
+                                                               Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                                <Button Click="TopLedPower_Click"
+                                                        Style="{StaticResource QuietButton}"
+                                                        DockPanel.Dock="Right"
+                                                        HorizontalAlignment="Right">
+                                                    <TextBlock>
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="{x:Type TextBlock}">
+                                                                <Setter Property="Text" Value="Off"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding TopLedOn}" Value="False">
+                                                                        <Setter Property="Text" Value="On"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Button>
+                                            </DockPanel>
+
+                                            <TextBlock Text="Color" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                            <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,12">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Click="TopLedColorSwatch_Click"
+                                                                Width="34"
+                                                                Height="34"
+                                                                Margin="0,0,7,7"
+                                                                Padding="0"
+                                                                Cursor="Hand"
+                                                                ToolTip="{Binding Name}"
+                                                                Background="Transparent"
+                                                                BorderBrush="Transparent">
+                                                            <Button.Template>
+                                                                <ControlTemplate TargetType="{x:Type Button}">
+                                                                    <Grid Width="34" Height="34">
+                                                                        <Border x:Name="SelectionRing"
+                                                                                Width="34"
+                                                                                Height="34"
+                                                                                CornerRadius="17"
+                                                                                BorderBrush="Transparent"
+                                                                                BorderThickness="0"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center"/>
+                                                                        <Border x:Name="Dot"
+                                                                                Width="24"
+                                                                                Height="24"
+                                                                                CornerRadius="12"
+                                                                                Background="{Binding Brush}"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center"/>
+                                                                    </Grid>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
+                                                                        </Trigger>
+                                                                        <DataTrigger Value="True">
+                                                                            <DataTrigger.Binding>
+                                                                                <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                                    <Binding/>
+                                                                                    <Binding Path="DataContext.SelectedTopLedColorOption"
+                                                                                             RelativeSource="{RelativeSource AncestorType={x:Type Window}}"/>
+                                                                                </MultiBinding>
+                                                                            </DataTrigger.Binding>
+                                                                            <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{StaticResource WolfTextBrush}"/>
+                                                                            <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
+                                                                        </DataTrigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Button.Template>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <TextBlock Text="Mode" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                            <ItemsControl ItemsSource="{Binding LedModeOptions}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="{Binding Name}"
+                                                                Click="TopLedMode_Click"
+                                                                Style="{StaticResource QuietButton}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource SourceTileBorder}">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,12">
+                                                <StackPanel DockPanel.Dock="Left">
+                                                    <TextBlock Text="Knob Light" FontWeight="SemiBold" FontSize="14"/>
+                                                    <TextBlock Text="{Binding KnobLedSummary}"
+                                                               Style="{StaticResource DimText}"
+                                                               Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                                <Button Click="KnobLedPower_Click"
+                                                        Style="{StaticResource QuietButton}"
+                                                        DockPanel.Dock="Right"
+                                                        HorizontalAlignment="Right">
+                                                    <TextBlock>
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="{x:Type TextBlock}">
+                                                                <Setter Property="Text" Value="Off"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding KnobLedOn}" Value="False">
+                                                                        <Setter Property="Text" Value="On"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Button>
+                                            </DockPanel>
+
+                                            <TextBlock Text="Color" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                            <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,12">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Click="KnobLedColorSwatch_Click"
+                                                                Width="34"
+                                                                Height="34"
+                                                                Margin="0,0,7,7"
+                                                                Padding="0"
+                                                                Cursor="Hand"
+                                                                ToolTip="{Binding Name}"
+                                                                Background="Transparent"
+                                                                BorderBrush="Transparent">
+                                                            <Button.Template>
+                                                                <ControlTemplate TargetType="{x:Type Button}">
+                                                                    <Grid Width="34" Height="34">
+                                                                        <Border x:Name="SelectionRing"
+                                                                                Width="34"
+                                                                                Height="34"
+                                                                                CornerRadius="17"
+                                                                                BorderBrush="Transparent"
+                                                                                BorderThickness="0"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center"/>
+                                                                        <Border x:Name="Dot"
+                                                                                Width="24"
+                                                                                Height="24"
+                                                                                CornerRadius="12"
+                                                                                Background="{Binding Brush}"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center"/>
+                                                                    </Grid>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
+                                                                        </Trigger>
+                                                                        <DataTrigger Value="True">
+                                                                            <DataTrigger.Binding>
+                                                                                <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                                    <Binding/>
+                                                                                    <Binding Path="DataContext.SelectedKnobLedColorOption"
+                                                                                             RelativeSource="{RelativeSource AncestorType={x:Type Window}}"/>
+                                                                                </MultiBinding>
+                                                                            </DataTrigger.Binding>
+                                                                            <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{StaticResource WolfTextBrush}"/>
+                                                                            <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
+                                                                        </DataTrigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Button.Template>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <TextBlock Text="Mode" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                            <ItemsControl ItemsSource="{Binding LedModeOptions}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="{Binding Name}"
+                                                                Click="KnobLedMode_Click"
+                                                                Style="{StaticResource QuietButton}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Text="Presets"
+                                           Style="{StaticResource TinyLabel}"
+                                           Margin="0,14,0,8"/>
+                                <ItemsControl ItemsSource="{Binding LedSceneOptions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding Name}"
+                                                    Click="LedScene_Click"
+                                                    Style="{StaticResource QuietButton}"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="5" Style="{StaticResource PanelBorder}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <TextBlock Text="About"
+                                               Style="{StaticResource SectionTitle}"
+                                               DockPanel.Dock="Left"
+                                               Margin="0"/>
+                                    <Button Content="Releases"
+                                            Command="{Binding OpenReleasesCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            DockPanel.Dock="Right"
+                                            HorizontalAlignment="Right"/>
+                                </DockPanel>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                        <TextBlock Text="WolfEQ"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding AppVersionText}"
+                                                   Style="{StaticResource DimText}"
+                                                   Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Check for Updates"
+                                            Command="{Binding CheckForUpdatesCommand}"
+                                            Style="{StaticResource AccentButton}"
+                                            VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <TextBlock Text="{Binding UpdateStatus}"
+                                           Style="{StaticResource DimText}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,12"/>
+
+                                <Button Command="{Binding OpenBuyMeCoffeeCommand}"
+                                        Style="{StaticResource QuietButton}"
+                                        HorizontalAlignment="Left"
+                                        ToolTip="buymeacoffee.com/audioslayer">
+                                    <StackPanel Orientation="Horizontal">
+                                        <controls:PhosphorIcon IconName="Heart"
+                                                               IconSize="15"
+                                                               IconBrush="{DynamicResource WolfGreenBrush}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,8,0"/>
+                                        <TextBlock Text="Buy me a coffee"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <Button x:Name="SidebarSettingsButton"
+                Grid.Row="1"
+                Width="64"
+                Height="64"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Left"
+                Margin="16,0,0,14"
+                Panel.ZIndex="20"
+                Click="SidebarSettingsButton_Click"
+                ToolTip="Settings"
+                Cursor="Hand"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                Foreground="{StaticResource WolfMutedBrush}">
+            <Button.Template>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="0">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <controls:PhosphorIcon IconName="Gear"
+                                                   IconSize="22"
+                                                   IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,3"/>
+                            <TextBlock Text="Settings"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       TextAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                        </Trigger>
+                        <DataTrigger Binding="{Binding ElementName=MainTabs, Path=SelectedItem.Tag}" Value="HiddenRail">
+                            <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <Button x:Name="ProfileSwitcherButton"
+                Grid.Row="1"
+                Width="64"
+                Height="64"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Left"
+                Margin="16,4,0,0"
+                Click="ProfileSwitcherButton_Click"
+                ToolTip="Switch EQ slot"
+                Cursor="Hand"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                Padding="0">
+            <Button.Template>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="0">
+                        <Grid>
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="30" Height="24" HorizontalAlignment="Center">
+                                <Border x:Name="ProfileBadge"
+                                        Width="26"
+                                        Height="24"
+                                        CornerRadius="0"
+                                        Background="Transparent"
+                                        BorderBrush="Transparent"
+                                        BorderThickness="0"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Top">
+                                    <controls:PhosphorIcon IconName="AppWindow"
+                                                           IconSize="24"
+                                                           IconBrush="{DynamicResource WolfCyanBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                </Border>
+                                <Border x:Name="ProfileCaretBadge"
+                                        Width="18"
+                                        Height="18"
+                                        Visibility="Collapsed"
+                                        CornerRadius="9"
+                                        Background="{StaticResource WolfShellBrush}"
+                                        BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                        BorderThickness="1"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Bottom">
+                                    <TextBlock Text="⌄"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource WolfMutedBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                        Margin="0,-2,0,0"/>
+                                </Border>
+                            </Grid>
+                            <TextBlock Text="Slots"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource WolfMutedBrush}"
+                                       HorizontalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxWidth="72"
+                                       Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <Path x:Name="ProfileFlyoutChevron"
+                                  Data="M 5 3 L 12 10 L 5 17"
+                                  Stroke="{StaticResource WolfMutedBrush}"
+                                  StrokeThickness="1.45"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Fill="Transparent"
+                                  Width="12"
+                                  Height="16"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,2,0"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ProfileBadge" Property="Opacity" Value="0.82"/>
+                            <Setter TargetName="ProfileFlyoutChevron" Property="Stroke" Value="{DynamicResource WolfGreenBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <Popup x:Name="UserProfileFlyout"
+               Grid.Row="1"
+               PlacementTarget="{Binding ElementName=ProfileSwitcherButton}"
+               Placement="Right"
+               AllowsTransparency="True"
+               StaysOpen="False"
+               PopupAnimation="Fade"
+               HorizontalOffset="10"
+               VerticalOffset="6">
+            <Border Background="{StaticResource WolfShellBrush}"
+                    BorderBrush="{StaticResource WolfLineSoftBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="8"
+                    Width="236">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black"
+                                      BlurRadius="24"
+                                      ShadowDepth="6"
+                                      Opacity="0.55"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="EQ slots"
+                               Style="{StaticResource TinyLabel}"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource WolfMutedBrush}"
+                               Margin="8,4,0,8"/>
+                    <ItemsControl ItemsSource="{Binding DeviceUserPresets}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Click="UserProfileItem_Click"
+                                        Cursor="Hand"
+                                        HorizontalContentAlignment="Stretch"
+                                        Padding="0"
+                                        Margin="0,2"
+                                        Background="Transparent"
+                                        BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="{x:Type Button}">
+                                            <Border x:Name="Chrome"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8,7">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfPanelBrush}"/>
+                                                    <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfCyanDimBrush}"/>
+                                                </Trigger>
+                                                <DataTrigger Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                            <Binding/>
+                                                            <Binding Path="DataContext.SelectedDeviceUserPreset"
+                                                                     RelativeSource="{RelativeSource AncestorType={x:Type Window}}"/>
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                                    <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                                </DataTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border x:Name="ActiveProfileStripe"
+                                                Width="3"
+                                                Height="28"
+                                                CornerRadius="2"
+                                                Background="{DynamicResource WolfGreenBrush}"
+                                                Margin="0,0,9,0">
+                                            <Border.Style>
+                                                <Style TargetType="{x:Type Border}">
+                                                    <Setter Property="Opacity" Value="0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Value="True">
+                                                            <DataTrigger.Binding>
+                                                                <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                    <Binding/>
+                                                                    <Binding Path="DataContext.SelectedDeviceUserPreset"
+                                                                             RelativeSource="{RelativeSource AncestorType={x:Type Window}}"/>
+                                                                </MultiBinding>
+                                                            </DataTrigger.Binding>
+                                                            <Setter Property="Opacity" Value="1"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Slot}"
+                                                   Width="22"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource WolfCyanBrush}"
+                                                   HorizontalAlignment="Left"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource WolfTextBrush}"/>
+                                            <TextBlock Text="Switch active EQ"
+                                                       Style="{StaticResource DimText}"
+                                                       Margin="0,1,0,0"/>
+                                        </StackPanel>
+                                        <controls:PhosphorIcon Grid.Column="3"
+                                                               IconName="SlidersHorizontal"
+                                                               IconSize="17"
+                                                               IconBrush="{StaticResource WolfDimBrush}"
+                                                               VerticalAlignment="Center"
+                                                               Margin="10,0,0,0"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</Window>
