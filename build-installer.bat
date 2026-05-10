@@ -21,7 +21,7 @@ echo      Published to .\publish\
 echo.
 
 set APP_VERSION=
-for /f "tokens=2 delims=<>" %%v in ('findstr /c:"<Version>" "%~dp0WolfEQ.csproj"') do set APP_VERSION=%%v
+for /f "tokens=3 delims=<>" %%v in ('findstr /r /c:"^[ ]*<Version>.*</Version>" "%~dp0WolfEQ.csproj"') do set APP_VERSION=%%v
 if "%APP_VERSION%"=="" (
     echo ERROR: Could not extract version from WolfEQ.csproj.
     echo        Make sure WolfEQ.csproj has a ^<Version^> tag.
