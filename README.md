@@ -5,8 +5,8 @@
 <h1 align="center">WolfEQ</h1>
 
 <p align="center">
-  <strong>Introducing WolfEQ 0.2.0 beta.</strong><br/>
-  A focused Windows EQ workspace for tuning, previewing, and syncing FiiO / Snowsky PEQ presets.
+  <strong>WolfEQ 0.2.0 beta is here.</strong><br/>
+  A modern Windows PEQ workspace for FiiO K13 R2R and experimental FiiO / Snowsky device support.
 </p>
 
 <p align="center">
@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6?logo=windows&logoColor=white" alt="Windows 10 / 11" />
   <img src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white" alt=".NET 8" />
   <img src="https://img.shields.io/badge/FiiO-K13%20R2R-C8102E" alt="FiiO K13 R2R" />
+  <img src="https://img.shields.io/badge/devices-experimental-orange" alt="Experimental device profiles" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
 </p>
 
@@ -21,15 +22,13 @@
 
 ## 🐺 Overview
 
-WolfEQ is a new desktop app for people who want a cleaner way to manage EQ on the **FiiO K13 R2R**. Instead of jumping between device menus, loose preset files, and separate graph tools, WolfEQ brings the core tuning workflow into one Windows app.
+WolfEQ is a desktop app for people who want a cleaner way to tune PEQ on supported FiiO and Snowsky devices. Instead of juggling device menus, preset files, and separate graph tools, WolfEQ brings the core workflow into one Windows app: choose a slot, shape the curve, preview the response, save, and keep your profiles organized.
 
-This beta focuses on the essentials: edit PEQ profiles, preview the response curve, read the active device USER slot, save presets locally, and push verified changes back to supported devices over USB.
+The **FiiO K13 R2R** is the main tested device. WolfEQ 0.2.0 beta also adds early experimental profiles for KA15, KA17, JA11, Snowsky Melody, and Snowsky Retro Nano.
 
 ---
 
-## 🚀 First Beta Release
-
-WolfEQ 0.2.0 beta expands the app beyond the K13-only first release with experimental device profiles, a redesigned tuning workspace, cleaner slot handling, and improved read/save confirmation.
+## 🚀 Latest Beta
 
 Download the latest installer from [GitHub Releases](https://github.com/audioslayer/wolfeq/releases/latest):
 
@@ -37,34 +36,38 @@ Download the latest installer from [GitHub Releases](https://github.com/audiosla
 WolfEQ-Setup-<version>.exe
 ```
 
-Connect the K13 over USB, open WolfEQ, then choose the USER slot you want to tune.
+WolfEQ 0.2.0 beta adds:
+
+- 🎧 Experimental device profiles for FiiO KA15, FiiO KA17, FiiO JA11, Snowsky Melody, and Snowsky Retro Nano.
+- 📈 A cleaner PEQ graph with hover readouts, better band handles, and a more standard response feel.
+- 🎛️ A redesigned tuning workspace with compact band rows and a right-side preset/profile panel.
+- 📚 A better library tab with online profile search, import/export tools, and cleaner device-slot names.
+- 💾 Improved K13 read-on-boot, slot switching, save confirmation, and post-save reload behavior.
 
 ---
 
 ## ✨ What WolfEQ Does
 
-- 🎛️ Gives the K13 a wider, cleaner EQ workspace built for desktop tuning.
-- 🎚️ Edits 10-band PEQ values for gain, frequency, and Q.
+- 🎚️ Edits PEQ gain, frequency, Q, filter type, and global preamp.
 - 📈 Shows a live response preview while you shape a preset.
-- 💾 Reads and refreshes K13 USER slot presets without duplicate readbacks.
+- 💾 Reads, writes, and refreshes K13 USER slots over USB.
 - 📚 Saves, imports, exports, duplicates, favorites, and deletes local presets.
-- 🔎 Searches AutoEq so you can start from known headphone correction curves.
-- ⚙️ Keeps settings, updates, and device options in a simplified slide-out panel.
+- 🔎 Searches online AutoEq profiles so you can start from known headphone correction curves.
+- 🧰 Imports and exports WolfEQ JSON, Equalizer APO text, and FiiO XML.
+- ⚠️ Flags clipping risk and helps apply safer headroom before writing to hardware.
 
 ---
 
 ## 🎧 Device Support
 
-WolfEQ is built around the **FiiO K13 R2R** over USB, with additional experimental profiles for nearby FiiO / Snowsky devices.
-
-| Device | Status | Supported in 0.2.0 beta |
+| Device | Status | Notes |
 |-|-|-|
-| FiiO KA15 | Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path |
-| FiiO KA17 | Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path |
-| FiiO JA11 | Experimental | Device profile, 5-band PEQ layout, core filter support |
-| Snowsky Melody | Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path |
-| Snowsky Retro Nano | Experimental | Product-name matched profile, slot map, 10-band PEQ layout |
-| FiiO K13 R2R | 🧪 Beta | USB detection, EQ readback, USER slot switching, PEQ writes, global preamp writes, preset storage, LED color cues, USB/COAX input switching |
+| FiiO K13 R2R | 🧪 Beta | Main tested target. USB detection, EQ readback, USER slot switching, PEQ writes, global preamp writes, preset storage, LED cues, USB/COAX input switching. |
+| FiiO KA15 | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
+| FiiO KA17 | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
+| FiiO JA11 | ⚠️ Experimental | Device profile, 5-band PEQ layout, core filter support. Needs real-device testing. |
+| Snowsky Melody | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
+| Snowsky Retro Nano | ⚠️ Experimental | Product-name matched profile, slot map, 10-band PEQ layout. Needs real-device testing. |
 
 For full Windows audio format support, set the K13 to **UAC2.0** mode.
 
@@ -72,7 +75,7 @@ For full Windows audio format support, set the K13 to **UAC2.0** mode.
 
 ## 🧪 Beta Notes
 
-This is an early release, so the safest path is USB-first EQ editing, preset management, and K13 USER slot sync.
+This is beta software, and the newest device profiles are intentionally marked **experimental**. If you try KA15, KA17, JA11, Snowsky Melody, or Snowsky Retro Nano, please treat it like early support and report what works, what fails, and what the device shows when switching or saving.
 
 Still being explored:
 
@@ -82,7 +85,7 @@ Still being explored:
 - NOS / OS / SAM mode switching
 - optical and Bluetooth input switching
 
-Please open an issue if something breaks or feels strange. Include your Windows version, K13 mode, and what you were doing when it happened.
+Please open an issue if something breaks or feels strange. Include your Windows version, device model, USB mode, and the exact preset/slot action you were doing.
 
 ---
 
