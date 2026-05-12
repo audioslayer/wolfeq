@@ -12,11 +12,9 @@ namespace WolfEQ;
 
 public partial class MainWindow : Window
 {
-    private const double ExpandedEqBandCardWidth = 168;
     private const double CollapsedEqBandCardMinWidth = 124;
     private const double ExpandedInspectorDrawerWidth = 420;
     private const double EqBandCardGap = 8;
-    private const int EqBandCardCount = 10;
     private Point _bandDragStartPoint;
     private EqBand? _bandDragCandidate;
     private bool _inspectorDrawerCollapsed = true;
@@ -87,16 +85,20 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void UserProfileItem_Click(object sender, RoutedEventArgs e)
+    private async void UserProfileItem_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel &&
             sender is FrameworkElement { DataContext: DeviceUserPresetOption option })
         {
-            viewModel.SelectedDeviceUserPreset = option;
-            if (viewModel.SelectUserPresetCommand.CanExecute(null))
+            if (!viewModel.SelectUserPresetCommand.CanExecute(null))
             {
-                viewModel.SelectUserPresetCommand.Execute(null);
+                UserProfileFlyout.IsOpen = false;
+                e.Handled = true;
+                return;
             }
+
+            viewModel.SelectedDeviceUserPreset = option;
+            await ExecuteUserPresetSwitchAsync(viewModel);
         }
 
         UserProfileFlyout.IsOpen = false;
@@ -195,17 +197,33 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void SlotLightingUserComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void SlotLightingUserComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!IsLoaded ||
             e.AddedItems.Count == 0 ||
+            sender is not ComboBox comboBox ||
+            (!comboBox.IsDropDownOpen && !comboBox.IsKeyboardFocusWithin && !comboBox.IsMouseOver) ||
             DataContext is not MainViewModel viewModel ||
             !viewModel.SelectUserPresetCommand.CanExecute(null))
         {
             return;
         }
 
-        viewModel.SelectUserPresetCommand.Execute(null);
+        await ExecuteUserPresetSwitchAsync(viewModel);
+    }
+
+    private static async Task ExecuteUserPresetSwitchAsync(MainViewModel viewModel)
+    {
+        if (viewModel.SelectUserPresetCommand is not AsyncRelayCommand command || !command.CanExecute(null))
+        {
+            return;
+        }
+
+        command.Execute(null);
+        while (!command.CanExecute(null))
+        {
+            await Task.Delay(50);
+        }
     }
 
     private void ToggleInspectorDrawer_Click(object sender, RoutedEventArgs e)
@@ -252,9 +270,23 @@ public partial class MainWindow : Window
 
     private void UpdateEqBandCardLayout()
     {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var bandCount = Math.Max(1, viewModel.Bands.Count);
+        var preferredWidth = viewModel.BandCardWidth;
         if (!_inspectorDrawerCollapsed)
         {
-            EqBandItemsControl.Tag = ExpandedEqBandCardWidth;
+            EqBandItemsControl.Tag = preferredWidth;
+            EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+            return;
+        }
+
+        if (bandCount > 16)
+        {
+            EqBandItemsControl.Tag = preferredWidth;
             EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             return;
         }
@@ -265,16 +297,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        var totalGapWidth = EqBandCardGap * (EqBandCardCount - 1);
-        var cardWidth = Math.Floor((viewportWidth - totalGapWidth - 2) / EqBandCardCount);
+        var totalGapWidth = EqBandCardGap * bandCount;
+        var cardWidth = Math.Floor((viewportWidth - totalGapWidth - 2) / bandCount);
         if (cardWidth < CollapsedEqBandCardMinWidth)
         {
-            EqBandItemsControl.Tag = CollapsedEqBandCardMinWidth;
+            EqBandItemsControl.Tag = preferredWidth;
             EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             return;
         }
 
-        EqBandItemsControl.Tag = cardWidth;
+        EqBandItemsControl.Tag = Math.Max(preferredWidth, cardWidth);
         EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
     }
 

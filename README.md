@@ -5,8 +5,8 @@
 <h1 align="center">WolfEQ</h1>
 
 <p align="center">
-  <strong>Introducing WolfEQ 0.1.0 beta.</strong><br/>
-  A focused Windows EQ workspace for tuning, previewing, and syncing FiiO K13 R2R presets.
+  <strong>Introducing WolfEQ 0.2.0 beta.</strong><br/>
+  A focused Windows EQ workspace for tuning, previewing, and syncing FiiO / Snowsky PEQ presets.
 </p>
 
 <p align="center">
@@ -23,13 +23,13 @@
 
 WolfEQ is a new desktop app for people who want a cleaner way to manage EQ on the **FiiO K13 R2R**. Instead of jumping between device menus, loose preset files, and separate graph tools, WolfEQ brings the core tuning workflow into one Windows app.
 
-This first beta focuses on the essentials: edit 10-band PEQ profiles, preview the response curve, read the active K13 USER slot, save presets locally, and push verified changes back to the device over USB.
+This beta focuses on the essentials: edit PEQ profiles, preview the response curve, read the active device USER slot, save presets locally, and push verified changes back to supported devices over USB.
 
 ---
 
 ## 🚀 First Beta Release
 
-WolfEQ 0.1.0 beta is the first public release. It includes the installer, the refreshed AmpUp-inspired interface, the new preset flow, and the first stable pass at K13 slot readback and sync.
+WolfEQ 0.2.0 beta expands the app beyond the K13-only first release with experimental device profiles, a redesigned tuning workspace, cleaner slot handling, and improved read/save confirmation.
 
 Download the latest installer from [GitHub Releases](https://github.com/audioslayer/wolfeq/releases/latest):
 
@@ -55,10 +55,15 @@ Connect the K13 over USB, open WolfEQ, then choose the USER slot you want to tun
 
 ## 🎧 Device Support
 
-WolfEQ is currently built around the **FiiO K13 R2R** over USB.
+WolfEQ is built around the **FiiO K13 R2R** over USB, with additional experimental profiles for nearby FiiO / Snowsky devices.
 
-| Device | Status | Supported in 0.1.0 beta |
+| Device | Status | Supported in 0.2.0 beta |
 |-|-|-|
+| FiiO KA15 | Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path |
+| FiiO KA17 | Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path |
+| FiiO JA11 | Experimental | Device profile, 5-band PEQ layout, core filter support |
+| Snowsky Melody | Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path |
+| Snowsky Retro Nano | Experimental | Product-name matched profile, slot map, 10-band PEQ layout |
 | FiiO K13 R2R | 🧪 Beta | USB detection, EQ readback, USER slot switching, PEQ writes, global preamp writes, preset storage, LED color cues, USB/COAX input switching |
 
 For full Windows audio format support, set the K13 to **UAC2.0** mode.

@@ -26,6 +26,46 @@
             <TextBlock Text="{Binding Name}"
                        TextTrimming="CharacterEllipsis"/>
         </DataTemplate>
+
+        <DataTemplate x:Key="LibraryPresetListItemTemplate" DataType="{x:Type models:EqPreset}">
+            <Grid Margin="4,3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="{Binding Name}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"/>
+                <DockPanel Grid.Row="1" Margin="0,3,0,0">
+                    <TextBlock Text="{Binding Category}"
+                               Style="{StaticResource TinyLabel}"
+                               DockPanel.Dock="Left"/>
+                    <TextBlock Text="{Binding PreampDb, StringFormat={}{0:+0.0;-0.0;0.0} dB}"
+                               Style="{StaticResource TinyLabel}"
+                               HorizontalAlignment="Right"/>
+                </DockPanel>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OnlineProfileListItemTemplate">
+            <Grid Margin="4,3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="{Binding Name}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Row="1"
+                           Text="{Binding SourceSummary}"
+                           Style="{StaticResource TinyLabel}"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="0,3,0,0"/>
+            </Grid>
+        </DataTemplate>
+
     </Window.Resources>
 
     <shell:WindowChrome.WindowChrome>
@@ -245,14 +285,21 @@
                                     </Grid.RowDefinitions>
 
                                     <DockPanel Margin="0,0,0,12">
-                                        <TextBlock Text="10-Band PEQ"
+                                        <TextBlock Text="{Binding DeviceBandEditorTitle}"
                                                    Style="{StaticResource SectionTitle}"
                                                    DockPanel.Dock="Left"
                                                    Margin="0"/>
                                         <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding ProfileLibrarySaveStatus}"
+                                                       Style="{StaticResource DimText}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,8,0"/>
+                                            <Button Content="{Binding SaveProfileLibraryButtonText}"
+                                                    Command="{Binding SaveProfileLibraryCommand}"
+                                                    Style="{StaticResource SavePresetButton}"/>
                                             <Button Content="All On" Command="{Binding EnableAllBandsCommand}"/>
                                             <Button Content="Bypass" Command="{Binding BypassAllBandsCommand}"/>
-                                            <Button Content="Reset" Command="{Binding ZeroAllGainsCommand}"/>
+                                            <Button Content="Reset" Command="{Binding ResetCommand}"/>
                                         </WrapPanel>
                                     </DockPanel>
 
@@ -261,64 +308,76 @@
                                                    Style="{StaticResource MutedText}"
                                                    DockPanel.Dock="Left"
                                                    VerticalAlignment="Center"/>
-                                        <Expander Header="More"
-                                                  DockPanel.Dock="Right"
-                                                  HorizontalAlignment="Right"
-                                                  Foreground="{StaticResource WolfMutedBrush}">
-                                            <WrapPanel Margin="0,8,0,0">
-                                                <Button Content="Sort" Command="{Binding SortBandsByFrequencyCommand}"/>
-                                                <Button Content="Make Device Copy" Command="{Binding PrepareK13PresetCommand}"/>
-                                                <Button Content="Smooth Copy" Command="{Binding SmoothK13PresetCommand}"/>
-                                            </WrapPanel>
-                                        </Expander>
                                     </DockPanel>
 
-                                    <ScrollViewer x:Name="EqBandScrollViewer"
-                                                  Grid.Row="2"
-                                                  HorizontalScrollBarVisibility="Auto"
-                                                  VerticalScrollBarVisibility="Disabled"
-                                                  Margin="0"
-                                                  SizeChanged="EqBandScrollViewer_SizeChanged">
-                                        <ItemsControl x:Name="EqBandItemsControl"
-                                                      ItemsSource="{Binding Bands}"
-                                                      Tag="168">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Style="{StaticResource EqBandCardBorder}"
-                                                            Width="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                            AllowDrop="True"
-                                                            DragEnter="BandCard_DragEnter"
-                                                            DragOver="BandCard_DragOver"
-                                                            DragLeave="BandCard_DragLeave"
-                                                            Drop="BandCard_Drop">
-                                                        <Grid>
-                                                            <Grid.RowDefinitions>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                            </Grid.RowDefinitions>
+                                    <Grid Grid.Row="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
 
-                                                            <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                                                                <ToggleButton IsChecked="{Binding Enabled}"
-                                                                              Style="{StaticResource BandPowerToggle}"
-                                                                              DockPanel.Dock="Right"
-                                                                              ToolTip="Toggle this EQ band."/>
-                                                                <Border Background="Transparent"
+                                        <Grid Margin="8,0,8,7">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="96"/>
+                                                <ColumnDefinition Width="54"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="1.25*"/>
+                                                <ColumnDefinition Width="1.25*"/>
+                                                <ColumnDefinition Width="0.9*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Band" Style="{StaticResource TinyLabel}"/>
+                                            <TextBlock Grid.Column="1" Text="On" Style="{StaticResource TinyLabel}"/>
+                                            <TextBlock Grid.Column="2" Text="Filter" Style="{StaticResource TinyLabel}"/>
+                                            <TextBlock Grid.Column="3" Text="Gain" Style="{StaticResource TinyLabel}"/>
+                                            <TextBlock Grid.Column="4" Text="Frequency" Style="{StaticResource TinyLabel}"/>
+                                            <TextBlock Grid.Column="5" Text="Q" Style="{StaticResource TinyLabel}"/>
+                                        </Grid>
+
+                                        <ScrollViewer x:Name="EqBandScrollViewer"
+                                                      Grid.Row="1"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      MaxHeight="410"
+                                                      Margin="0"
+                                                      SizeChanged="EqBandScrollViewer_SizeChanged">
+                                            <ItemsControl x:Name="EqBandItemsControl"
+                                                          ItemsSource="{Binding Bands}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Vertical"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Style="{StaticResource BandCellBorder}"
+                                                                Margin="0,0,0,6"
+                                                                Padding="8"
+                                                                AllowDrop="True"
+                                                                DragEnter="BandCard_DragEnter"
+                                                                DragOver="BandCard_DragOver"
+                                                                DragLeave="BandCard_DragLeave"
+                                                                Drop="BandCard_Drop">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="96"/>
+                                                                    <ColumnDefinition Width="54"/>
+                                                                    <ColumnDefinition Width="150"/>
+                                                                    <ColumnDefinition Width="1.25*"/>
+                                                                    <ColumnDefinition Width="1.25*"/>
+                                                                    <ColumnDefinition Width="0.9*"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <Border Grid.Column="0"
+                                                                        Background="Transparent"
                                                                         Cursor="SizeAll"
                                                                         Padding="0,2,8,2"
+                                                                        VerticalAlignment="Center"
                                                                         PreviewMouseLeftButtonDown="BandDragHandle_PreviewMouseLeftButtonDown"
                                                                         MouseMove="BandDragHandle_MouseMove"
                                                                         ToolTip="Drag to reorder this EQ band.">
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Text="{Binding Number, StringFormat={}Band {0}}"
-                                                                                   FontSize="15"
+                                                                                   FontSize="14"
                                                                                    FontWeight="SemiBold">
                                                                             <TextBlock.Style>
                                                                                 <Style TargetType="TextBlock">
@@ -336,21 +395,36 @@
                                                                                    Margin="7,2,0,0"/>
                                                                     </StackPanel>
                                                                 </Border>
-                                                            </DockPanel>
 
-                                                            <StackPanel Grid.Row="1" Margin="0,0,0,8">
-                                                                <TextBlock Text="Filter type" Style="{StaticResource TinyLabel}"/>
-                                                                <ComboBox SelectedItem="{Binding FilterType}"
+                                                                <ToggleButton Grid.Column="1"
+                                                                              IsChecked="{Binding Enabled}"
+                                                                              Style="{StaticResource BandPowerToggle}"
+                                                                              VerticalAlignment="Center"
+                                                                              ToolTip="Toggle this EQ band."/>
+
+                                                                <ComboBox Grid.Column="2"
+                                                                          SelectedItem="{Binding FilterType}"
                                                                           ItemsSource="{Binding Source={x:Static controls:EqFilterTypeValues.All}}"
-                                                                          Margin="0,4,0,0"/>
-                                                            </StackPanel>
+                                                                          Margin="0,0,10,0"
+                                                                          VerticalAlignment="Center"/>
 
-                                                            <StackPanel Grid.Row="2" Margin="0,0,0,8">
-                                                                <DockPanel>
-                                                                    <TextBlock Text="Gain" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
-                                                                    <StackPanel DockPanel.Dock="Right"
+                                                                <Grid Grid.Column="3" Margin="0,0,14,0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="76"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <controls:StyledSlider Minimum="-24"
+                                                                                           Maximum="12"
+                                                                                           Value="{Binding GainDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                           Step="0.5"
+                                                                                           AccentColor="{DynamicResource WolfGreen}"
+                                                                                           ShowLabel="False"
+                                                                                           VerticalAlignment="Center"/>
+                                                                    <StackPanel Grid.Column="1"
                                                                                 Orientation="Horizontal"
-                                                                                HorizontalAlignment="Right">
+                                                                                HorizontalAlignment="Right"
+                                                                                VerticalAlignment="Center"
+                                                                                Margin="8,0,0,0">
                                                                         <TextBox Text="{Binding GainDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150, StringFormat={}{0:F1}}"
                                                                                  Style="{StaticResource BandValueTextBox}"
                                                                                  Width="42"
@@ -359,21 +433,25 @@
                                                                                    Style="{StaticResource ValueText}"
                                                                                    VerticalAlignment="Center"/>
                                                                     </StackPanel>
-                                                                </DockPanel>
-                                                                <controls:StyledSlider Minimum="-12"
-                                                                                       Maximum="12"
-                                                                                       Value="{Binding GainDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                                       Step="0.5"
-                                                                                       AccentColor="{DynamicResource WolfGreen}"
-                                                                                       ShowLabel="False"/>
-                                                            </StackPanel>
+                                                                </Grid>
 
-                                                            <StackPanel Grid.Row="3" Margin="0,0,0,8">
-                                                                <DockPanel>
-                                                                    <TextBlock Text="Freq" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
-                                                                    <StackPanel DockPanel.Dock="Right"
+                                                                <Grid Grid.Column="4" Margin="0,0,14,0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="86"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <controls:StyledSlider Minimum="20"
+                                                                                           Maximum="20000"
+                                                                                           Value="{Binding FrequencyHz, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                           Step="100"
+                                                                                           AccentColor="{DynamicResource WolfGreen}"
+                                                                                           ShowLabel="False"
+                                                                                           VerticalAlignment="Center"/>
+                                                                    <StackPanel Grid.Column="1"
                                                                                 Orientation="Horizontal"
-                                                                                HorizontalAlignment="Right">
+                                                                                HorizontalAlignment="Right"
+                                                                                VerticalAlignment="Center"
+                                                                                Margin="8,0,0,0">
                                                                         <TextBox Text="{Binding FrequencyHz, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150}"
                                                                                  Style="{StaticResource BandValueTextBox}"
                                                                                  Width="52"
@@ -382,37 +460,35 @@
                                                                                    Style="{StaticResource ValueText}"
                                                                                    VerticalAlignment="Center"/>
                                                                     </StackPanel>
-                                                                </DockPanel>
-                                                                <controls:StyledSlider Minimum="20"
-                                                                                       Maximum="20000"
-                                                                                       Value="{Binding FrequencyHz, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                                       Step="100"
-                                                                                       AccentColor="{DynamicResource WolfGreen}"
-                                                                                       ShowLabel="False"/>
-                                                            </StackPanel>
+                                                                </Grid>
 
-                                                            <StackPanel Grid.Row="4">
-                                                                <DockPanel>
-                                                                    <TextBlock Text="Q" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
-                                                                    <TextBox Text="{Binding Q, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150, StringFormat={}{0:F2}}"
+                                                                <Grid Grid.Column="5">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="50"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <controls:StyledSlider Minimum="0.1"
+                                                                                           Maximum="10"
+                                                                                           Value="{Binding Q, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                                           Step="0.1"
+                                                                                           AccentColor="{DynamicResource WolfGreen}"
+                                                                                           ShowLabel="False"
+                                                                                           VerticalAlignment="Center"/>
+                                                                    <TextBox Grid.Column="1"
+                                                                             Text="{Binding Q, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150, StringFormat={}{0:F2}}"
                                                                              Style="{StaticResource BandValueTextBox}"
                                                                              Width="42"
-                                                                             DockPanel.Dock="Right"
+                                                                             HorizontalAlignment="Right"
+                                                                             VerticalAlignment="Center"
                                                                              KeyDown="BandValueTextBox_KeyDown"/>
-                                                                </DockPanel>
-                                                                <controls:StyledSlider Minimum="0.1"
-                                                                                       Maximum="10"
-                                                                                       Value="{Binding Q, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                                       Step="0.1"
-                                                                                       AccentColor="{DynamicResource WolfGreen}"
-                                                                                       ShowLabel="False"/>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
+                                                                </Grid>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Grid>
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -493,6 +569,19 @@
                                               SelectedItem="{Binding SelectedPreset}"
                                               ItemTemplate="{StaticResource EqPresetComboItemTemplate}"
                                               Margin="0,0,0,10"/>
+                                    <DockPanel Margin="0,0,0,10">
+                                        <Button Content="{Binding SaveProfileLibraryButtonText}"
+                                                Command="{Binding SaveProfileLibraryCommand}"
+                                                Style="{StaticResource SavePresetButton}"
+                                                DockPanel.Dock="Left"
+                                                Margin="0"/>
+                                        <TextBlock Text="{Binding ProfileLibrarySaveStatus}"
+                                                   Style="{StaticResource DimText}"
+                                                   DockPanel.Dock="Right"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"
+                                                   Margin="12,0,0,0"/>
+                                    </DockPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -513,6 +602,48 @@
                                             Command="{Binding ApplyAutoHeadroomCommand}"
                                             HorizontalAlignment="Left"
                                             Margin="0,10,0,0"/>
+                                    <Border Style="{StaticResource InsetBorder}"
+                                            Margin="0,14,0,0"
+                                            Padding="10">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="{Binding HeadroomGuardianTitle}"
+                                                           FontWeight="SemiBold"
+                                                           DockPanel.Dock="Left"/>
+                                                <TextBlock Text="{Binding TuningConfidenceText}"
+                                                           Style="{StaticResource TinyLabel}"
+                                                           HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding HeadroomGuardianText}"
+                                                       Style="{StaticResource MutedText}"
+                                                       Margin="0,0,0,6"/>
+                                            <TextBlock Text="{Binding DeviceFitReportText}"
+                                                       Style="{StaticResource DimText}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource InsetBorder}"
+                                            Margin="0,14,0,0"
+                                            Padding="10">
+                                        <StackPanel>
+                                            <TextBlock Text="Tools"
+                                                       Style="{StaticResource TinyLabel}"
+                                                       Margin="0,0,0,8"/>
+                                            <WrapPanel>
+                                                <Button Content="Sort"
+                                                        Command="{Binding SortBandsByFrequencyCommand}"/>
+                                                <Button Content="Flat"
+                                                        Command="{Binding ZeroAllGainsCommand}"/>
+                                                <Button Content="Device Copy"
+                                                        Command="{Binding PrepareK13PresetCommand}"
+                                                        IsEnabled="{Binding SupportsK13PresetTools}"/>
+                                                <Button Content="Smooth Copy"
+                                                        Command="{Binding SmoothK13PresetCommand}"
+                                                        IsEnabled="{Binding SupportsK13PresetTools}"/>
+                                                <Button Content="Copy Card"
+                                                        Command="{Binding CopyTuningCardCommand}"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </Border>
 
@@ -730,60 +861,6 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="Add Profile" Style="{StaticResource SectionTitle}"/>
-
-                                    <Border Style="{StaticResource SourceTileBorder}">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel>
-                                                <TextBlock Text="Local File" FontWeight="SemiBold"/>
-                                            </StackPanel>
-                                            <Button Grid.Column="1"
-                                                    Content="Import"
-                                                    Command="{Binding ImportJsonFromFileCommand}"
-                                                    Style="{StaticResource QuietButton}"/>
-                                        </Grid>
-                                    </Border>
-
-                                    <Border Style="{StaticResource SourceTileBorder}" Margin="0">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel>
-                                                <TextBlock Text="Equalizer APO" FontWeight="SemiBold"/>
-                                            </StackPanel>
-                                            <Button Grid.Column="1"
-                                                    Content="Import"
-                                                    Command="{Binding ImportApoFromFileCommand}"
-                                                    Style="{StaticResource QuietButton}"/>
-                                        </Grid>
-                                    </Border>
-
-                                    <Border Style="{StaticResource SourceTileBorder}" Margin="0">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel>
-                                                <TextBlock Text="FiiO XML" FontWeight="SemiBold"/>
-                                            </StackPanel>
-                                            <Button Grid.Column="1"
-                                                    Content="Import"
-                                                    Command="{Binding ImportFiioXmlFromFileCommand}"
-                                                    Style="{StaticResource QuietButton}"/>
-                                        </Grid>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-
                             <Border Style="{StaticResource PanelBorder}">
                                 <StackPanel>
                                     <TextBlock Text="A/B" Style="{StaticResource SectionTitle}"/>
@@ -818,150 +895,205 @@
                     </StackPanel>
                 </TabItem.Header>
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <Grid Margin="24">
+                <Grid Margin="24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="410"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource PanelBorder}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock Text="Preset Library"
+                                           Style="{StaticResource SectionTitle}"
+                                           DockPanel.Dock="Left"
+                                           Margin="0"/>
+                                <TextBlock Text="{Binding FilteredPresetCount, StringFormat={}{0} presets}"
+                                           Style="{StaticResource DimText}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"/>
+                            </DockPanel>
+
+                            <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                                <TextBlock Text="Add Profile"
+                                           Style="{StaticResource TinyLabel}"
+                                           Margin="0,0,0,8"/>
+                                <UniformGrid Columns="3" Margin="0,0,0,12">
+                                    <Button Content="WolfEQ JSON"
+                                            Command="{Binding ImportJsonFromFileCommand}"
+                                            Style="{StaticResource QuietButton}"/>
+                                    <Button Content="Equalizer APO"
+                                            Command="{Binding ImportApoFromFileCommand}"
+                                            Style="{StaticResource QuietButton}"/>
+                                    <Button Content="FiiO XML"
+                                            Command="{Binding ImportFiioXmlFromFileCommand}"
+                                            Style="{StaticResource QuietButton}"/>
+                                </UniformGrid>
+
+                                <DockPanel Margin="0,0,0,8">
+                                    <WrapPanel DockPanel.Dock="Left">
+                                        <Button Content="{Binding SaveProfileLibraryButtonText}"
+                                                Command="{Binding SaveProfileLibraryCommand}"
+                                                Style="{StaticResource SavePresetButton}"/>
+                                        <Button Content="New" Command="{Binding CreateFlatPresetCommand}"/>
+                                        <Button Content="Duplicate" Command="{Binding DuplicatePresetCommand}"/>
+                                        <Button Content="Delete" Command="{Binding DeletePresetCommand}" Style="{StaticResource WarningButton}"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding ProfileLibrarySaveStatus}"
+                                               Style="{StaticResource DimText}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               Margin="10,0,2,0"/>
+                                </DockPanel>
+
+                                <Expander Header="Import / export"
+                                          Foreground="{StaticResource WolfMutedBrush}">
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button Content="Import APO" Command="{Binding ImportApoFromFileCommand}"/>
+                                        <Button Content="Paste APO" Command="{Binding ImportApoFromClipboardCommand}"/>
+                                        <Button Content="Export APO" Command="{Binding ExportApoToFileCommand}"/>
+                                        <Button Content="Copy APO" Command="{Binding ExportApoToClipboardCommand}"/>
+                                        <Button Content="Import FiiO XML" Command="{Binding ImportFiioXmlFromFileCommand}"/>
+                                        <Button Content="Export FiiO XML" Command="{Binding ExportFiioXmlToFileCommand}"/>
+                                        <Button Content="Import JSON" Command="{Binding ImportJsonFromFileCommand}"/>
+                                        <Button Content="Export JSON" Command="{Binding ExportJsonToFileCommand}"/>
+                                        <Button Content="Import Library" Command="{Binding ImportLibraryJsonCommand}"/>
+                                        <Button Content="Export Library" Command="{Binding ExportLibraryJsonCommand}"/>
+                                        <Button Content="Copy Report" Command="{Binding CopyTuningReportCommand}"/>
+                                    </WrapPanel>
+                                </Expander>
+                            </StackPanel>
+
+                            <Grid Grid.Row="2" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="132"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding ProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,8,0"
+                                         ToolTip="Filter saved presets"/>
+                                <ComboBox Grid.Column="1"
+                                          ItemsSource="{Binding ProfileCategories}"
+                                          SelectedItem="{Binding SelectedProfileCategory}"/>
+                            </Grid>
+
+                            <ListBox Grid.Row="3"
+                                     ItemsSource="{Binding FilteredPresets}"
+                                     SelectedItem="{Binding SelectedPreset}"
+                                     ItemTemplate="{StaticResource LibraryPresetListItemTemplate}"
+                                     MinHeight="260"/>
+
+                            <Grid Grid.Row="4" Margin="0,12,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="Selected curve"
+                                               Style="{StaticResource TinyLabel}"
+                                               DockPanel.Dock="Left"/>
+                                    <TextBlock Text="{Binding SelectedPreset.Name}"
+                                               Style="{StaticResource DimText}"
+                                               HorizontalAlignment="Right"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                                <controls:EqResponseGraphControl Grid.Row="1"
+                                                                 Bands="{Binding Bands}"
+                                                                 PreampDb="{Binding PreampDb}"
+                                                                 IsInteractive="False"
+                                                                 Height="142"
+                                                                 MinHeight="0"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Column="2">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="16"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0">
-                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Grid.Row="0">
-                                        <TextBlock Text="Preset Library" Style="{StaticResource SectionTitle}"/>
-                                        <ComboBox ItemsSource="{Binding FilteredPresets}"
-                                                  SelectedItem="{Binding SelectedPreset}"
-                                                  ItemTemplate="{StaticResource EqPresetComboItemTemplate}"
-                                                  Margin="0,0,0,10"/>
-                                        <DockPanel>
-                                            <WrapPanel DockPanel.Dock="Left">
-                                                <Button Content="Save Preset" Command="{Binding SaveProfileLibraryCommand}" Style="{StaticResource AccentButton}"/>
-                                                <Button Content="New" Command="{Binding CreateFlatPresetCommand}"/>
-                                                <Button Content="Duplicate" Command="{Binding DuplicatePresetCommand}"/>
-                                                <Button Content="Delete" Command="{Binding DeletePresetCommand}" Style="{StaticResource WarningButton}"/>
-                                            </WrapPanel>
-                                        </DockPanel>
-                                        <Expander Header="More"
-                                                  Margin="3,10,0,0"
-                                                  Foreground="{StaticResource WolfMutedBrush}">
-                                            <WrapPanel Margin="0,8,0,0">
-                                                <Button Content="Import APO" Command="{Binding ImportApoFromFileCommand}"/>
-                                                <Button Content="Paste APO" Command="{Binding ImportApoFromClipboardCommand}"/>
-                                                <Button Content="Export APO" Command="{Binding ExportApoToFileCommand}"/>
-                                                <Button Content="Copy APO" Command="{Binding ExportApoToClipboardCommand}"/>
-                                                <Button Content="Import FiiO XML" Command="{Binding ImportFiioXmlFromFileCommand}"/>
-                                                <Button Content="Export FiiO XML" Command="{Binding ExportFiioXmlToFileCommand}"/>
-                                                <Button Content="Import JSON" Command="{Binding ImportJsonFromFileCommand}"/>
-                                                <Button Content="Export JSON" Command="{Binding ExportJsonToFileCommand}"/>
-                                                <Button Content="Import Library" Command="{Binding ImportLibraryJsonCommand}"/>
-                                                <Button Content="Export Library" Command="{Binding ExportLibraryJsonCommand}"/>
-                                                <Button Content="Copy Report" Command="{Binding CopyTuningReportCommand}"/>
-                                            </WrapPanel>
-                                        </Expander>
-                                    </StackPanel>
+                        <Border Grid.Row="0" Style="{StaticResource PanelBorder}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.05*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="0.95*"/>
+                                </Grid.ColumnDefinitions>
 
-                                    <Grid Grid.Row="1" Margin="0,16,0,0">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <DockPanel Margin="0,0,0,6">
-                                            <TextBlock Text="Selected curve"
-                                                       Style="{StaticResource TinyLabel}"
-                                                       DockPanel.Dock="Left"/>
-                                            <TextBlock Text="{Binding SelectedPreset.Name}"
-                                                       Style="{StaticResource DimText}"
-                                                       HorizontalAlignment="Right"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </DockPanel>
-                                        <controls:EqResponseGraphControl Grid.Row="1"
-                                                                         Bands="{Binding SelectedPreset.Bands}"
-                                                                         PreampDb="{Binding SelectedPreset.PreampDb}"
-                                                                         Height="180"
-                                                                         MinHeight="0"/>
-                                    </Grid>
+                                <DockPanel Grid.ColumnSpan="3" Margin="0,0,0,12">
+                                    <TextBlock Text="Online Profiles"
+                                               Style="{StaticResource SectionTitle}"
+                                               DockPanel.Dock="Left"
+                                               Margin="0"/>
+                                    <TextBlock Text="{Binding GitHubProfileCount, StringFormat={}{0} results}"
+                                               Style="{StaticResource DimText}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"/>
+                                </DockPanel>
+
+                                <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,0,8,0"
+                                             ToolTip="Search AutoEQ and OPRA headphone presets"/>
+                                    <Button Grid.Column="1"
+                                            Content="Search"
+                                            Command="{Binding SearchGitHubProfilesCommand}"
+                                            Style="{StaticResource FiioButton}"/>
                                 </Grid>
-                            </Border>
 
-                            <Border Style="{StaticResource PanelBorder}">
-                                <Grid>
+                                <ListBox Grid.Row="2"
+                                         Grid.Column="0"
+                                         ItemsSource="{Binding GitHubProfiles}"
+                                         SelectedItem="{Binding SelectedGitHubProfile}"
+                                         ItemTemplate="{StaticResource OnlineProfileListItemTemplate}"
+                                         MinHeight="360"/>
+
+                                <Grid Grid.Row="2" Grid.Column="2">
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-
-                                    <TextBlock Text="Online Library" Style="{StaticResource SectionTitle}"/>
-
-                                    <Grid Grid.Row="1" Margin="0,0,0,10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                                 Margin="0,0,8,0"
-                                                 ToolTip="Search online presets"/>
-                                        <Button Grid.Column="1"
-                                                Content="Search"
-                                                Command="{Binding SearchGitHubProfilesCommand}"
-                                                Style="{StaticResource FiioButton}"/>
-                                    </Grid>
-
-                                    <ListBox Grid.Row="2"
-                                             ItemsSource="{Binding GitHubProfiles}"
-                                             SelectedItem="{Binding SelectedGitHubProfile}"
-                                             MinHeight="220"
-                                             MaxHeight="260">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="4,5">
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-                                                    <TextBlock Text="{Binding Name}"
-                                                               FontSize="13"
-                                                               FontWeight="SemiBold"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Row="1"
-                                                               Text="{Binding SourceSummary}"
-                                                               Style="{StaticResource MutedText}"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-
-                                    <Grid Grid.Row="3" Margin="0,10,0,0">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <DockPanel Margin="0,0,0,6">
-                                            <TextBlock Text="Online curve"
-                                                       Style="{StaticResource TinyLabel}"
-                                                       DockPanel.Dock="Left"/>
-                                            <TextBlock Text="{Binding GitHubProfileStatus}"
-                                                       Style="{StaticResource DimText}"
-                                                       HorizontalAlignment="Right"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </DockPanel>
-                                        <controls:EqResponseGraphControl Grid.Row="1"
-                                                                         Bands="{Binding GitHubPreviewPreset.Bands}"
-                                                                         PreampDb="{Binding GitHubPreviewPreset.PreampDb, TargetNullValue=0}"
-                                                                         IsInteractive="False"
-                                                                         Height="150"
-                                                                         MinHeight="0"/>
-                                    </Grid>
-
-                                    <DockPanel Grid.Row="4" Margin="0,10,0,0">
+                                    <DockPanel Margin="0,0,0,6">
+                                        <TextBlock Text="Online curve"
+                                                   Style="{StaticResource TinyLabel}"
+                                                   DockPanel.Dock="Left"/>
+                                        <TextBlock Text="{Binding GitHubProfileStatus}"
+                                                   Style="{StaticResource DimText}"
+                                                   HorizontalAlignment="Right"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                    <controls:EqResponseGraphControl Grid.Row="1"
+                                                                     Bands="{Binding GitHubPreviewPreset.Bands}"
+                                                                     PreampDb="{Binding GitHubPreviewPreset.PreampDb, TargetNullValue=0}"
+                                                                     IsInteractive="False"
+                                                                     MinHeight="260"/>
+                                    <DockPanel Grid.Row="2" Margin="0,12,0,0">
+                                        <TextBlock Text="{Binding SelectedGitHubProfile.SourceSummary}"
+                                                   Style="{StaticResource DimText}"
+                                                   DockPanel.Dock="Left"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
                                         <Button Content="Download"
                                                 Command="{Binding ImportGitHubProfileCommand}"
                                                 Style="{StaticResource AccentButton}"
@@ -969,35 +1101,54 @@
                                                 HorizontalAlignment="Right"/>
                                     </DockPanel>
                                 </Grid>
-                            </Border>
-                        </StackPanel>
+                            </Grid>
+                        </Border>
 
-                        <StackPanel Grid.Row="1">
-                            <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="Quick Tuning" Style="{StaticResource SectionTitle}"/>
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Style="{StaticResource PanelBorder}">
+                                <DockPanel>
+                                    <TextBlock Text="Quick Tuning"
+                                               Style="{StaticResource SectionTitle}"
+                                               DockPanel.Dock="Left"
+                                               Margin="0,0,14,0"
+                                               VerticalAlignment="Center"/>
                                     <WrapPanel>
                                         <Button Content="Warm Tilt" Command="{Binding AddWarmTiltCommand}"/>
                                         <Button Content="Treble Tamer" Command="{Binding AddTrebleTamerCommand}"/>
                                         <Button Content="Gaming Clarity" Command="{Binding AddGamingClarityCommand}"/>
                                     </WrapPanel>
-                                </StackPanel>
+                                </DockPanel>
                             </Border>
 
-                            <Border Style="{StaticResource PanelBorder}">
-                                <StackPanel>
-                                    <TextBlock Text="Device Fit" Style="{StaticResource SectionTitle}"/>
-                                    <TextBlock Text="{Binding K13ReadinessText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding TuningConfidenceText}" Style="{StaticResource MutedText}" Margin="0,6,0,8"/>
-                                    <ProgressBar Minimum="0"
-                                                 Maximum="100"
-                                                 Value="{Binding TuningConfidenceScore, Mode=OneWay}"
-                                                 Height="8"/>
-                                </StackPanel>
+                            <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Device Fit"
+                                               Style="{StaticResource SectionTitle}"
+                                               Margin="0,0,16,0"
+                                               VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding K13ReadinessText}" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{Binding TuningConfidenceText}" Style="{StaticResource DimText}" Margin="0,0,0,8"/>
+                                        <ProgressBar Minimum="0"
+                                                     Maximum="100"
+                                                     Value="{Binding TuningConfidenceScore, Mode=OneWay}"
+                                                     Height="8"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
-                        </StackPanel>
+                        </Grid>
                     </Grid>
-                </ScrollViewer>
+                </Grid>
             </TabItem>
 
             <TabItem x:Name="SettingsTab" Tag="HiddenRail">
@@ -1019,6 +1170,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <Grid Margin="24">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -1095,6 +1247,53 @@
                         <Border Grid.Row="1" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,14">
+                                    <TextBlock Text="Device"
+                                               Style="{StaticResource SectionTitle}"
+                                               DockPanel.Dock="Left"
+                                               Margin="0"/>
+                                    <Button Content="Detect"
+                                            Command="{Binding ConnectCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            DockPanel.Dock="Right"
+                                            HorizontalAlignment="Right"/>
+                                </DockPanel>
+
+                                <Border Style="{StaticResource SourceTileBorder}" Padding="12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                            <TextBlock Text="Device profile" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                            <ComboBox ItemsSource="{Binding DeviceProfiles}"
+                                                      SelectedItem="{Binding SelectedDeviceProfile}"
+                                                      DisplayMemberPath="DisplayLabel"
+                                                      MinWidth="260"/>
+                                            <TextBlock Text="{Binding DeviceSelectionStatus}"
+                                                       Style="{StaticResource DimText}"
+                                                       Margin="0,8,0,0"/>
+                                            <TextBlock Text="{Binding DeviceProfileCapabilityText}"
+                                                       Style="{StaticResource DimText}"
+                                                       Margin="0,4,0,0"/>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding ConnectionText}"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="2"
+                                Style="{StaticResource PanelBorder}"
+                                Margin="0,0,0,16"
+                                IsEnabled="{Binding SelectedDeviceSupportsBleInput}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,14">
                                     <TextBlock Text="Input"
                                                Style="{StaticResource SectionTitle}"
                                                DockPanel.Dock="Left"
@@ -1114,7 +1313,7 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                            <TextBlock Text="K13 input" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="Device input" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
                                             <ComboBox ItemsSource="{Binding DeviceInputSources}"
                                                       SelectedItem="{Binding SelectedDeviceInputSource}"
                                                       DisplayMemberPath="DisplayName"
@@ -1134,7 +1333,10 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Row="2" Style="{StaticResource PanelBorder}" Margin="0,0,0,16">
+                        <Border Grid.Row="3"
+                                Style="{StaticResource PanelBorder}"
+                                Margin="0,0,0,16"
+                                IsEnabled="{Binding SelectedDeviceSupportsBleLighting}">
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,14">
                                     <TextBlock Text="Profile Lights"
@@ -1382,7 +1584,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Row="3" Style="{StaticResource PanelBorder}">
+                        <Border Grid.Row="4" Style="{StaticResource PanelBorder}">
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,14">
                                     <TextBlock Text="About"

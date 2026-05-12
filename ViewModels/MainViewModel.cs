@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -20,6 +21,7 @@ namespace WolfEQ.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
+    private static readonly bool K13HardwareEqIoEnabled = true;
     private readonly FiioK13DeviceService _deviceService = new();
     private readonly FiioK13BleLightService _bleLightService = new();
     private readonly AutoEqGitHubProfileService _githubProfileService = new();
@@ -29,8 +31,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly DispatcherTimer _profileAutosaveTimer;
     private readonly DispatcherTimer _liveDeviceEqSyncTimer;
     private readonly HashSet<int> _pendingLiveBandNumbers = [];
-    private string _status = "Connect your K13 or edit profiles.";
-    private string _liveDeviceEqSyncStatus = "Live sync on - connect K13 to save edits";
+    private readonly Dictionary<EqPreset, EqPreset> _savedPresetSnapshots = [];
+    private EqPreset? _savedSelectedPreset;
+    private string _status = "Connect your device or edit profiles.";
+    private string _liveDeviceEqSyncStatus = "Manual device write - click Save Changes to write edits";
+    private string _deviceSelectionStatus = "Auto-detect will choose a supported FiiO device profile.";
+    private string _profileLibrarySaveStatus = "Saved";
     private string _deviceProfileName = "ANANDA";
     private string _deviceVolumeDisplay = "Vol --";
     private string _deviceInputDisplay = "Current input has not been read yet.";
@@ -43,7 +49,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _knobLedOn = true;
     private double _preampDb;
     private EqPreset _selectedPreset;
-    private DeviceUserPresetOption _selectedDeviceUserPreset;
+    private DeviceUserPresetOption _selectedDeviceUserPreset = null!;
+    private FiioDeviceProfile _selectedDeviceProfile = FiioDeviceProfiles.Default;
     private DeviceInputSourceOption _selectedDeviceInputSource;
     private LedColorOption _selectedTopLedColorOption;
     private LedColorOption _selectedKnobLedColorOption;
@@ -59,12 +66,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private AccentColorOption _selectedAccentColorOption;
     private bool _favoritesOnly;
     private EqPreset? _comparePreset;
-    private byte? _currentDevicePresetId;
+    private byte? _confirmedDevicePresetId;
     private bool _isLoadingPreset;
     private bool _liveDeviceEqSyncEnabled = true;
     private bool _pendingLivePreampSync;
     private bool _isSyncingLiveDeviceEq;
     private bool _isLoadingSlotLightingProfile;
+    private bool _isProfileLibraryDirty;
+    private bool _suppressSelectedPresetDirty;
     private Dictionary<int, SlotLightingProfileData> _slotLightingProfiles = [];
 
     public MainViewModel()
@@ -89,6 +98,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             RefreshProfileLibrary();
             QueueProfileAutosave();
         };
+        CommitSavedProfileState();
         ProfileCategories = new ObservableCollection<string> { "All", "Listening", "Gaming", "Imported", "Online", "Reference", "Favorites", "K13 Ready" };
         AccentColorOptions = new ObservableCollection<AccentColorOption>
         {
@@ -133,10 +143,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Bands = _selectedPreset.Bands;
         WatchBands(Bands);
         _preampDb = _selectedPreset.PreampDb;
-        DeviceUserPresets = new ObservableCollection<DeviceUserPresetOption>(
-            Enumerable.Range(1, 10)
-                .Select(slot => new DeviceUserPresetOption(slot, (byte)(0x9F + slot))));
-        _selectedDeviceUserPreset = DeviceUserPresets[0];
+        DeviceProfiles = new ObservableCollection<FiioDeviceProfile>(FiioDeviceProfiles.All);
+        _deviceService.SelectedProfile = _selectedDeviceProfile;
+        DeviceUserPresets = [];
+        RebuildDeviceUserPresets(_selectedDeviceProfile);
         LoadSelectedSlotLightingProfileIntoUi();
         DeviceInputSources =
         [
@@ -166,7 +176,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         VolumeDownCommand = new AsyncRelayCommand(VolumeDownAsync, () => false);
         VolumeUpCommand = new AsyncRelayCommand(VolumeUpAsync, () => false);
         SaveCommand = new RelayCommand(async () => await SaveAsync(), () => CanWriteToHardware);
-        ResetCommand = new RelayCommand(LoadSelectedPreset);
+        ResetCommand = new RelayCommand(ResetSelectedPreset, () => SelectedPreset is not null);
         ImportApoFromFileCommand = new RelayCommand(ImportApoFromFile);
         ExportApoToFileCommand = new RelayCommand(ExportApoToFile, () => SelectedPreset is not null);
         ImportApoFromClipboardCommand = new RelayCommand(ImportApoFromClipboard);
@@ -174,12 +184,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ImportFiioXmlFromFileCommand = new RelayCommand(ImportFiioXmlFromFile);
         ExportFiioXmlToFileCommand = new RelayCommand(ExportFiioXmlToFile, () => SelectedPreset is not null);
         ToggleFavoriteCommand = new RelayCommand(ToggleSelectedFavorite, () => SelectedPreset is not null);
-        SaveProfileLibraryCommand = new RelayCommand(SaveProfileLibrary, () => SelectedPreset is not null);
+        SaveProfileLibraryCommand = new AsyncRelayCommand(SaveProfileLibraryAsync, () => IsProfileLibraryDirty && SelectedPreset is not null);
         ImportJsonFromFileCommand = new RelayCommand(ImportJsonFromFile);
         ExportJsonToFileCommand = new RelayCommand(ExportJsonToFile, () => SelectedPreset is not null);
         ImportLibraryJsonCommand = new RelayCommand(ImportLibraryJsonFromFile);
         ExportLibraryJsonCommand = new RelayCommand(ExportLibraryJsonToFile, () => Presets.Count > 0);
         CopyTuningReportCommand = new RelayCommand(CopyTuningReportToClipboard, () => SelectedPreset is not null);
+        CopyTuningCardCommand = new RelayCommand(CopyTuningCardToClipboard, () => SelectedPreset is not null);
         SearchGitHubProfilesCommand = new AsyncRelayCommand(SearchGitHubProfilesAsync);
         ImportGitHubProfileCommand = new AsyncRelayCommand(ImportGitHubProfileAsync);
         ApplyAutoHeadroomCommand = new RelayCommand(ApplyAutoHeadroom);
@@ -211,6 +222,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<LedColorOption> LedColorOptions { get; }
     public ObservableCollection<LedModeOption> LedModeOptions { get; }
     public ObservableCollection<LedSceneOption> LedSceneOptions { get; }
+    public ObservableCollection<FiioDeviceProfile> DeviceProfiles { get; }
     public ObservableCollection<DeviceUserPresetOption> DeviceUserPresets { get; }
     public ObservableCollection<DeviceInputSourceOption> DeviceInputSources { get; }
     public ObservableCollection<EqBand> Bands { get; private set; }
@@ -221,14 +233,84 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public double MaxEnabledBoostDb => Bands.Count == 0 ? 0 : Bands.Where(band => band.Enabled).Select(band => band.GainDb).DefaultIfEmpty(0).Max();
     public double RecommendedPreampDb => Math.Min(0, -MaxEnabledBoostDb);
     public string PresetEditSummaryText => $"{EnabledBandCount}/{Bands.Count} on · headroom {RecommendedPreampDb:F1} dB";
+    public string HeadroomGuardianTitle => PreampDb + MaxEnabledBoostDb > 0 ? "Clipping Risk" : "Safe Headroom";
+    public string HeadroomGuardianText => PreampDb + MaxEnabledBoostDb > 0
+        ? $"Reduce preamp to {RecommendedPreampDb:F1} dB before writing this preset."
+        : $"Peak boost is protected by {Math.Abs(PreampDb + MaxEnabledBoostDb):F1} dB.";
+    public string DeviceFitReportText => BuildDeviceFitReportText();
     public string LiveDeviceEqSyncStatus
     {
         get => _liveDeviceEqSyncStatus;
         private set => SetField(ref _liveDeviceEqSyncStatus, value);
     }
 
+    public string DeviceSelectionStatus
+    {
+        get => _deviceSelectionStatus;
+        private set => SetField(ref _deviceSelectionStatus, value);
+    }
+
+    public FiioDeviceProfile SelectedDeviceProfile
+    {
+        get => _selectedDeviceProfile;
+        set
+        {
+            if (value is null)
+            {
+                return;
+            }
+
+            if (SetField(ref _selectedDeviceProfile, value))
+            {
+                _deviceService.SelectedProfile = value;
+                RebuildDeviceUserPresets(value);
+                DeviceSelectionStatus = $"Using {value.DisplayLabel}.";
+                OnPropertyChanged(nameof(DeviceProfileCapabilityText));
+                OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
+                OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
+                OnPropertyChanged(nameof(SupportsK13PresetTools));
+                SetConnectionState(IsDeviceConnected);
+            }
+        }
+    }
+
+    public string DeviceProfileCapabilityText => SelectedDeviceProfile.CapabilitySummary;
+    public bool SelectedDeviceSupportsBleInput => SelectedDeviceProfile.HasBleInput;
+    public bool SelectedDeviceSupportsBleLighting => SelectedDeviceProfile.HasBleLighting;
+    public string ProfileLibrarySaveStatus
+    {
+        get => _profileLibrarySaveStatus;
+        private set => SetField(ref _profileLibrarySaveStatus, value);
+    }
+
+    public bool IsProfileLibraryDirty
+    {
+        get => _isProfileLibraryDirty;
+        private set
+        {
+            if (SetField(ref _isProfileLibraryDirty, value))
+            {
+                ProfileLibrarySaveStatus = value ? "Unsaved changes" : "Saved";
+                OnPropertyChanged(nameof(SaveProfileLibraryButtonText));
+                if (SaveProfileLibraryCommand is RelayCommand command)
+                {
+                    command.RaiseCanExecuteChanged();
+                }
+                else if (SaveProfileLibraryCommand is AsyncRelayCommand asyncCommand)
+                {
+                    asyncCommand.RaiseCanExecuteChanged();
+                }
+            }
+        }
+    }
+
+    public string SaveProfileLibraryButtonText => IsProfileLibraryDirty ? "Save Changes" : "Saved";
+
     public string BandInspectorText => BuildBandInspectorText();
     public string BandInspectorHint => BuildBandInspectorHint();
+    public string DeviceBandEditorTitle => $"{Bands.Count}-Band PEQ";
+    public double BandCardWidth => Bands.Count > 24 ? 124 : Bands.Count > 16 ? 138 : 168;
+    public bool SupportsK13PresetTools => Bands.Count == 10 && SelectedDeviceProfile.BandCount == 10;
     public int FilteredPresetCount => FilteredPresets.Cast<EqPreset>().Count();
     public int GitHubProfileCount => GitHubProfiles.Count;
     public int FavoritePresetCount => Presets.Count(preset => preset.IsFavorite);
@@ -397,7 +479,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         get => _selectedPreset;
         set
         {
-            if (SetField(ref _selectedPreset, value)) LoadSelectedPreset();
+            if (SetField(ref _selectedPreset, value))
+            {
+                LoadSelectedPreset();
+                if (!_suppressSelectedPresetDirty && !ReferenceEquals(_selectedPreset, _savedSelectedPreset))
+                {
+                    IsProfileLibraryDirty = true;
+                }
+            }
         }
     }
 
@@ -418,18 +507,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public bool LiveDeviceEqSyncEnabled
     {
-        get => true;
+        get => K13HardwareEqIoEnabled && _liveDeviceEqSyncEnabled;
         set
         {
+            if (!K13HardwareEqIoEnabled)
+            {
+                SetField(ref _liveDeviceEqSyncEnabled, false);
+                LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
+                AddLog("Live device EQ sync is disabled in this safety build.");
+                return;
+            }
+
             if (!value)
             {
+                SetField(ref _liveDeviceEqSyncEnabled, false);
+                LiveDeviceEqSyncStatus = "Off";
                 return;
             }
 
             if (SetField(ref _liveDeviceEqSyncEnabled, true))
             {
                 LiveDeviceEqSyncStatus = value
-                    ? "Live sync on · writes save to the active K13 profile"
+                    ? $"Manual device write - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}"
                     : "Off";
                 AddLog(value
                     ? "Live device EQ sync enabled. Preamp and band edits will use guarded USB writes."
@@ -580,6 +679,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand ImportLibraryJsonCommand { get; }
     public ICommand ExportLibraryJsonCommand { get; }
     public ICommand CopyTuningReportCommand { get; }
+    public ICommand CopyTuningCardCommand { get; }
     public ICommand SearchGitHubProfilesCommand { get; }
     public ICommand ImportGitHubProfileCommand { get; }
     public ICommand ApplyAutoHeadroomCommand { get; }
@@ -618,7 +718,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task DetectDeviceAsync()
     {
-        Status = "Scanning Windows HID interfaces for FiiO VID_2972...";
+        Status = "Scanning Windows HID interfaces for supported FiiO devices...";
         DeviceLog.Clear();
         AddLog("Read-only scan started. No output, feature, or SET packets will be sent.");
 
@@ -626,6 +726,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var result = await _deviceService.DetectUsbAsync();
             Status = result.StatusMessage;
+
+            if (result.MatchedProfile is not null)
+            {
+                SelectDetectedDeviceProfile(result.MatchedProfile, result.MatchedCandidate);
+            }
+            else
+            {
+                DeviceSelectionStatus = result.Candidates.Count == 0
+                    ? "No supported FiiO HID device found."
+                    : "FiiO HID device found, but no known profile matched. Pick one manually.";
+            }
+
             SetConnectionState(result.IsDetected);
 
             AddLog($"Scanned {result.ScannedDeviceCount} HID interface(s).");
@@ -633,6 +745,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (result.Candidates.Count == 0)
             {
                 AddLog("No VID_2972 HID candidates found.");
+            }
+
+            if (result.MatchedProfile is not null && result.MatchedCandidate is not null)
+            {
+                AddLog($"Auto-selected {result.MatchedProfile.DisplayLabel} from {result.MatchedCandidate.VendorProductDisplay} {result.MatchedCandidate.InterfaceDisplay}.");
             }
 
             foreach (var candidate in result.Candidates)
@@ -647,7 +764,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 AddLog($"  Path: {candidate.DevicePath}");
             }
 
-            AddLog("Detection complete. Hardware writes remain disabled.");
+            AddLog("Detection complete.");
         }
         catch (OperationCanceledException)
         {
@@ -665,14 +782,22 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task ReadDeviceEqAsync()
     {
-        Status = "Reading K13 EQ with read-only GET packets...";
+        if (!K13HardwareEqIoEnabled)
+        {
+            Status = "Hardware EQ readback is disabled in this safety build.";
+            AddLog("Blocked hardware EQ readback; no HID GET packets were sent.");
+            await Task.CompletedTask;
+            return;
+        }
+
+        Status = $"Reading {SelectedDeviceProfile.DisplayName} EQ with read-only GET packets...";
         AddLog("Device EQ readback started. GET packets only; no SET/save commands will be sent.");
 
         try
         {
             var snapshot = await _deviceService.ReadCurrentEqAsync();
             SetConnectionState(true);
-            _currentDevicePresetId = snapshot.PresetId;
+            _confirmedDevicePresetId = snapshot.PresetId;
             SelectDeviceUserPresetOption(snapshot.PresetId);
 
             foreach (var line in snapshot.TransportLog)
@@ -700,12 +825,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         catch (OperationCanceledException)
         {
-            Status = "K13 EQ readback was canceled.";
+            Status = "Device EQ readback was canceled.";
             AddLog("Device EQ readback canceled.");
         }
         catch (Exception ex)
         {
-            Status = $"K13 EQ readback failed: {ex.Message}";
+            Status = $"Device EQ readback failed: {ex.Message}";
             SetConnectionState(false);
             AddLog(Status);
         }
@@ -714,40 +839,31 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private async Task SelectUserPresetAsync()
     {
         var option = SelectedDeviceUserPreset;
-        SelectDeviceEqPresetForSlot(option.PresetId, createIfMissing: false);
 
-        Status = $"Switching K13 to {option.DisplayName}...";
+        Status = $"Switching to {option.DisplayName}...";
         AddLog($"Guarded USER preset switch requested: {option.DisplayName} (0x{option.PresetId:X2}).");
 
         try
         {
             var result = await _deviceService.SelectUserPresetAsync(option.PresetId);
-            SetConnectionState(true);
-            _currentDevicePresetId = result.AfterPresetId;
-            SelectDeviceUserPresetOption(result.AfterPresetId);
-            SelectDeviceEqPresetForSlot(result.AfterPresetId, createIfMissing: true);
-
             foreach (var line in result.TransportLog)
             {
                 AddLog($"  {line}");
             }
 
-            Status = result.Confirmed
-                ? $"Preset switched: {result.BeforeDisplay} -> {result.AfterDisplay}"
-                : $"Preset switch unconfirmed. Requested {result.RequestedDisplay}, read back {result.AfterDisplay}.";
+            if (!result.Confirmed)
+            {
+                Status = $"Device did not confirm {option.DisplayName}; active slot still reads {result.AfterDisplay}.";
+                AddLog(Status);
+                return;
+            }
+
+            _confirmedDevicePresetId = result.AfterPresetId;
+            Status = $"Switched to {option.DisplayName}; reading device EQ...";
             AddLog(Status);
-
-            await ApplySelectedSlotLightingAsync();
-
-            AddLog("Auto-reading EQ after USER slot switch.");
             await ReadDeviceEqAsync();
         }
-        catch (OperationCanceledException)
-        {
-            Status = "Preset switch was canceled.";
-            AddLog(Status);
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception)
         {
             Status = $"Preset switch failed: {ex.Message}";
             SetConnectionState(false);
@@ -757,7 +873,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task RenameCurrentUserSlotAsync()
     {
-        if (_currentDevicePresetId is not byte presetId)
+        if (_confirmedDevicePresetId is not byte presetId)
         {
             Status = "Read the device EQ first so WolfEQ knows which USER slot is active.";
             AddLog(Status);
@@ -1404,7 +1520,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Status = string.IsNullOrWhiteSpace(query)
             ? "Loading online AutoEq profile index..."
             : $"Searching online AutoEq profiles for '{query}'...";
-        GitHubProfileStatus = "Searching online AutoEq profiles...";
+        GitHubProfileStatus = "Searching online headphone profiles...";
         AddLog(Status);
 
         try
@@ -1419,7 +1535,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             SelectedGitHubProfile = GitHubProfiles.FirstOrDefault();
             OnPropertyChanged(nameof(GitHubProfileCount));
 
-            GitHubProfileStatus = $"{GitHubProfileCount} online profile(s) shown";
+            GitHubProfileStatus = $"{GitHubProfileCount} online profile(s) shown from AutoEQ and OPRA";
             Status = GitHubProfileCount == 0
                 ? "No online AutoEq profiles matched the search."
                 : $"Found {GitHubProfileCount} online AutoEq profile(s).";
@@ -1668,19 +1784,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 continue;
             }
 
-            if (TryGetDeviceEqSlotKey(preset.Name, out var deviceSlotKey) &&
-                !seenDeviceSlots.Add(deviceSlotKey))
+            var cleanedPreset = preset;
+            if (TryGetDeviceEqSlotKey(preset.Name, out var deviceSlotKey))
             {
-                continue;
+                if (!seenDeviceSlots.Add(deviceSlotKey))
+                {
+                    continue;
+                }
+
+                var presetId = ParseDeviceEqSlotKey(deviceSlotKey);
+                if (presetId is not null)
+                {
+                    cleanedPreset = ClonePreset(preset, BuildDeviceEqPresetName(presetId.Value));
+                }
             }
 
-            var presetKey = $"{preset.Category}|{preset.SourceName}|{preset.Name}";
+            var presetKey = $"{cleanedPreset.Category}|{cleanedPreset.SourceName}|{cleanedPreset.Name}";
             if (!seenKeys.Add(presetKey))
             {
                 continue;
             }
 
-            cleaned.Add(preset);
+            cleaned.Add(cleanedPreset);
         }
 
         return cleaned.Count == 0
@@ -1696,15 +1821,37 @@ public sealed class MainViewModel : INotifyPropertyChanged
                or "Ananda Oratory-Style Starter"
                or "Ananda Bass Fun - Safe";
 
-    private void SaveProfileLibrary()
+    private async Task SaveProfileLibraryAsync()
     {
         try
         {
+            if (IsDeviceConnected && K13HardwareEqIoEnabled)
+            {
+                var deviceResult = await _deviceService.SaveCurrentUserPresetAsync(
+                    SelectedPreset,
+                    SelectedDeviceUserPreset.PresetId);
+                foreach (var line in deviceResult.TransportLog)
+                {
+                    AddLog($"  {line}");
+                }
+
+                AddLog($"Reloading {SelectedDeviceUserPreset.DisplayName} from hardware after save.");
+                await ReadDeviceEqAsync();
+            }
+            else if (IsDeviceConnected)
+            {
+                AddLog("Skipped hardware preset write; K13 hardware EQ I/O is disabled in this safety build.");
+            }
+
             _localLibraryService.Save(Presets);
-            Status = $"Saved {Presets.Count} profile(s) to WolfEQ.";
+            CommitSavedProfileState();
+            IsProfileLibraryDirty = false;
+            Status = IsDeviceConnected && K13HardwareEqIoEnabled
+                ? $"Saved and reloaded {SelectedDeviceUserPreset.DisplayName} from hardware."
+                : $"Saved {Presets.Count} profile(s) to WolfEQ.";
             AddLog($"Saved local profile library: {_localLibraryService.LibraryPath}");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or TimeoutException or Win32Exception)
         {
             Status = $"Profile save failed: {ex.Message}";
             AddLog(Status);
@@ -1716,6 +1863,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         try
         {
             _localLibraryService.Save(Presets);
+            CommitSavedProfileState();
+            IsProfileLibraryDirty = false;
             AddLog($"Saved local profile library: {_localLibraryService.LibraryPath}");
             errorMessage = null;
             return true;
@@ -2060,6 +2209,39 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AddLog(Status);
     }
 
+    private void CopyTuningCardToClipboard()
+    {
+        Clipboard.SetText(BuildTuningCard());
+        Status = "Copied Reddit-ready tuning card.";
+        AddLog(Status);
+    }
+
+    private string BuildTuningCard()
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"# {SelectedPreset.Name}");
+        builder.AppendLine();
+        builder.AppendLine($"Device: {SelectedDeviceProfile.DisplayName}");
+        builder.AppendLine($"Target slot: {SelectedDeviceUserPreset.DisplayName}");
+        builder.AppendLine($"Source: {SelectedPreset.SourceName}");
+        builder.AppendLine($"Preamp: {PreampDb:F1} dB");
+        builder.AppendLine($"Safety: {HeadroomGuardianTitle} - {HeadroomGuardianText}");
+        builder.AppendLine($"Fit: {DeviceFitReportText}");
+        builder.AppendLine();
+        builder.AppendLine("| Band | On | Filter | Fc | Gain | Q |");
+        builder.AppendLine("|---:|:--:|---|---:|---:|---:|");
+        foreach (var band in Bands.OrderBy(band => band.Number))
+        {
+            builder.AppendLine($"| {band.Number} | {(band.Enabled ? "Yes" : "No")} | {band.FilterType} | {band.FrequencyHz} Hz | {band.GainDb:F1} dB | {band.Q:F2} |");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("```txt");
+        builder.Append(EqualizerApoPresetCodec.Export(SelectedPreset));
+        builder.AppendLine("```");
+        return builder.ToString();
+    }
+
     private string BuildTuningReport()
     {
         var builder = new StringBuilder();
@@ -2069,6 +2251,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         builder.AppendLine($"Source: {SelectedPreset.SourceName}");
         builder.AppendLine($"Description: {SelectedPreset.Description}");
         builder.AppendLine($"Preamp: {PreampDb:F1} dB");
+        builder.AppendLine($"Target device slot: {SelectedDeviceUserPreset.DisplayName}");
+        builder.AppendLine($"{HeadroomGuardianTitle}: {HeadroomGuardianText}");
+        builder.AppendLine(DeviceFitReportText);
         builder.AppendLine(PresetEditSummaryText);
         builder.AppendLine(BandInspectorText);
         builder.AppendLine(BandInspectorHint);
@@ -2524,6 +2709,71 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private void ResetSelectedPreset()
+    {
+        if (_savedSelectedPreset is not null && !ReferenceEquals(SelectedPreset, _savedSelectedPreset))
+        {
+            _suppressSelectedPresetDirty = true;
+            try
+            {
+                SelectedPreset = _savedSelectedPreset;
+                FilteredPresets.MoveCurrentTo(_savedSelectedPreset);
+            }
+            finally
+            {
+                _suppressSelectedPresetDirty = false;
+            }
+
+            IsProfileLibraryDirty = HasUnsavedProfileState();
+            Status = $"Reset preset selection to {SelectedPreset.Name}.";
+            AddLog(Status);
+            return;
+        }
+
+        if (!_savedPresetSnapshots.TryGetValue(SelectedPreset, out var savedSnapshot))
+        {
+            LoadSelectedPreset();
+            Status = $"Reloaded preset: {SelectedPreset.Name}";
+            AddLog(Status);
+            return;
+        }
+
+        var originalPreset = SelectedPreset;
+        var restoredPreset = ClonePreset(savedSnapshot);
+        var selectedIndex = Presets.IndexOf(originalPreset);
+        if (selectedIndex < 0)
+        {
+            return;
+        }
+
+        _isLoadingPreset = true;
+        try
+        {
+            Presets[selectedIndex] = restoredPreset;
+            _savedPresetSnapshots.Remove(originalPreset);
+            _savedPresetSnapshots[restoredPreset] = ClonePreset(restoredPreset);
+            if (ReferenceEquals(_savedSelectedPreset, originalPreset))
+            {
+                _savedSelectedPreset = restoredPreset;
+            }
+
+            SelectedPreset = restoredPreset;
+            FilteredPresets.MoveCurrentTo(restoredPreset);
+        }
+        finally
+        {
+            _isLoadingPreset = false;
+        }
+
+        if (_savedPresetSnapshots.Count == Presets.Count)
+        {
+            IsProfileLibraryDirty = HasUnsavedProfileState();
+        }
+
+        Status = $"Reset {SelectedPreset.Name} to the last saved version.";
+        AddLog(Status);
+    }
+
     private void LoadSelectedPreset()
     {
         _isLoadingPreset = true;
@@ -2533,9 +2783,59 @@ public sealed class MainViewModel : INotifyPropertyChanged
         PreampDb = SelectedPreset.PreampDb;
         _isLoadingPreset = false;
         OnPropertyChanged(nameof(Bands));
+        OnPropertyChanged(nameof(DeviceBandEditorTitle));
+        OnPropertyChanged(nameof(BandCardWidth));
+        OnPropertyChanged(nameof(SupportsK13PresetTools));
         RefreshHeadroomProperties();
         Status = $"Loaded preset: {SelectedPreset.Name}";
     }
+
+    private void CommitSavedProfileState()
+    {
+        _savedPresetSnapshots.Clear();
+        foreach (var preset in Presets)
+        {
+            _savedPresetSnapshots[preset] = ClonePreset(preset);
+        }
+
+        _savedSelectedPreset = SelectedPreset;
+    }
+
+    private bool HasUnsavedProfileState()
+        => !ReferenceEquals(SelectedPreset, _savedSelectedPreset)
+           || _savedPresetSnapshots.Count != Presets.Count
+           || Presets.Any(preset =>
+               !_savedPresetSnapshots.TryGetValue(preset, out var snapshot) ||
+               !PresetMatchesSnapshot(preset, snapshot));
+
+    private static bool PresetMatchesSnapshot(EqPreset preset, EqPreset snapshot)
+        => preset.Name == snapshot.Name
+           && preset.Category == snapshot.Category
+           && preset.SourceName == snapshot.SourceName
+           && preset.Description == snapshot.Description
+           && preset.IsFavorite == snapshot.IsFavorite
+           && Math.Abs(preset.PreampDb - snapshot.PreampDb) < 0.005
+           && preset.Bands.Count == snapshot.Bands.Count
+           && preset.Bands.Zip(snapshot.Bands).All(pair => BandsMatch(pair.First, pair.Second));
+
+    private static EqBand CloneBand(EqBand band)
+        => new()
+        {
+            Number = band.Number,
+            Enabled = band.Enabled,
+            FilterType = band.FilterType,
+            FrequencyHz = band.FrequencyHz,
+            GainDb = band.GainDb,
+            Q = band.Q
+        };
+
+    private static bool BandsMatch(EqBand left, EqBand right)
+        => left.Number == right.Number
+           && left.Enabled == right.Enabled
+           && left.FilterType == right.FilterType
+           && left.FrequencyHz == right.FrequencyHz
+           && Math.Abs(left.GainDb - right.GainDb) < 0.005
+           && Math.Abs(left.Q - right.Q) < 0.005;
 
     private void WatchBands(ObservableCollection<EqBand> bands)
     {
@@ -2596,7 +2896,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         _profileAutosaveTimer.Stop();
-        _profileAutosaveTimer.Start();
+        IsProfileLibraryDirty = true;
     }
 
     private void ProfileAutosaveTimerOnTick(object? sender, EventArgs e)
@@ -2613,40 +2913,56 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void QueueLiveDevicePreampSync()
     {
-        if (_isLoadingPreset || !LiveDeviceEqSyncEnabled)
+        if (_isLoadingPreset)
         {
+            return;
+        }
+
+        if (!K13HardwareEqIoEnabled)
+        {
+            LiveDeviceEqSyncStatus = "Unsaved local preamp edit";
             return;
         }
 
         if (!IsDeviceConnected)
         {
-            LiveDeviceEqSyncStatus = "Live sync on - connect K13 to save edits";
+            LiveDeviceEqSyncStatus = $"Connect {SelectedDeviceProfile.DisplayName} and click Save Changes to write edits";
             return;
         }
 
-        _pendingLivePreampSync = true;
-        QueueLiveDeviceEqSync();
+        LiveDeviceEqSyncStatus = $"Unsaved preamp edit - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}";
     }
 
     private void QueueLiveDeviceBandSync(int bandNumber)
     {
-        if (_isLoadingPreset || !LiveDeviceEqSyncEnabled || bandNumber is < 1 or > 10)
+        if (_isLoadingPreset || bandNumber < 1 || bandNumber > SelectedDeviceProfile.BandCount)
         {
+            return;
+        }
+
+        if (!K13HardwareEqIoEnabled)
+        {
+            LiveDeviceEqSyncStatus = $"Unsaved local band {bandNumber} edit";
             return;
         }
 
         if (!IsDeviceConnected)
         {
-            LiveDeviceEqSyncStatus = "Live sync on - connect K13 to save edits";
+            LiveDeviceEqSyncStatus = $"Connect {SelectedDeviceProfile.DisplayName} and click Save Changes to write edits";
             return;
         }
 
-        _pendingLiveBandNumbers.Add(bandNumber);
-        QueueLiveDeviceEqSync();
+        LiveDeviceEqSyncStatus = $"Unsaved band {bandNumber} edit - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}";
     }
 
     private void QueueLiveDeviceEqSync()
     {
+        if (!K13HardwareEqIoEnabled)
+        {
+            LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
+            return;
+        }
+
         if (_isSyncingLiveDeviceEq)
         {
             return;
@@ -2665,6 +2981,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task FlushLiveDeviceEqSyncAsync()
     {
+        if (!K13HardwareEqIoEnabled)
+        {
+            LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
+            return;
+        }
+
         if (!LiveDeviceEqSyncEnabled || _isSyncingLiveDeviceEq)
         {
             return;
@@ -2687,7 +3009,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (syncPreamp)
             {
-                var preampResult = await _deviceService.SetGlobalGainAsync(PreampDb);
+            var preampResult = await _deviceService.SetGlobalGainAsync(PreampDb);
                 foreach (var line in preampResult.TransportLog)
                 {
                     AddLog($"  {line}");
@@ -2703,7 +3025,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             foreach (var bandNumber in bandNumbers)
             {
                 var band = Bands.FirstOrDefault(candidate => candidate.Number == bandNumber);
-                if (band is null)
+                if (band is null || band.Number > SelectedDeviceProfile.BandCount)
                 {
                     continue;
                 }
@@ -2765,6 +3087,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(MaxEnabledBoostDb));
         OnPropertyChanged(nameof(RecommendedPreampDb));
         OnPropertyChanged(nameof(PresetEditSummaryText));
+        OnPropertyChanged(nameof(HeadroomGuardianTitle));
+        OnPropertyChanged(nameof(HeadroomGuardianText));
+        OnPropertyChanged(nameof(DeviceFitReportText));
         OnPropertyChanged(nameof(BandInspectorText));
         OnPropertyChanged(nameof(BandInspectorHint));
         OnPropertyChanged(nameof(ClippingHeadroomText));
@@ -2784,6 +3109,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(TuningConfidenceHint));
         OnPropertyChanged(nameof(CompareDeltaText));
         OnPropertyChanged(nameof(CompareDeltaHint));
+    }
+
+    private string BuildDeviceFitReportText()
+    {
+        var issues = GetK13ReadinessIssues().ToList();
+        if (issues.Count == 0)
+        {
+            return $"Fits {SelectedDeviceProfile.DisplayName}: {Bands.Count}/{SelectedDeviceProfile.BandCount} bands, {EnabledBandCount} enabled.";
+        }
+
+        return $"Needs cleanup for {SelectedDeviceProfile.DisplayName}: {string.Join(" · ", issues.Take(2))}";
     }
 
     private int BuildTuningConfidenceScore()
@@ -3250,7 +3586,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var matches = Presets
             .Where(preset => preset.Name == stableName ||
                              preset.Name.StartsWith(legacyPrefix, StringComparison.Ordinal) ||
-                             IsDeviceEqPresetForSlot(preset, slotKey))
+                             IsDeviceEqPresetForSlot(preset, slotKey, snapshot.Profile))
             .ToList();
         var target = matches.FirstOrDefault(preset => preset.Name == stableName);
 
@@ -3275,7 +3611,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private EqPreset? SelectDeviceEqPresetForSlot(byte presetId, bool createIfMissing)
     {
         var slotKey = BuildDeviceEqSlotKey(presetId);
-        var target = Presets.FirstOrDefault(preset => IsDeviceEqPresetForSlot(preset, slotKey));
+        var target = Presets.FirstOrDefault(preset => IsDeviceEqPresetForSlot(preset, slotKey, SelectedDeviceProfile));
 
         if (target is null && createIfMissing)
         {
@@ -3311,59 +3647,108 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             Name = BuildReadbackPresetName(snapshot),
             Category = "Device",
-            SourceName = "K13",
+            SourceName = snapshot.Profile.DisplayName,
             Description = snapshot.EqEnabled
-                ? "Current EQ read from the active K13 USER slot."
-                : "Current K13 USER slot readback. Device EQ bypass appears off, but band values are preserved here.",
+                ? $"Current EQ read from the active {snapshot.Profile.DisplayName} slot."
+                : $"Current {snapshot.Profile.DisplayName} slot readback. Device EQ bypass appears off, but band values are preserved here.",
             PreampDb = snapshot.GlobalGainDb,
             Bands = new ObservableCollection<EqBand>(CreateReadbackBands(snapshot))
         };
 
-    private static EqPreset CreateDeviceSlotPlaceholderPreset(byte presetId)
+    private EqPreset CreateDeviceSlotPlaceholderPreset(byte presetId)
     {
-        var preset = CreateFlatPresetModel(BuildDeviceEqPresetName(presetId));
+        var preset = CreateFlatPresetModel(BuildDeviceEqPresetName(presetId, SelectedDeviceProfile));
         return new EqPreset
         {
             Name = preset.Name,
             Category = "Device",
-            SourceName = "K13",
-            Description = "Waiting for the K13 readback for this USER slot.",
+            SourceName = SelectedDeviceProfile.DisplayName,
+            Description = $"Waiting for the {SelectedDeviceProfile.DisplayName} readback for this USER slot.",
             PreampDb = preset.PreampDb,
             Bands = preset.Bands
         };
     }
 
     private static string BuildReadbackPresetName(K13EqReadback snapshot)
-        => BuildDeviceEqPresetName(snapshot.PresetId);
+        => BuildDeviceEqPresetName(snapshot.PresetId, snapshot.Profile);
 
-    private static string BuildDeviceEqPresetName(byte presetId)
-        => $"Device EQ - {BuildReadbackSlotDisplay(presetId)}";
+    private static string BuildDeviceEqPresetName(byte presetId, FiioDeviceProfile? profile = null)
+        => GetWritableSlotNumber(presetId, profile) is int slotNumber
+            ? $"Device Slot {slotNumber}"
+            : $"Device Preset";
 
-    private static string BuildReadbackSlotDisplay(byte presetId)
-        => presetId is >= 160 and <= 169
-            ? $"USER {presetId - 159} (0x{presetId:X2})"
-            : K13EqReadback.GetPresetDisplayName(presetId);
+    private static string BuildReadbackSlotDisplay(byte presetId, FiioDeviceProfile? profile = null)
+        => GetWritableSlotNumber(presetId, profile) is int slotNumber
+            ? $"Slot {slotNumber}"
+            : (profile ?? FiioDeviceProfiles.Default).GetPresetDisplayName(presetId);
 
     private static string BuildDeviceEqSlotKey(byte presetId)
-        => $"0x{presetId:X2}";
+        => $"slot-{presetId:X2}";
 
-    private static bool IsDeviceEqPresetForSlot(EqPreset preset, string slotKey)
-        => preset.Name.StartsWith("Device EQ -", StringComparison.OrdinalIgnoreCase)
-           && preset.Name.Contains(slotKey, StringComparison.OrdinalIgnoreCase);
+    private static bool IsDeviceEqPresetForSlot(EqPreset preset, string slotKey, FiioDeviceProfile? profile = null)
+        => TryGetDeviceEqSlotKey(preset.Name, out var presetSlotKey, profile) &&
+           string.Equals(presetSlotKey, slotKey, StringComparison.OrdinalIgnoreCase);
 
-    private static bool TryGetDeviceEqSlotKey(string presetName, out string slotKey)
+    private static bool TryGetDeviceEqSlotKey(string presetName, out string slotKey, FiioDeviceProfile? profile = null)
     {
-        var start = presetName.LastIndexOf("(0x", StringComparison.OrdinalIgnoreCase);
-        if (presetName.StartsWith("Device EQ -", StringComparison.OrdinalIgnoreCase) &&
-            start >= 0 &&
-            presetName.Length >= start + 6)
+        if (TryGetDeviceEqPresetId(presetName, profile ?? FiioDeviceProfiles.Default, out var presetId))
         {
-            slotKey = presetName.Substring(start + 1, 4).ToUpperInvariant();
+            slotKey = BuildDeviceEqSlotKey(presetId);
             return true;
         }
 
         slotKey = string.Empty;
         return false;
+    }
+
+    private static byte? ParseDeviceEqSlotKey(string slotKey)
+    {
+        return slotKey.StartsWith("slot-", StringComparison.OrdinalIgnoreCase) &&
+            slotKey.Length == 7 &&
+            byte.TryParse(slotKey[5..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var presetId)
+                ? presetId
+                : null;
+    }
+
+    private static bool TryGetDeviceEqPresetId(string presetName, FiioDeviceProfile? profile, out byte presetId)
+    {
+        var start = presetName.LastIndexOf("(0x", StringComparison.OrdinalIgnoreCase);
+        if (presetName.StartsWith("Device EQ -", StringComparison.OrdinalIgnoreCase) &&
+            start >= 0 &&
+            presetName.Length >= start + 6 &&
+            byte.TryParse(presetName.Substring(start + 3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out presetId))
+        {
+            return true;
+        }
+
+        const string cleanPrefix = "Device Slot ";
+        if (presetName.StartsWith(cleanPrefix, StringComparison.OrdinalIgnoreCase) &&
+            int.TryParse(presetName[cleanPrefix.Length..].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var slotNumber))
+        {
+            var writableSlots = (profile ?? FiioDeviceProfiles.Default).WritableSlots;
+            if (slotNumber >= 1 && slotNumber <= writableSlots.Count)
+            {
+                presetId = writableSlots[slotNumber - 1].Id;
+                return true;
+            }
+        }
+
+        presetId = 0;
+        return false;
+    }
+
+    private static int? GetWritableSlotNumber(byte presetId, FiioDeviceProfile? profile = null)
+    {
+        var writableSlots = (profile ?? FiioDeviceProfiles.Default).WritableSlots;
+        for (var index = 0; index < writableSlots.Count; index++)
+        {
+            if (writableSlots[index].Id == presetId)
+            {
+                return index + 1;
+            }
+        }
+
+        return null;
     }
 
     private static IEnumerable<EqBand> CreateReadbackBands(K13EqReadback snapshot)
@@ -3432,13 +3817,58 @@ public sealed class MainViewModel : INotifyPropertyChanged
                $"{candidate.UsageDisplay}, {candidate.ReportLengthDisplay}, {candidate.DisplayName}{serial}";
     }
 
-    private void SelectDeviceUserPresetOption(byte presetId)
+    private bool SelectDeviceUserPresetOption(byte presetId)
     {
         var match = DeviceUserPresets.FirstOrDefault(option => option.PresetId == presetId);
         if (match is not null)
         {
             SelectedDeviceUserPreset = match;
+            return true;
         }
+
+        return false;
+    }
+
+    private void SelectDetectedDeviceProfile(FiioDeviceProfile profile, HidDeviceCandidate? candidate)
+    {
+        if (!ReferenceEquals(_selectedDeviceProfile, profile))
+        {
+            _selectedDeviceProfile = profile;
+            _deviceService.SelectedProfile = profile;
+            OnPropertyChanged(nameof(SelectedDeviceProfile));
+            RebuildDeviceUserPresets(profile);
+            OnPropertyChanged(nameof(DeviceProfileCapabilityText));
+            OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
+            OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
+        }
+
+        var product = candidate is not null ? $"{candidate.VendorProductDisplay} {candidate.InterfaceDisplay}" : "USB HID";
+        DeviceSelectionStatus = $"Auto-detected {profile.DisplayLabel} from {product}.";
+    }
+
+    private void RebuildDeviceUserPresets(FiioDeviceProfile profile)
+    {
+        var selectedPresetId = _selectedDeviceUserPreset?.PresetId;
+        DeviceUserPresets.Clear();
+
+        var slotNumber = 1;
+        foreach (var slot in profile.WritableSlots)
+        {
+            DeviceUserPresets.Add(new DeviceUserPresetOption(slotNumber++, slot.Id, slot.Name));
+        }
+
+        if (DeviceUserPresets.Count == 0)
+        {
+            DeviceUserPresets.Add(new DeviceUserPresetOption(1, profile.DisabledPresetId, "No writable slots"));
+        }
+
+        var selected = selectedPresetId is byte presetId
+            ? DeviceUserPresets.FirstOrDefault(option => option.PresetId == presetId)
+            : null;
+        _selectedDeviceUserPreset = selected ?? DeviceUserPresets[0];
+        OnPropertyChanged(nameof(SelectedDeviceUserPreset));
+        OnPropertyChanged(nameof(SlotLightingTitle));
+        OnPropertyChanged(nameof(SlotLightingSummary));
     }
 
     private void SelectInputSourceOption(byte source)
@@ -3490,8 +3920,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsDeviceConnected = connected;
         ConnectionText = connected ? "Connected" : "Disconnected";
         LiveDeviceEqSyncStatus = connected
-            ? "Live sync on - edits save to the active K13 profile"
-            : "Live sync on - connect K13 to save edits";
+            ? $"Manual device write - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}"
+            : $"Connect {SelectedDeviceProfile.DisplayName} and click Save Changes to write edits";
     }
 
     private static void SetBrush(ResourceDictionary resources, string key, Color color)
@@ -3523,9 +3953,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
-public sealed record DeviceUserPresetOption(int Slot, byte PresetId)
+public sealed record DeviceUserPresetOption(int Slot, byte PresetId, string? Name = null)
 {
-    public string DisplayName => $"USER {Slot}";
+    public string DisplayName => string.Equals(Name, "No writable slots", StringComparison.OrdinalIgnoreCase)
+        ? "No writable slots"
+        : $"Slot {Slot}";
+
+    public string DeviceName => string.IsNullOrWhiteSpace(Name) ? $"USER {Slot}" : Name;
+
+    public override string ToString() => DisplayName;
 }
 
 public sealed record DeviceInputSourceOption(string DisplayName, byte Value)

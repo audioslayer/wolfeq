@@ -12,8 +12,14 @@ public sealed class EqResponseGraphControl : FrameworkElement
 {
     private const double DotRadius = 5.5;
     private const double DotHitRadius = 14.0;
+    private const double DisplayGraphMinGain = -18.0;
+    private const double DisplayGraphMaxGain = 12.0;
+    private const double FilterPreviewMinGain = -24.0;
+    private const double FilterPreviewMaxGain = 12.0;
+    private const double PreviewSampleRate = 48000.0;
     private EqBand? _dragBand;
     private EqBand? _hoverBand;
+    private Point? _hoverPoint;
 
     public static readonly DependencyProperty BandsProperty = DependencyProperty.Register(
         nameof(Bands),
@@ -90,6 +96,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         {
             control._dragBand = null;
             control._hoverBand = null;
+            control._hoverPoint = null;
             if (control.IsMouseCaptured)
             {
                 control.ReleaseMouseCapture();
@@ -102,6 +109,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
     private static void OnBandsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var control = (EqResponseGraphControl)d;
+        control.ClearInteractionState();
         if (e.OldValue is ObservableCollection<EqBand> oldBands)
         {
             oldBands.CollectionChanged -= control.OnBandsCollectionChanged;
@@ -126,6 +134,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
     private static void OnCompareBandsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var control = (EqResponseGraphControl)d;
+        control.ClearInteractionState();
         if (e.OldValue is ObservableCollection<EqBand> oldBands)
         {
             oldBands.CollectionChanged -= control.OnCompareBandsCollectionChanged;
@@ -209,22 +218,25 @@ public sealed class EqResponseGraphControl : FrameworkElement
         dc.DrawRoundedRectangle(background, new Pen(WithAlpha(GetAccentColor(), 0x55), 1), bounds, 16, 16);
 
         var plot = GetPlotRect(bounds);
-        DrawGrid(dc, plot);
-        DrawLabels(dc, plot);
-        DrawCompareCurve(dc, plot);
-        DrawCurve(dc, plot);
-        DrawBands(dc, plot);
+        var gainScale = GetGainScale();
+        DrawGrid(dc, plot, gainScale);
+        DrawLabels(dc, plot, gainScale);
+        DrawCompareCurve(dc, plot, gainScale);
+        DrawCurve(dc, plot, gainScale);
+        DrawBands(dc, plot, gainScale);
         DrawLegend(dc, plot);
+        DrawHoverReadout(dc, plot, gainScale);
     }
 
-    private static void DrawGrid(DrawingContext dc, Rect plot)
+    private static void DrawGrid(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
         var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(0x24, 0xE6, 0xF7, 0xFB)), 1);
         var zeroPen = new Pen(WithAlpha(GetAccentColor(), 0xB0), 1.4);
 
-        for (var db = -12; db <= 12; db += 6)
+        var start = Math.Ceiling(gainScale.Min / 6.0) * 6.0;
+        for (var db = start; db <= gainScale.Max; db += 6)
         {
-            var y = GainToY(db, plot);
+            var y = GainToY(db, plot, gainScale);
             dc.DrawLine(db == 0 ? zeroPen : gridPen, new Point(plot.Left, y), new Point(plot.Right, y));
         }
 
@@ -235,17 +247,18 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
     }
 
-    private static void DrawLabels(DrawingContext dc, Rect plot)
+    private static void DrawLabels(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
         var typeface = new Typeface("Segoe UI");
         var textBrush = new SolidColorBrush(Color.FromRgb(0x8D, 0xB6, 0xC4));
         const double pixelsPerDip = 1.0;
 
-        foreach (var db in new[] { 12, 6, 0, -6, -12 })
+        var start = Math.Ceiling(gainScale.Min / 6.0) * 6.0;
+        for (var db = start; db <= gainScale.Max; db += 6)
         {
             var text = new FormattedText($"{db:+#;-#;0} dB", System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, typeface, 10, textBrush, pixelsPerDip);
-            dc.DrawText(text, new Point(7, GainToY(db, plot) - 7));
+            dc.DrawText(text, new Point(7, GainToY(db, plot, gainScale) - 7));
         }
 
         foreach (var label in new[] { (20d, "20"), (100d, "100"), (1000d, "1k"), (10000d, "10k"), (20000d, "20k") })
@@ -256,7 +269,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
     }
 
-    private void DrawCurve(DrawingContext dc, Rect plot)
+    private void DrawCurve(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
         if (Bands is not { Count: > 0 })
         {
@@ -270,7 +283,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             {
                 var x = plot.Left + px;
                 var frequency = XToFrequency(x, plot);
-                var y = GainToY(EstimateGain(frequency), plot);
+                var y = GainToY(EstimateGain(frequency), plot, gainScale);
                 if (px == 0)
                 {
                     ctx.BeginFigure(new Point(x, y), false, false);
@@ -298,14 +311,14 @@ public sealed class EqResponseGraphControl : FrameworkElement
         dc.DrawGeometry(null, curvePen, geometry);
     }
 
-    private void DrawCompareCurve(DrawingContext dc, Rect plot)
+    private void DrawCompareCurve(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
         if (CompareBands is not { Count: > 0 })
         {
             return;
         }
 
-        var geometry = BuildCurveGeometry(plot, frequency => EstimateGain(frequency, CompareBands, ComparePreampDb));
+        var geometry = BuildCurveGeometry(plot, gainScale, frequency => EstimateGain(frequency, CompareBands));
         var comparePen = new Pen(new SolidColorBrush(Color.FromRgb(0xF9, 0x73, 0x16)), 2.0)
         {
             DashStyle = DashStyles.Dash,
@@ -315,7 +328,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         dc.DrawGeometry(null, comparePen, geometry);
     }
 
-    private void DrawBands(DrawingContext dc, Rect plot)
+    private void DrawBands(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
         if (Bands == null)
         {
@@ -328,7 +341,8 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var activeDragFill = new SolidColorBrush(Lighten(accent, 0.28));
         var outline = new Pen(Brushes.White, 1);
         var focusOutline = new Pen(new SolidColorBrush(Lighten(accent, 0.55)), 1.8);
-        var stemPen = new Pen(WithAlpha(accent, 0x66), 1.2)
+        var responseMarkerPen = new Pen(WithAlpha(accent, 0x88), 1);
+        var responseStemPen = new Pen(WithAlpha(accent, 0x55), 1.1)
         {
             DashStyle = DashStyles.Dot,
             StartLineCap = PenLineCap.Round,
@@ -340,28 +354,92 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
         foreach (var band in Bands)
         {
-            var point = BandToResponsePoint(band, plot);
-            var editPoint = BandToEditPoint(band, plot);
+            var editPoint = BandToEditPoint(band, plot, gainScale);
+            var responsePoint = BandToResponsePoint(band, plot, gainScale);
             var isActiveDrag = ReferenceEquals(band, _dragBand);
             var isHover = ReferenceEquals(band, _hoverBand);
             var fill = isActiveDrag ? activeDragFill : band.Enabled ? activeFill : disabledFill;
             var radius = isActiveDrag || isHover ? 7.2 : DotRadius;
 
-            if ((isActiveDrag || isHover) && band.Enabled && Math.Abs(editPoint.Y - point.Y) > 2)
+            if ((isActiveDrag || isHover) && band.Enabled && Math.Abs(editPoint.Y - responsePoint.Y) > 2)
             {
-                dc.DrawLine(stemPen, editPoint, point);
-                dc.DrawEllipse(null, new Pen(WithAlpha(accent, 0x88), 1), editPoint, 3.2, 3.2);
+                dc.DrawLine(responseStemPen, editPoint, responsePoint);
+                dc.DrawEllipse(null, responseMarkerPen, responsePoint, 3.1, 3.1);
             }
 
-            dc.DrawEllipse(fill, isActiveDrag || isHover ? focusOutline : outline, point, radius, radius);
+            dc.DrawEllipse(fill, isActiveDrag || isHover ? focusOutline : outline, editPoint, radius, radius);
 
             if (isActiveDrag || isHover)
             {
                 var text = new FormattedText($"B{band.Number}", System.Globalization.CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight, typeface, 10, labelBrush, pixelsPerDip);
-                dc.DrawText(text, new Point(point.X - text.Width / 2, point.Y - 22));
+                dc.DrawText(text, new Point(editPoint.X - text.Width / 2, editPoint.Y - 22));
             }
         }
+    }
+
+    private void DrawHoverReadout(DrawingContext dc, Rect plot, GraphGainScale gainScale)
+    {
+        if (_hoverPoint is not Point hoverPoint || Bands is not { Count: > 0 } || !plot.Contains(hoverPoint))
+        {
+            return;
+        }
+
+        var frequency = XToFrequency(hoverPoint.X, plot);
+        var responseGain = EstimateGain(frequency);
+        var responsePoint = new Point(hoverPoint.X, GainToY(responseGain, plot, gainScale));
+        var accent = GetAccentColor();
+        var guidePen = new Pen(WithAlpha(accent, 0x66), 1)
+        {
+            DashStyle = DashStyles.Dot,
+            StartLineCap = PenLineCap.Round,
+            EndLineCap = PenLineCap.Round
+        };
+        var markerBrush = new SolidColorBrush(Lighten(accent, 0.28));
+        markerBrush.Freeze();
+
+        dc.DrawLine(guidePen, new Point(hoverPoint.X, plot.Top), new Point(hoverPoint.X, plot.Bottom));
+        dc.DrawEllipse(markerBrush, new Pen(Brushes.White, 1), responsePoint, 3.6, 3.6);
+
+        var typeface = new Typeface("Segoe UI");
+        var titleBrush = new SolidColorBrush(Color.FromRgb(0xF4, 0xFB, 0xFF));
+        var detailBrush = new SolidColorBrush(Color.FromRgb(0x99, 0xC7, 0xD3));
+        const double pixelsPerDip = 1.0;
+
+        string title;
+        string detail;
+        if (_hoverBand is EqBand band)
+        {
+            title = $"Band {band.Number}  {FormatDb(band.GainDb)}";
+            detail = $"{FormatFrequency(band.FrequencyHz)}  {FormatFilterType(band.FilterType)}  Q {band.Q:0.##}";
+        }
+        else
+        {
+            title = $"{FormatFrequency(frequency)}  {FormatDb(responseGain)}";
+            detail = "Combined response";
+        }
+
+        var titleText = new FormattedText(title, System.Globalization.CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight, typeface, 11, titleBrush, pixelsPerDip);
+        var detailText = new FormattedText(detail, System.Globalization.CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight, typeface, 10, detailBrush, pixelsPerDip);
+        var width = Math.Max(titleText.Width, detailText.Width) + 20;
+        const double height = 43;
+        var x = Math.Clamp(hoverPoint.X + 14, plot.Left + 4, plot.Right - width - 4);
+        var y = responsePoint.Y < plot.Top + 62
+            ? responsePoint.Y + 16
+            : responsePoint.Y - height - 16;
+        y = Math.Clamp(y, plot.Top + 4, plot.Bottom - height - 4);
+        var tooltipRect = new Rect(x, y, width, height);
+
+        dc.DrawRoundedRectangle(
+            new SolidColorBrush(Color.FromArgb(0xEA, 0x08, 0x13, 0x18)),
+            new Pen(WithAlpha(accent, 0x88), 1),
+            tooltipRect,
+            7,
+            7);
+        dc.DrawText(titleText, new Point(tooltipRect.Left + 10, tooltipRect.Top + 7));
+        dc.DrawText(detailText, new Point(tooltipRect.Left + 10, tooltipRect.Top + 24));
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -380,8 +458,9 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
 
         var plot = GetPlotRect(new Rect(0, 0, ActualWidth, ActualHeight));
+        var gainScale = GetGainScale();
         var point = e.GetPosition(this);
-        var band = FindNearestBand(point, plot);
+        var band = FindNearestBand(point, plot, gainScale);
         if (band is null)
         {
             return;
@@ -391,7 +470,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         _hoverBand = band;
         band.Enabled = true;
         CaptureMouse();
-        UpdateDraggedBand(point, plot);
+        UpdateDraggedBand(point, plot, gainScale);
         e.Handled = true;
         InvalidateVisual();
     }
@@ -399,27 +478,36 @@ public sealed class EqResponseGraphControl : FrameworkElement
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        if (!IsInteractive)
-        {
-            return;
-        }
-
         var plot = GetPlotRect(new Rect(0, 0, ActualWidth, ActualHeight));
+        var gainScale = GetGainScale();
         var point = e.GetPosition(this);
 
-        if (_dragBand is not null && IsMouseCaptured)
+        if (IsInteractive && _dragBand is not null && IsMouseCaptured)
         {
-            UpdateDraggedBand(point, plot);
+            _hoverPoint = plot.Contains(point) ? point : (Point?)null;
+            _hoverBand = _dragBand;
+            UpdateDraggedBand(point, plot, gainScale);
+            InvalidateVisual();
             e.Handled = true;
             return;
         }
 
-        var hover = Bands is { Count: > 0 } ? FindNearestBand(point, plot) : null;
-        if (!ReferenceEquals(hover, _hoverBand))
+        var hoverPoint = Bands is { Count: > 0 } && plot.Contains(point) ? point : (Point?)null;
+        var hover = hoverPoint is not null && Bands is { Count: > 0 }
+            ? FindNearestBand(point, plot, gainScale)
+            : null;
+
+        if (!Equals(hoverPoint, _hoverPoint) || !ReferenceEquals(hover, _hoverBand))
         {
+            _hoverPoint = hoverPoint;
             _hoverBand = hover;
-            Cursor = hover is null ? Cursors.Arrow : Cursors.Hand;
+            Cursor = IsInteractive && hover is not null ? Cursors.Hand : Cursors.Arrow;
             InvalidateVisual();
+        }
+
+        if (!IsInteractive)
+        {
+            return;
         }
     }
 
@@ -438,14 +526,10 @@ public sealed class EqResponseGraphControl : FrameworkElement
     protected override void OnMouseLeave(MouseEventArgs e)
     {
         base.OnMouseLeave(e);
-        if (!IsInteractive)
-        {
-            return;
-        }
-
         if (_dragBand is null)
         {
             _hoverBand = null;
+            _hoverPoint = null;
             Cursor = Cursors.Arrow;
             InvalidateVisual();
         }
@@ -481,7 +565,20 @@ public sealed class EqResponseGraphControl : FrameworkElement
         InvalidateVisual();
     }
 
-    private void UpdateDraggedBand(Point point, Rect plot)
+    private void ClearInteractionState()
+    {
+        _dragBand = null;
+        _hoverBand = null;
+        _hoverPoint = null;
+        if (IsMouseCaptured)
+        {
+            ReleaseMouseCapture();
+        }
+
+        Cursor = IsInteractive ? Cursors.Hand : Cursors.Arrow;
+    }
+
+    private void UpdateDraggedBand(Point point, Rect plot, GraphGainScale gainScale)
     {
         if (_dragBand is null)
         {
@@ -489,12 +586,12 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
 
         var frequency = (int)Math.Round(XToFrequency(point.X, plot));
-        var gain = Math.Round(YToGain(point.Y, plot) - PreampDb, 1);
+        var gain = Math.Round(YToGain(point.Y, plot, gainScale), 1);
         _dragBand.FrequencyHz = frequency;
         _dragBand.GainDb = gain;
     }
 
-    private EqBand? FindNearestBand(Point point, Rect plot)
+    private EqBand? FindNearestBand(Point point, Rect plot, GraphGainScale gainScale)
     {
         if (Bands is not { Count: > 0 })
         {
@@ -505,7 +602,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var nearestDistance = DotHitRadius * DotHitRadius;
         foreach (var band in Bands)
         {
-            var bandPoint = BandToResponsePoint(band, plot);
+            var bandPoint = BandToEditPoint(band, plot, gainScale);
             var dx = point.X - bandPoint.X;
             var dy = point.Y - bandPoint.Y;
             var distance = dx * dx + dy * dy;
@@ -519,11 +616,11 @@ public sealed class EqResponseGraphControl : FrameworkElement
         return nearest;
     }
 
-    private Point BandToEditPoint(EqBand band, Rect plot)
-        => new(FrequencyToX(band.FrequencyHz, plot), GainToY(band.GainDb + PreampDb, plot));
+    private Point BandToEditPoint(EqBand band, Rect plot, GraphGainScale gainScale)
+        => new(FrequencyToX(band.FrequencyHz, plot), GainToY(band.GainDb, plot, gainScale));
 
-    private Point BandToResponsePoint(EqBand band, Rect plot)
-        => new(FrequencyToX(band.FrequencyHz, plot), GainToY(EstimateGain(band.FrequencyHz), plot));
+    private Point BandToResponsePoint(EqBand band, Rect plot, GraphGainScale gainScale)
+        => new(FrequencyToX(band.FrequencyHz, plot), GainToY(EstimateGain(band.FrequencyHz), plot, gainScale));
 
     private void DrawLegend(DrawingContext dc, Rect plot)
     {
@@ -547,19 +644,17 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
     private double EstimateGain(double frequency)
     {
-        var sum = PreampDb;
+        var sum = 0.0;
         foreach (var band in Bands!.Where(b => b.Enabled))
         {
-            var octaves = Math.Log(frequency / band.FrequencyHz, 2);
-            var width = Math.Max(0.18, 1.0 / Math.Max(0.1, band.Q));
-            var influence = Math.Exp(-(octaves * octaves) / (2 * width * width));
-            sum += band.GainDb * influence;
+            sum += EstimateBandGainDb(frequency, band);
         }
 
-        return Math.Clamp(sum, -12, 12);
+        var scale = GetGainScale();
+        return Math.Clamp(sum, scale.Min, scale.Max);
     }
 
-    private static StreamGeometry BuildCurveGeometry(Rect plot, Func<double, double> gainAtFrequency)
+    private static StreamGeometry BuildCurveGeometry(Rect plot, GraphGainScale gainScale, Func<double, double> gainAtFrequency)
     {
         var geometry = new StreamGeometry();
         using (var ctx = geometry.Open())
@@ -568,7 +663,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             {
                 var x = plot.Left + px;
                 var frequency = XToFrequency(x, plot);
-                var y = GainToY(gainAtFrequency(frequency), plot);
+                var y = GainToY(gainAtFrequency(frequency), plot, gainScale);
                 if (px == 0)
                 {
                     ctx.BeginFigure(new Point(x, y), false, false);
@@ -584,18 +679,112 @@ public sealed class EqResponseGraphControl : FrameworkElement
         return geometry;
     }
 
-    private static double EstimateGain(double frequency, IEnumerable<EqBand> bands, double preampDb)
+    private static double EstimateGain(double frequency, IEnumerable<EqBand> bands)
     {
-        var sum = preampDb;
+        var sum = 0.0;
         foreach (var band in bands.Where(b => b.Enabled))
         {
-            var octaves = Math.Log(frequency / band.FrequencyHz, 2);
-            var width = Math.Max(0.18, 1.0 / Math.Max(0.1, band.Q));
-            var influence = Math.Exp(-(octaves * octaves) / (2 * width * width));
-            sum += band.GainDb * influence;
+            sum += EstimateBandGainDb(frequency, band);
         }
 
-        return Math.Clamp(sum, -12, 12);
+        return sum;
+    }
+
+    private static double EstimateBandGainDb(double frequency, EqBand band)
+    {
+        var f0 = Math.Clamp(band.FrequencyHz, 20, PreviewSampleRate / 2 - 100);
+        var q = Math.Clamp(band.Q, 0.1, 10.0);
+        var gainDb = band.GainDb;
+        var omega0 = 2 * Math.PI * f0 / PreviewSampleRate;
+        var sin = Math.Sin(omega0);
+        var cos = Math.Cos(omega0);
+        var alpha = sin / (2 * q);
+        var a = Math.Pow(10, gainDb / 40.0);
+
+        return band.FilterType switch
+        {
+            EqFilterType.Peak => MagnitudeDb(frequency, 1 + alpha * a, -2 * cos, 1 - alpha * a, 1 + alpha / a, -2 * cos, 1 - alpha / a),
+            EqFilterType.LowShelf => LowShelfMagnitudeDb(frequency, a, sin, cos, q),
+            EqFilterType.HighShelf => HighShelfMagnitudeDb(frequency, a, sin, cos, q),
+            EqFilterType.BandPass => MagnitudeDb(frequency, alpha, 0, -alpha, 1 + alpha, -2 * cos, 1 - alpha),
+            EqFilterType.LowPass => MagnitudeDb(frequency, (1 - cos) / 2, 1 - cos, (1 - cos) / 2, 1 + alpha, -2 * cos, 1 - alpha),
+            EqFilterType.HighPass => MagnitudeDb(frequency, (1 + cos) / 2, -(1 + cos), (1 + cos) / 2, 1 + alpha, -2 * cos, 1 - alpha),
+            EqFilterType.AllPass => 0,
+            _ => 0
+        };
+    }
+
+    private static double LowShelfMagnitudeDb(double frequency, double a, double sin, double cos, double q)
+    {
+        var alpha = ShelfAlpha(a, sin, q);
+        var beta = 2 * Math.Sqrt(a) * alpha;
+        var b0 = a * ((a + 1) - (a - 1) * cos + beta);
+        var b1 = 2 * a * ((a - 1) - (a + 1) * cos);
+        var b2 = a * ((a + 1) - (a - 1) * cos - beta);
+        var a0 = (a + 1) + (a - 1) * cos + beta;
+        var a1 = -2 * ((a - 1) + (a + 1) * cos);
+        var a2 = (a + 1) + (a - 1) * cos - beta;
+        return MagnitudeDb(frequency, b0, b1, b2, a0, a1, a2);
+    }
+
+    private static double HighShelfMagnitudeDb(double frequency, double a, double sin, double cos, double q)
+    {
+        var alpha = ShelfAlpha(a, sin, q);
+        var beta = 2 * Math.Sqrt(a) * alpha;
+        var b0 = a * ((a + 1) + (a - 1) * cos + beta);
+        var b1 = -2 * a * ((a - 1) + (a + 1) * cos);
+        var b2 = a * ((a + 1) + (a - 1) * cos - beta);
+        var a0 = (a + 1) - (a - 1) * cos + beta;
+        var a1 = 2 * ((a - 1) - (a + 1) * cos);
+        var a2 = (a + 1) - (a - 1) * cos - beta;
+        return MagnitudeDb(frequency, b0, b1, b2, a0, a1, a2);
+    }
+
+    private static double ShelfAlpha(double a, double sin, double q)
+    {
+        var slope = Math.Clamp(q, 0.1, 1.0);
+        var root = Math.Max(0, (a + 1 / a) * (1 / slope - 1) + 2);
+        return sin / 2 * Math.Sqrt(root);
+    }
+
+    private static double MagnitudeDb(
+        double frequency,
+        double b0,
+        double b1,
+        double b2,
+        double a0,
+        double a1,
+        double a2)
+    {
+        if (Math.Abs(a0) < double.Epsilon)
+        {
+            return 0;
+        }
+
+        b0 /= a0;
+        b1 /= a0;
+        b2 /= a0;
+        a1 /= a0;
+        a2 /= a0;
+
+        var omega = 2 * Math.PI * Math.Clamp(frequency, 20, PreviewSampleRate / 2 - 100) / PreviewSampleRate;
+        var cos1 = Math.Cos(omega);
+        var sin1 = Math.Sin(omega);
+        var cos2 = Math.Cos(2 * omega);
+        var sin2 = Math.Sin(2 * omega);
+
+        var numeratorReal = b0 + b1 * cos1 + b2 * cos2;
+        var numeratorImaginary = -b1 * sin1 - b2 * sin2;
+        var denominatorReal = 1 + a1 * cos1 + a2 * cos2;
+        var denominatorImaginary = -a1 * sin1 - a2 * sin2;
+        var numerator = numeratorReal * numeratorReal + numeratorImaginary * numeratorImaginary;
+        var denominator = denominatorReal * denominatorReal + denominatorImaginary * denominatorImaginary;
+        if (denominator <= double.Epsilon || numerator <= double.Epsilon)
+        {
+            return 0;
+        }
+
+        return Math.Clamp(10 * Math.Log10(numerator / denominator), FilterPreviewMinGain, FilterPreviewMaxGain);
     }
 
     private static double FrequencyToX(double frequency, Rect plot)
@@ -613,16 +802,41 @@ public sealed class EqResponseGraphControl : FrameworkElement
         return Math.Pow(10, min + t * (max - min));
     }
 
-    private static double GainToY(double gain, Rect plot) => plot.Top + (12 - Math.Clamp(gain, -12, 12)) / 24.0 * plot.Height;
+    private GraphGainScale GetGainScale()
+        => new(DisplayGraphMinGain, DisplayGraphMaxGain);
 
-    private static double YToGain(double y, Rect plot)
+    private static double GainToY(double gain, Rect plot, GraphGainScale gainScale)
+        => plot.Top + (gainScale.Max - Math.Clamp(gain, gainScale.Min, gainScale.Max)) / (gainScale.Max - gainScale.Min) * plot.Height;
+
+    private static double YToGain(double y, Rect plot, GraphGainScale gainScale)
     {
         var t = Math.Clamp((y - plot.Top) / plot.Height, 0, 1);
-        return 12 - t * 24;
+        return gainScale.Max - t * (gainScale.Max - gainScale.Min);
     }
 
     private static Rect GetPlotRect(Rect bounds)
         => new(48, 24, Math.Max(1, bounds.Width - 70), Math.Max(1, bounds.Height - 58));
+
+    private static string FormatFrequency(double frequency)
+        => frequency >= 1000
+            ? $"{frequency / 1000:0.##} kHz"
+            : $"{frequency:0} Hz";
+
+    private static string FormatDb(double gain)
+        => $"{gain:+0.0;-0.0;0.0} dB";
+
+    private static string FormatFilterType(EqFilterType filterType)
+        => filterType switch
+        {
+            EqFilterType.Peak => "Peak",
+            EqFilterType.LowShelf => "Low shelf",
+            EqFilterType.HighShelf => "High shelf",
+            EqFilterType.LowPass => "Low pass",
+            EqFilterType.HighPass => "High pass",
+            EqFilterType.BandPass => "Band pass",
+            EqFilterType.AllPass => "All pass",
+            _ => filterType.ToString()
+        };
 
     private static Color GetAccentColor()
         => Application.Current.TryFindResource("WolfGreen") is Color color
@@ -641,4 +855,6 @@ public sealed class EqResponseGraphControl : FrameworkElement
             (byte)Math.Min(255, color.R + (255 - color.R) * amount),
             (byte)Math.Min(255, color.G + (255 - color.G) * amount),
             (byte)Math.Min(255, color.B + (255 - color.B) * amount));
+
+    private sealed record GraphGainScale(double Min, double Max);
 }

@@ -16,15 +16,22 @@ public sealed partial class AutoEqGitHubProfileService
     private const string ResultsIndexUrl = "https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/INDEX.md";
     private const string GitHubResultsRoot = "https://github.com/jaakkopasanen/AutoEq/tree/master/results/";
     private const string ContentsApiRoot = "https://api.github.com/repos/jaakkopasanen/AutoEq/contents/results/";
+    private const string OpraDatabaseUrl = "https://raw.githubusercontent.com/opra-project/OPRA/main/dist/database_v1.jsonl";
+    private const string OpraGitHubUrl = "https://github.com/opra-project/OPRA";
     private static readonly HttpClient Http = CreateHttpClient();
     private IReadOnlyList<AutoEqProfileIndexEntry>? _cachedIndex;
+    private IReadOnlyList<AutoEqProfileIndexEntry>? _cachedOpraIndex;
 
     public async Task<IReadOnlyList<AutoEqProfileIndexEntry>> SearchAsync(
         string query,
         int limit = 80,
         CancellationToken cancellationToken = default)
     {
-        var index = await GetIndexAsync(cancellationToken).ConfigureAwait(false);
+        var index = (await GetIndexAsync(cancellationToken).ConfigureAwait(false))
+            .Concat(await GetOpraIndexAsync(cancellationToken).ConfigureAwait(false))
+            .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(entry => entry.Provider, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var terms = query
             .Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .ToArray();
@@ -37,6 +44,7 @@ public sealed partial class AutoEqGitHubProfileService
         return index
             .Where(entry => terms.All(term =>
                 entry.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                entry.Provider.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 entry.SourceName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 entry.Measurement.Contains(term, StringComparison.OrdinalIgnoreCase)))
             .Take(limit)
@@ -48,6 +56,11 @@ public sealed partial class AutoEqGitHubProfileService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+
+        if (string.Equals(entry.Provider, "OPRA", StringComparison.OrdinalIgnoreCase))
+        {
+            return ImportInlinePreset(entry);
+        }
 
         var downloadUrl = await FindParametricEqDownloadUrlAsync(entry, cancellationToken).ConfigureAwait(false);
         var text = await Http.GetStringAsync(downloadUrl, cancellationToken).ConfigureAwait(false);
@@ -64,6 +77,24 @@ public sealed partial class AutoEqGitHubProfileService
         };
     }
 
+    private static EqPreset ImportInlinePreset(AutoEqProfileIndexEntry entry)
+    {
+        if (entry.InlineBands is null || entry.InlineBands.Count == 0)
+        {
+            throw new FormatException($"Online profile {entry.Name} does not include inline PEQ bands.");
+        }
+
+        return new EqPreset
+        {
+            Name = $"OPRA - {entry.Name}",
+            Category = "Online",
+            SourceName = entry.SourceSummary,
+            Description = $"Downloaded from OPRA, the Open Profiles for Revealing Audio database. Source id: {entry.EncodedRelativePath}.",
+            PreampDb = entry.InlinePreampDb ?? 0,
+            Bands = new ObservableCollection<EqBand>(entry.InlineBands.Select(CloneBand))
+        };
+    }
+
     private async Task<IReadOnlyList<AutoEqProfileIndexEntry>> GetIndexAsync(CancellationToken cancellationToken)
     {
         if (_cachedIndex is not null)
@@ -74,6 +105,18 @@ public sealed partial class AutoEqGitHubProfileService
         var markdown = await Http.GetStringAsync(ResultsIndexUrl, cancellationToken).ConfigureAwait(false);
         _cachedIndex = ParseIndex(markdown);
         return _cachedIndex;
+    }
+
+    private async Task<IReadOnlyList<AutoEqProfileIndexEntry>> GetOpraIndexAsync(CancellationToken cancellationToken)
+    {
+        if (_cachedOpraIndex is not null)
+        {
+            return _cachedOpraIndex;
+        }
+
+        var jsonl = await Http.GetStringAsync(OpraDatabaseUrl, cancellationToken).ConfigureAwait(false);
+        _cachedOpraIndex = ParseOpraIndex(jsonl);
+        return _cachedOpraIndex;
     }
 
     private static IReadOnlyList<AutoEqProfileIndexEntry> ParseIndex(string markdown)
@@ -103,6 +146,115 @@ public sealed partial class AutoEqGitHubProfileService
 
         return entries;
     }
+
+    private static IReadOnlyList<AutoEqProfileIndexEntry> ParseOpraIndex(string jsonl)
+    {
+        var vendors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var products = new Dictionary<string, OpraProduct>(StringComparer.OrdinalIgnoreCase);
+        var eqs = new List<OpraEq>();
+
+        foreach (var line in jsonl.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            using var document = JsonDocument.Parse(line);
+            var root = document.RootElement;
+            var type = root.GetProperty("type").GetString();
+            var id = root.GetProperty("id").GetString() ?? string.Empty;
+            var data = root.GetProperty("data");
+
+            if (string.Equals(type, "vendor", StringComparison.OrdinalIgnoreCase))
+            {
+                vendors[id] = data.TryGetProperty("name", out var name) ? name.GetString() ?? id : id;
+            }
+            else if (string.Equals(type, "product", StringComparison.OrdinalIgnoreCase))
+            {
+                products[id] = new OpraProduct(
+                    data.TryGetProperty("name", out var name) ? name.GetString() ?? id : id,
+                    data.TryGetProperty("vendor_id", out var vendorId) ? vendorId.GetString() ?? string.Empty : string.Empty);
+            }
+            else if (string.Equals(type, "eq", StringComparison.OrdinalIgnoreCase) &&
+                     data.TryGetProperty("type", out var eqType) &&
+                     string.Equals(eqType.GetString(), "parametric_eq", StringComparison.OrdinalIgnoreCase) &&
+                     data.TryGetProperty("parameters", out var parameters) &&
+                     parameters.TryGetProperty("bands", out var bandsElement))
+            {
+                var bands = ParseOpraBands(bandsElement);
+                if (bands.Count == 0)
+                {
+                    continue;
+                }
+
+                eqs.Add(new OpraEq(
+                    id,
+                    data.TryGetProperty("product_id", out var productId) ? productId.GetString() ?? string.Empty : string.Empty,
+                    data.TryGetProperty("author", out var author) ? author.GetString() ?? "OPRA" : "OPRA",
+                    data.TryGetProperty("details", out var details) ? details.GetString() ?? string.Empty : string.Empty,
+                    parameters.TryGetProperty("gain_db", out var gain) ? gain.GetDouble() : 0,
+                    bands));
+            }
+        }
+
+        return eqs
+            .Select(eq =>
+            {
+                products.TryGetValue(eq.ProductId, out var product);
+                var vendorName = product is not null && vendors.TryGetValue(product.VendorId, out var vendor)
+                    ? vendor
+                    : string.Empty;
+                var productName = product?.Name ?? eq.ProductId;
+                var name = string.IsNullOrWhiteSpace(vendorName)
+                    ? productName
+                    : $"{vendorName} {productName}";
+                return new AutoEqProfileIndexEntry(
+                    name,
+                    $"OPRA / {eq.Author}",
+                    eq.Details,
+                    eq.Id,
+                    OpraGitHubUrl,
+                    "OPRA",
+                    eq.PreampDb,
+                    eq.Bands);
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<EqBand> ParseOpraBands(JsonElement bandsElement)
+    {
+        var bands = new List<EqBand>();
+        var index = 1;
+        foreach (var bandElement in bandsElement.EnumerateArray())
+        {
+            if (!bandElement.TryGetProperty("frequency", out var frequency) ||
+                !bandElement.TryGetProperty("gain_db", out var gain) ||
+                !bandElement.TryGetProperty("q", out var q))
+            {
+                continue;
+            }
+
+            bands.Add(new EqBand
+            {
+                Number = index++,
+                Enabled = true,
+                FilterType = ParseOpraFilterType(bandElement.TryGetProperty("type", out var type) ? type.GetString() : null),
+                FrequencyHz = (int)Math.Round(frequency.GetDouble()),
+                GainDb = gain.GetDouble(),
+                Q = q.GetDouble()
+            });
+        }
+
+        return bands;
+    }
+
+    private static EqFilterType ParseOpraFilterType(string? type)
+        => type?.ToLowerInvariant() switch
+        {
+            "low_shelf" => EqFilterType.LowShelf,
+            "high_shelf" => EqFilterType.HighShelf,
+            "low_pass" => EqFilterType.LowPass,
+            "high_pass" => EqFilterType.HighPass,
+            "band_pass" => EqFilterType.BandPass,
+            "all_pass" => EqFilterType.AllPass,
+            _ => EqFilterType.Peak
+        };
 
     private static async Task<string> FindParametricEqDownloadUrlAsync(
         AutoEqProfileIndexEntry entry,
@@ -158,4 +310,14 @@ public sealed partial class AutoEqGitHubProfileService
         public string Type { get; init; } = "";
         public string? DownloadUrl { get; init; }
     }
+
+    private sealed record OpraProduct(string Name, string VendorId);
+
+    private sealed record OpraEq(
+        string Id,
+        string ProductId,
+        string Author,
+        string Details,
+        double PreampDb,
+        IReadOnlyList<EqBand> Bands);
 }

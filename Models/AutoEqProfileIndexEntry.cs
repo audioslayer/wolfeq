@@ -5,7 +5,10 @@ public sealed record AutoEqProfileIndexEntry(
     string SourceName,
     string Measurement,
     string EncodedRelativePath,
-    string HtmlUrl)
+    string HtmlUrl,
+    string Provider = "AutoEQ",
+    double? InlinePreampDb = null,
+    IReadOnlyList<EqBand>? InlineBands = null)
 {
     public string SourceSummary
         => string.IsNullOrWhiteSpace(Measurement)

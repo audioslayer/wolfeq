@@ -16,6 +16,8 @@ public sealed class FiioK13DeviceService
     public const byte HidOutEndpoint = 0x02;
     public const byte HidInEndpoint = 0x83;
 
+    public FiioDeviceProfile SelectedProfile { get; set; } = FiioDeviceProfiles.Default;
+
     public bool IsConnected { get; private set; }
 
     public Task<HidDetectionResult> DetectUsbAsync(CancellationToken cancellationToken = default)
@@ -119,9 +121,10 @@ public sealed class FiioK13DeviceService
 
     public async Task<K13EqReadback> ReadCurrentEqAsync(CancellationToken cancellationToken = default)
     {
+        var profile = SelectedProfile;
         var transportLog = new List<string>
         {
-            "Readback mode: sending GET packets only. No SET/save commands will be sent."
+            $"Readback mode: {profile.DisplayName}, sending GET packets only. No SET/save commands will be sent."
         };
 
         var detection = await DetectUsbAsync(cancellationToken).ConfigureAwait(false);
@@ -168,8 +171,8 @@ public sealed class FiioK13DeviceService
             transportLog,
             cancellationToken).ConfigureAwait(false);
 
-        var bandCount = countResponse.Length > 6 ? countResponse[6] : 10;
-        bandCount = (byte)Math.Clamp(bandCount, 1, 10);
+        var bandCount = countResponse.Length > 6 ? countResponse[6] : profile.BandCount;
+        bandCount = (byte)Math.Clamp(bandCount, 1, profile.BandCount);
 
         var presetResponse = await SendGetAsync(
             stream,
@@ -203,13 +206,17 @@ public sealed class FiioK13DeviceService
             cancellationToken).ConfigureAwait(false);
         var eqEnabled = eqSwitchResponse.Length > 6 && eqSwitchResponse[6] != 0;
 
-        var presetName = await TryReadPresetNameAsync(
-            stream,
-            inputReportLength,
-            outputReportLength,
-            presetId,
-            transportLog,
-            cancellationToken).ConfigureAwait(false);
+        string? presetName = null;
+        if (profile.SupportsUsbPresetNames)
+        {
+            presetName = await TryReadPresetNameAsync(
+                stream,
+                inputReportLength,
+                outputReportLength,
+                presetId,
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         var bands = new List<K13EqBandReadback>();
         for (var index = 0; index < bandCount; index++)
@@ -237,10 +244,11 @@ public sealed class FiioK13DeviceService
         }
 
         transportLog.Add(
-            $"Decoded preset {K13EqReadback.GetPresetDisplayName(presetId, presetName)}, preamp {globalGainDb:+0.0;-0.0;0.0} dB, EQ enabled={eqEnabled}, bands={bands.Count}.");
+            $"Decoded preset {profile.GetPresetDisplayName(presetId, presetName)}, preamp {globalGainDb:+0.0;-0.0;0.0} dB, EQ enabled={eqEnabled}, bands={bands.Count}.");
 
         return new K13EqReadback(
             candidate,
+            profile,
             presetId,
             presetName,
             globalGainDb,
@@ -255,18 +263,143 @@ public sealed class FiioK13DeviceService
             "Hardware writes are disabled. No SET packets were sent; verify read-only HID detection/readback first.");
     }
 
+    public async Task<K13PresetWriteResult> SaveCurrentUserPresetAsync(
+        EqPreset preset,
+        byte presetId,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = SelectedProfile;
+        if (!profile.WritableSlots.Any(slot => slot.Id == presetId))
+        {
+            throw new InvalidOperationException($"Device save is limited to writable {profile.DisplayName} USER slots.");
+        }
+
+        var bands = preset.Bands
+            .OrderBy(band => band.Number)
+            .Take(profile.BandCount)
+            .Select(ToReadbackBand)
+            .Select(NormalizeBand)
+            .ToArray();
+        if (bands.Length == 0)
+        {
+            throw new InvalidOperationException("Preset has no bands to save.");
+        }
+
+        var requestedPreamp = Math.Clamp(
+            Math.Round(preset.PreampDb, 1),
+            profile.MinGainDb,
+            profile.MaxGainDb);
+        var transportLog = new List<string>
+        {
+            $"Device save mode: writing {bands.Length} band(s) to {profile.GetPresetDisplayName(presetId)}; save command 0x{profile.SaveCommandId:X2} will be sent."
+        };
+
+        var detection = await DetectUsbAsync(cancellationToken).ConfigureAwait(false);
+        var candidate = SelectReadbackCandidate(detection.Candidates);
+        if (candidate is null)
+        {
+            throw new InvalidOperationException(
+                $"No writable FiiO HID interface found. Candidates: {detection.Candidates.Count}.");
+        }
+
+        var inputReportLength = candidate.InputReportLength ?? 33;
+        var outputReportLength = candidate.OutputReportLength ?? 33;
+        transportLog.Add(
+            $"Opening {candidate.InterfaceDisplay} {candidate.UsageDisplay} with report lengths in/out {inputReportLength}/{outputReportLength}.");
+
+        using var handle = CreateFile(
+            candidate.DevicePath,
+            GenericRead | GenericWrite,
+            FileShareRead | FileShareWrite,
+            IntPtr.Zero,
+            OpenExisting,
+            FileAttributeNormal | FileFlagOverlapped,
+            IntPtr.Zero);
+
+        if (handle.IsInvalid)
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Unable to open FiiO HID device-save handle.");
+        }
+
+        await using var stream = new FileStream(
+            handle,
+            FileAccess.ReadWrite,
+            Math.Max(inputReportLength, outputReportLength),
+            isAsync: true);
+
+        await SendSetOnlyAsync(
+            stream,
+            inputReportLength,
+            outputReportLength,
+            CmdEqPreset,
+            [presetId],
+            transportLog,
+            cancellationToken).ConfigureAwait(false);
+
+        var activePresetId = await WaitForPresetIdAsync(
+            stream,
+            inputReportLength,
+            outputReportLength,
+            presetId,
+            transportLog,
+            cancellationToken).ConfigureAwait(false);
+        if (activePresetId != presetId)
+        {
+            throw new InvalidOperationException(
+                $"Device did not confirm {profile.GetPresetDisplayName(presetId)} before save. Active preset is {profile.GetPresetDisplayName(activePresetId)}.");
+        }
+
+        var preampPayload = new byte[2];
+        WriteInt16BigEndian(preampPayload, 0, (short)Math.Round(requestedPreamp * 10.0));
+        await SendSetOnlyAsync(
+            stream,
+            inputReportLength,
+            outputReportLength,
+            CmdEqGlobalGain,
+            preampPayload,
+            transportLog,
+            cancellationToken).ConfigureAwait(false);
+
+        foreach (var band in bands)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await SendSetOnlyAsync(
+                stream,
+                inputReportLength,
+                outputReportLength,
+                CmdEqBandItem,
+                EncodeBand(band),
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        await SendSetOnlyAsync(
+            stream,
+            inputReportLength,
+            outputReportLength,
+            profile.SaveCommandId,
+            [],
+            transportLog,
+            cancellationToken).ConfigureAwait(false);
+
+        await Task.Delay(350, cancellationToken).ConfigureAwait(false);
+        transportLog.Add($"Saved {preset.Name} to {profile.GetPresetDisplayName(presetId)}.");
+        return new K13PresetWriteResult(candidate, profile, presetId, bands.Length, requestedPreamp, transportLog);
+    }
+
     public async Task<K13PresetSelectResult> SelectUserPresetAsync(
         byte presetId,
         CancellationToken cancellationToken = default)
     {
-        if (presetId is < 160 or > 169)
+        var profile = SelectedProfile;
+        if (!profile.WritableSlots.Any(slot => slot.Id == presetId))
         {
-            throw new InvalidOperationException("Preset select is limited to USER 1 through USER 10.");
+            throw new InvalidOperationException($"Preset select is limited to writable {profile.DisplayName} USER slots.");
         }
 
         var transportLog = new List<string>
         {
-            "Preset select mode: one guarded SET packet to command 0x16, USER slots only. No save command will be sent."
+            $"Preset select mode: {profile.DisplayName}, one guarded SET packet to command 0x16, USER slots only. No save command will be sent."
         };
 
         var detection = await DetectUsbAsync(cancellationToken).ConfigureAwait(false);
@@ -312,7 +445,7 @@ public sealed class FiioK13DeviceService
             cancellationToken).ConfigureAwait(false);
 
         transportLog.Add(
-            $"Current preset before select: {K13EqReadback.GetPresetDisplayName(beforePresetId)}.");
+            $"Current preset before select: {profile.GetPresetDisplayName(beforePresetId)}.");
 
         await SendSetOnlyAsync(
             stream,
@@ -323,7 +456,7 @@ public sealed class FiioK13DeviceService
             transportLog,
             cancellationToken).ConfigureAwait(false);
 
-        await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(850, cancellationToken).ConfigureAwait(false);
 
         var afterPresetId = await ReadPresetIdAsync(
             stream,
@@ -333,10 +466,11 @@ public sealed class FiioK13DeviceService
             cancellationToken).ConfigureAwait(false);
 
         transportLog.Add(
-            $"Requested {K13EqReadback.GetPresetDisplayName(presetId)}. Device readback: {K13EqReadback.GetPresetDisplayName(afterPresetId)}.");
+            $"Requested {profile.GetPresetDisplayName(presetId)}. Device readback: {profile.GetPresetDisplayName(afterPresetId)}.");
 
         return new K13PresetSelectResult(
             candidate,
+            profile,
             beforePresetId,
             presetId,
             afterPresetId,
@@ -430,15 +564,16 @@ public sealed class FiioK13DeviceService
         double gainDb,
         CancellationToken cancellationToken = default)
     {
-        if (gainDb is < -24.0 or > 12.0)
+        var profile = SelectedProfile;
+        if (gainDb < profile.MinGainDb || gainDb > profile.MaxGainDb)
         {
-            throw new ArgumentOutOfRangeException(nameof(gainDb), "Global gain must be between -24.0 and +12.0 dB.");
+            throw new ArgumentOutOfRangeException(nameof(gainDb), $"Global gain must be between {profile.MinGainDb:F1} and {profile.MaxGainDb:+0.0;-0.0;0.0} dB.");
         }
 
         var requested = Math.Round(gainDb, 1);
         var transportLog = new List<string>
         {
-            $"Global gain mode: one guarded SET packet to command 0x17, gain={requested:F1} dB. No save command will be sent."
+            $"Global gain mode: {profile.DisplayName}, one guarded SET packet to command 0x17, gain={requested:F1} dB. No save command will be sent."
         };
 
         var detection = await DetectUsbAsync(cancellationToken).ConfigureAwait(false);
@@ -521,15 +656,16 @@ public sealed class FiioK13DeviceService
         K13EqBandReadback band,
         CancellationToken cancellationToken = default)
     {
-        if (band.Number is < 1 or > 10)
+        var profile = SelectedProfile;
+        if (band.Number < 1 || band.Number > profile.BandCount)
         {
-            throw new ArgumentOutOfRangeException(nameof(band), "Band number must be between 1 and 10.");
+            throw new ArgumentOutOfRangeException(nameof(band), $"Band number must be between 1 and {profile.BandCount}.");
         }
 
         var requested = NormalizeBand(band);
         var transportLog = new List<string>
         {
-            $"Band write mode: one guarded SET packet to command 0x15, band={requested.Number}. No save command will be sent."
+            $"Band write mode: {profile.DisplayName}, one guarded SET packet to command 0x15, band={requested.Number}. No save command will be sent."
         };
 
         var detection = await DetectUsbAsync(cancellationToken).ConfigureAwait(false);
@@ -612,9 +748,15 @@ public sealed class FiioK13DeviceService
         string name,
         CancellationToken cancellationToken = default)
     {
-        if (presetId is < 160 or > 169)
+        var profile = SelectedProfile;
+        if (!profile.SupportsUsbPresetNames)
         {
-            throw new InvalidOperationException("Preset rename is limited to USER 1 through USER 10.");
+            throw new InvalidOperationException($"{profile.DisplayName} preset rename is not enabled in WolfEQ yet.");
+        }
+
+        if (!profile.WritableSlots.Any(slot => slot.Id == presetId))
+        {
+            throw new InvalidOperationException($"Preset rename is limited to writable {profile.DisplayName} USER slots.");
         }
 
         var sanitizedName = SanitizePresetName(name);
@@ -718,12 +860,23 @@ public sealed class FiioK13DeviceService
         return buffer;
     }
 
-    private static K13EqBandReadback NormalizeBand(K13EqBandReadback band)
+    private static K13EqBandReadback ToReadbackBand(EqBand band)
+        => new(
+            band.Number,
+            band.FrequencyHz,
+            band.Enabled ? band.GainDb : 0,
+            band.Q,
+            (byte)band.FilterType);
+
+    private K13EqBandReadback NormalizeBand(K13EqBandReadback band)
         => band with
         {
             FrequencyHz = Math.Clamp(band.FrequencyHz, 20, 20000),
-            GainDb = Math.Clamp(Math.Round(band.GainDb, 1), -24.0, 12.0),
-            Q = Math.Clamp(Math.Round(band.Q, 2), 0.1, 10.0)
+            GainDb = Math.Clamp(Math.Round(band.GainDb, 1), SelectedProfile.MinGainDb, SelectedProfile.MaxGainDb),
+            Q = Math.Clamp(Math.Round(band.Q, 2), SelectedProfile.MinQ, SelectedProfile.MaxQ),
+            FilterType = SelectedProfile.SupportsFilter((EqFilterType)band.FilterType)
+                ? band.FilterType
+                : (byte)EqFilterType.Peak
         };
 
     private static bool BandsMatch(K13EqBandReadback requested, K13EqBandReadback actual)
@@ -802,7 +955,13 @@ public sealed class FiioK13DeviceService
             SetupDiDestroyDeviceInfoList(deviceInfoSet);
         }
 
-        var result = new HidDetectionResult(scannedDeviceCount, candidates);
+        var (matchedProfile, matchedCandidate) = MatchProfile(candidates);
+        if (matchedProfile is not null)
+        {
+            SelectedProfile = matchedProfile;
+        }
+
+        var result = new HidDetectionResult(scannedDeviceCount, candidates, matchedProfile, matchedCandidate);
         IsConnected = result.IsDetected;
         return result;
     }
@@ -979,18 +1138,58 @@ public sealed class FiioK13DeviceService
         return terminatorIndex >= 0 ? value[..terminatorIndex] : value.TrimEnd('\0');
     }
 
-    private static HidDeviceCandidate? SelectReadbackCandidate(IReadOnlyList<HidDeviceCandidate> candidates)
+    private (FiioDeviceProfile? Profile, HidDeviceCandidate? Candidate) MatchProfile(IReadOnlyList<HidDeviceCandidate> candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            var profile = FiioDeviceProfiles.Match(
+                candidate.ProductId,
+                candidate.Product,
+                candidate.InterfaceNumber);
+            if (profile is null)
+            {
+                continue;
+            }
+
+            var profileCandidate = SelectReadbackCandidate(candidates, profile);
+            if (profileCandidate is not null)
+            {
+                return (profile, profileCandidate);
+            }
+        }
+
+        var selectedCandidate = SelectReadbackCandidate(candidates, SelectedProfile);
+        if (selectedCandidate is not null)
+        {
+            return (SelectedProfile, selectedCandidate);
+        }
+
+        return (null, null);
+    }
+
+    private HidDeviceCandidate? SelectReadbackCandidate(IReadOnlyList<HidDeviceCandidate> candidates)
+        => SelectReadbackCandidate(candidates, SelectedProfile);
+
+    private static HidDeviceCandidate? SelectReadbackCandidate(
+        IReadOnlyList<HidDeviceCandidate> candidates,
+        FiioDeviceProfile profile)
         => candidates
             .Where(candidate =>
                 candidate.VendorId == VendorId &&
-                candidate.InterfaceNumber == ExpectedHidInterface &&
+                (profile.ProductId is null || candidate.ProductId == profile.ProductId) &&
+                (profile.ProductId is not null
+                    || profile.ProductNameAliases is not { Count: > 0 }
+                    || FiioDeviceProfiles.ProductNameMatches(profile, candidate.Product)) &&
+                (profile.HidInterfaceNumber is null || candidate.InterfaceNumber == profile.HidInterfaceNumber) &&
                 candidate.InputReportLength > 0 &&
                 candidate.OutputReportLength > 0)
-            .OrderByDescending(candidate => candidate.InputReportLength == 33 && candidate.OutputReportLength == 33)
+            .OrderByDescending(candidate => candidate.ProductId == profile.ProductId)
+            .ThenByDescending(candidate => profile.HidInterfaceNumber is not null && candidate.InterfaceNumber == profile.HidInterfaceNumber)
+            .ThenByDescending(candidate => candidate.InputReportLength == 33 && candidate.OutputReportLength == 33)
             .ThenByDescending(candidate => candidate.UsagePage == 0x0001)
             .FirstOrDefault();
 
-    private static async Task<string?> TryReadPresetNameAsync(
+    private async Task<string?> TryReadPresetNameAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1030,7 +1229,7 @@ public sealed class FiioK13DeviceService
         }
     }
 
-    private static async Task<byte> ReadPresetIdAsync(
+    private async Task<byte> ReadPresetIdAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1049,7 +1248,43 @@ public sealed class FiioK13DeviceService
         return response.Length > 6 ? response[6] : (byte)160;
     }
 
-    private static async Task<bool> ReadEqEnabledAsync(
+    private async Task<byte> WaitForPresetIdAsync(
+        FileStream stream,
+        int inputReportLength,
+        int outputReportLength,
+        byte expectedPresetId,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        byte activePresetId = 0;
+
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            await Task.Delay(attempt == 1 ? 350 : 250, cancellationToken).ConfigureAwait(false);
+            activePresetId = await ReadPresetIdAsync(
+                stream,
+                inputReportLength,
+                outputReportLength,
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+
+            if (activePresetId == expectedPresetId)
+            {
+                if (attempt > 1)
+                {
+                    transportLog.Add($"Preset confirmation settled after {attempt} reads.");
+                }
+
+                return activePresetId;
+            }
+
+            transportLog.Add($"Preset confirmation attempt {attempt}: active preset is 0x{activePresetId:X2}, waiting for 0x{expectedPresetId:X2}.");
+        }
+
+        return activePresetId;
+    }
+
+    private async Task<bool> ReadEqEnabledAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1068,7 +1303,7 @@ public sealed class FiioK13DeviceService
         return response.Length > 6 && response[6] != 0;
     }
 
-    private static async Task<double> ReadGlobalGainDbAsync(
+    private async Task<double> ReadGlobalGainDbAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1089,7 +1324,7 @@ public sealed class FiioK13DeviceService
             : 0.0;
     }
 
-    private static async Task<K13EqBandReadback> ReadBandAsync(
+    private async Task<K13EqBandReadback> ReadBandAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1119,7 +1354,7 @@ public sealed class FiioK13DeviceService
             FilterType: response[13]);
     }
 
-    private static async Task<byte[]> SendGetAsync(
+    private async Task<byte[]> SendGetAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1138,7 +1373,7 @@ public sealed class FiioK13DeviceService
         }
 
         var outputReport = new byte[outputReportLength];
-        outputReport[0] = HidReportId;
+        outputReport[0] = SelectedProfile.ReportId;
         packet.CopyTo(outputReport.AsSpan(1));
 
         transportLog.Add($"GET 0x{command:X2} TX: {FormatHex(packet)}");
@@ -1174,7 +1409,7 @@ public sealed class FiioK13DeviceService
         throw new TimeoutException($"No matching response for GET 0x{command:X2}.");
     }
 
-    private static async Task<byte[]?> TrySendGetProbeAsync(
+    private async Task<byte[]?> TrySendGetProbeAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1193,7 +1428,7 @@ public sealed class FiioK13DeviceService
         }
 
         var outputReport = new byte[outputReportLength];
-        outputReport[0] = HidReportId;
+        outputReport[0] = SelectedProfile.ReportId;
         packet.CopyTo(outputReport.AsSpan(1));
 
         await stream.WriteAsync(outputReport, cancellationToken).ConfigureAwait(false);
@@ -1216,7 +1451,7 @@ public sealed class FiioK13DeviceService
             : null;
     }
 
-    private static async Task SendSetOnlyAsync(
+    private async Task SendSetOnlyAsync(
         FileStream stream,
         int inputReportLength,
         int outputReportLength,
@@ -1235,7 +1470,7 @@ public sealed class FiioK13DeviceService
         }
 
         var outputReport = new byte[outputReportLength];
-        outputReport[0] = HidReportId;
+        outputReport[0] = SelectedProfile.ReportId;
         packet.CopyTo(outputReport.AsSpan(1));
 
         transportLog.Add($"SET 0x{command:X2} TX: {FormatHex(packet)}");
@@ -1294,8 +1529,8 @@ public sealed class FiioK13DeviceService
         }
     }
 
-    private static byte[] StripReportId(byte[] report)
-        => report.Length > 0 && report[0] == HidReportId ? report[1..] : report;
+    private byte[] StripReportId(byte[] report)
+        => report.Length > 0 && report[0] == SelectedProfile.ReportId ? report[1..] : report;
 
     private static byte[] BuildGetPacket(byte command, byte[] data)
     {
@@ -1540,9 +1775,11 @@ public sealed class FiioK13DeviceService
 public sealed record HidDetectionResult(
     int ScannedDeviceCount,
     IReadOnlyList<HidDeviceCandidate> Candidates,
+    FiioDeviceProfile? MatchedProfile = null,
+    HidDeviceCandidate? MatchedCandidate = null,
     string? ScanError = null)
 {
-    public bool IsDetected => ScanError is null && Candidates.Count > 0;
+    public bool IsDetected => ScanError is null && MatchedCandidate is not null;
     public bool HasExpectedInterface => Candidates.Any(candidate => candidate.InterfaceNumber == FiioK13DeviceService.ExpectedHidInterface);
 
     public string StatusMessage
@@ -1554,19 +1791,22 @@ public sealed record HidDetectionResult(
                 return ScanError;
             }
 
-            if (!IsDetected)
+            if (Candidates.Count == 0)
             {
-                return $"No FiiO K13 HID device found. Scanned {ScannedDeviceCount} HID interface(s).";
+                return $"No supported FiiO HID device found. Scanned {ScannedDeviceCount} HID interface(s).";
             }
 
-            return HasExpectedInterface
-                ? $"FiiO VID_2972 detected with HID interface {FiioK13DeviceService.ExpectedHidInterface}. Writes disabled."
-                : $"FiiO VID_2972 detected, but HID interface {FiioK13DeviceService.ExpectedHidInterface} was not visible. Writes disabled.";
+            if (MatchedProfile is not null && MatchedCandidate is not null)
+            {
+                return $"Detected {MatchedProfile.DisplayLabel} on {MatchedCandidate.InterfaceDisplay}.";
+            }
+
+            return "FiiO VID_2972 HID device found. Choose a matching device profile in Settings.";
         }
     }
 
     public static HidDetectionResult NotAvailable(string message)
-        => new(0, [], message);
+        => new(0, [], null, null, message);
 }
 
 public sealed record HidDeviceCandidate(
@@ -1620,6 +1860,7 @@ public sealed record HidDeviceCandidate(
 
 public sealed record K13EqReadback(
     HidDeviceCandidate Candidate,
+    FiioDeviceProfile Profile,
     byte PresetId,
     string? PresetName,
     double GlobalGainDb,
@@ -1627,32 +1868,10 @@ public sealed record K13EqReadback(
     IReadOnlyList<K13EqBandReadback> Bands,
     IReadOnlyList<string> TransportLog)
 {
-    public string PresetDisplayName => GetPresetDisplayName(PresetId, PresetName);
+    public string PresetDisplayName => Profile.GetPresetDisplayName(PresetId, PresetName);
 
     public static string GetPresetDisplayName(byte presetId, string? presetName = null)
-    {
-        if (!string.IsNullOrWhiteSpace(presetName))
-        {
-            return $"{presetName} (0x{presetId:X2})";
-        }
-
-        return presetId switch
-        {
-            240 => "BYPASS (0xF0)",
-            0 => "Jazz (0x00)",
-            1 => "Pop (0x01)",
-            2 => "Rock (0x02)",
-            3 => "Dance (0x03)",
-            4 => "R&B (0x04)",
-            5 => "Classic (0x05)",
-            6 => "HipHop (0x06)",
-            8 => "Retro (0x08)",
-            9 => "sDamp-1 (0x09)",
-            10 => "sDamp-2 (0x0A)",
-            >= 160 and <= 169 => $"USER {presetId - 159} (0x{presetId:X2})",
-            _ => $"Unknown preset 0x{presetId:X2}"
-        };
-    }
+        => FiioDeviceProfiles.Default.GetPresetDisplayName(presetId, presetName);
 }
 
 public sealed record K13EqBandReadback(
@@ -1687,15 +1906,27 @@ public sealed record K13PresetNameWriteResult(
 
 public sealed record K13PresetSelectResult(
     HidDeviceCandidate Candidate,
+    FiioDeviceProfile Profile,
     byte BeforePresetId,
     byte RequestedPresetId,
     byte AfterPresetId,
     bool Confirmed,
     IReadOnlyList<string> TransportLog)
 {
-    public string BeforeDisplay => K13EqReadback.GetPresetDisplayName(BeforePresetId);
-    public string RequestedDisplay => K13EqReadback.GetPresetDisplayName(RequestedPresetId);
-    public string AfterDisplay => K13EqReadback.GetPresetDisplayName(AfterPresetId);
+    public string BeforeDisplay => Profile.GetPresetDisplayName(BeforePresetId);
+    public string RequestedDisplay => Profile.GetPresetDisplayName(RequestedPresetId);
+    public string AfterDisplay => Profile.GetPresetDisplayName(AfterPresetId);
+}
+
+public sealed record K13PresetWriteResult(
+    HidDeviceCandidate Candidate,
+    FiioDeviceProfile Profile,
+    byte PresetId,
+    int BandCount,
+    double PreampDb,
+    IReadOnlyList<string> TransportLog)
+{
+    public string PresetDisplay => Profile.GetPresetDisplayName(PresetId);
 }
 
 public sealed record K13GlobalGainWriteResult(
