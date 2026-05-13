@@ -15,6 +15,16 @@ public sealed class FiioK13DeviceService
     public const byte HidReportId = 0x07;
     public const byte HidOutEndpoint = 0x02;
     public const byte HidInEndpoint = 0x83;
+    private static readonly HidDeviceId[] SupportedHidDeviceIds =
+    [
+        new((ushort)VendorId, null),
+        new(0x3302, 0x3BC0),
+        new(0x3302, 0x3BC1),
+        new(0x3302, 0x3BC2),
+        new(0x0A12, 0x4007),
+        new(0x0666, 0x0888),
+        new(0x31B2, 0xFFF8)
+    ];
 
     public FiioDeviceProfile SelectedProfile { get; set; } = FiioDeviceProfiles.Default;
 
@@ -944,7 +954,7 @@ public sealed class FiioK13DeviceService
                 var devicePath = GetDevicePath(deviceInfoSet, ref interfaceData);
                 var device = ReadHidMetadata(devicePath);
 
-                if (device.VendorId == VendorId || PathHasFiioVendorId(devicePath))
+                if (IsSupportedHidDevice(device) || PathHasSupportedHidDeviceId(devicePath))
                 {
                     candidates.Add(device);
                 }
@@ -1175,7 +1185,7 @@ public sealed class FiioK13DeviceService
         FiioDeviceProfile profile)
         => candidates
             .Where(candidate =>
-                candidate.VendorId == VendorId &&
+                IsSupportedHidDevice(candidate) &&
                 (profile.ProductId is null || candidate.ProductId == profile.ProductId) &&
                 (profile.ProductId is not null
                     || profile.ProductNameAliases is not { Count: > 0 }
@@ -1612,8 +1622,16 @@ public sealed class FiioK13DeviceService
             : null;
     }
 
-    private static bool PathHasFiioVendorId(string devicePath)
-        => devicePath.Contains("vid_2972", StringComparison.OrdinalIgnoreCase);
+    private static bool IsSupportedHidDevice(HidDeviceCandidate candidate)
+        => candidate.VendorId is ushort vendorId
+           && SupportedHidDeviceIds.Any(id =>
+               id.VendorId == vendorId
+               && (id.ProductId is null || candidate.ProductId == id.ProductId));
+
+    private static bool PathHasSupportedHidDeviceId(string devicePath)
+        => SupportedHidDeviceIds.Any(id =>
+            devicePath.Contains($"vid_{id.VendorId:X4}", StringComparison.OrdinalIgnoreCase)
+            && (id.ProductId is null || devicePath.Contains($"pid_{id.ProductId.Value:X4}", StringComparison.OrdinalIgnoreCase)));
 
     private static string GetWin32ErrorMessage(string prefix)
     {
@@ -1772,6 +1790,8 @@ public sealed class FiioK13DeviceService
     }
 }
 
+internal sealed record HidDeviceId(ushort VendorId, ushort? ProductId);
+
 public sealed record HidDetectionResult(
     int ScannedDeviceCount,
     IReadOnlyList<HidDeviceCandidate> Candidates,
@@ -1793,7 +1813,7 @@ public sealed record HidDetectionResult(
 
             if (Candidates.Count == 0)
             {
-                return $"No supported FiiO HID device found. Scanned {ScannedDeviceCount} HID interface(s).";
+                return $"No supported FiiO/SNOWSKY HID device found. Scanned {ScannedDeviceCount} HID interface(s).";
             }
 
             if (MatchedProfile is not null && MatchedCandidate is not null)
@@ -1801,7 +1821,7 @@ public sealed record HidDetectionResult(
                 return $"Detected {MatchedProfile.DisplayLabel} on {MatchedCandidate.InterfaceDisplay}.";
             }
 
-            return "FiiO VID_2972 HID device found. Choose a matching device profile in Settings.";
+            return "FiiO/SNOWSKY HID device found. Choose a matching device profile in Settings.";
         }
     }
 

@@ -718,7 +718,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task DetectDeviceAsync()
     {
-        Status = "Scanning Windows HID interfaces for supported FiiO devices...";
+        Status = "Scanning Windows HID interfaces for supported FiiO/SNOWSKY devices...";
         DeviceLog.Clear();
         AddLog("Read-only scan started. No output, feature, or SET packets will be sent.");
 
@@ -734,8 +734,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             else
             {
                 DeviceSelectionStatus = result.Candidates.Count == 0
-                    ? "No supported FiiO HID device found."
-                    : "FiiO HID device found, but no known profile matched. Pick one manually.";
+                    ? "No supported FiiO/SNOWSKY HID device found."
+                    : "FiiO/SNOWSKY HID device found, but no known profile matched. Pick one manually.";
             }
 
             SetConnectionState(result.IsDetected);
@@ -744,7 +744,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             if (result.Candidates.Count == 0)
             {
-                AddLog("No VID_2972 HID candidates found.");
+                AddLog("No supported FiiO/SNOWSKY HID candidates found.");
             }
 
             if (result.MatchedProfile is not null && result.MatchedCandidate is not null)
