@@ -103,27 +103,6 @@
             <Setter Property="Padding" Value="12"/>
         </Style>
 
-        <Style x:Key="BandCellBorder" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource WolfShellBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="10"/>
-        </Style>
-
-        <Style x:Key="EqBandCardBorder" TargetType="Border" BasedOn="{StaticResource BandCellBorder}">
-            <Setter Property="Width" Value="168"/>
-            <Setter Property="MinHeight" Value="224"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Enabled}" Value="False">
-                    <Setter Property="Background" Value="#090909"/>
-                    <Setter Property="BorderBrush" Value="#222222"/>
-                    <Setter Property="Opacity" Value="0.64"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-
         <Style x:Key="BandPowerToggle" TargetType="{x:Type ToggleButton}">
             <Setter Property="Width" Value="38"/>
             <Setter Property="Height" Value="20"/>
@@ -728,96 +707,5 @@
             <Setter Property="PanningMode" Value="Both"/>
         </Style>
 
-        <Style x:Key="SidebarTabControl" TargetType="{x:Type TabControl}">
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="{StaticResource WolfShellBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TabControl}">
-                        <Grid Background="{TemplateBinding Background}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="96"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0"
-                                    Background="{StaticResource WolfBgBrush}"
-                                    BorderBrush="{StaticResource WolfLineBrush}"
-                                    BorderThickness="0,0,1,0">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="72"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-
-                                    <Border Grid.Row="0"
-                                            Height="1"
-                                            VerticalAlignment="Bottom"
-                                            Margin="18,0,18,0"
-                                            Background="Transparent"/>
-
-                                    <TabPanel x:Name="HeaderPanel"
-                                              Grid.Row="1"
-                                              IsItemsHost="True"
-                                              KeyboardNavigation.TabIndex="1"
-                                              Background="Transparent"/>
-
-                                    <Border Grid.Row="2"
-                                            Height="1"
-                                            VerticalAlignment="Top"
-                                            Margin="14,0,14,0"
-                                            Background="{StaticResource WolfLineBrush}"/>
-                                </Grid>
-                            </Border>
-
-                            <Border Grid.Column="1" Background="{StaticResource WolfShellBrush}">
-                                <ContentPresenter x:Name="PART_SelectedContentHost"
-                                                  ContentSource="SelectedContent"
-                                                  Margin="0"
-                                                  SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                            </Border>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SidebarTabItem" TargetType="{x:Type TabItem}">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TabItem}">
-                        <Border x:Name="Chrome"
-                                Width="64"
-                                Height="64"
-                                Margin="16,4"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                BorderThickness="0">
-                            <ContentPresenter ContentSource="Header"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
-                            </Trigger>
-                            <Trigger Property="Tag" Value="HiddenRail">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Setter TargetName="Chrome" Property="Width" Value="0"/>
-                                <Setter TargetName="Chrome" Property="Height" Value="0"/>
-                                <Setter TargetName="Chrome" Property="Margin" Value="0"/>
-                                <Setter TargetName="Chrome" Property="Visibility" Value="Collapsed"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </Application.Resources>
 </Application>
