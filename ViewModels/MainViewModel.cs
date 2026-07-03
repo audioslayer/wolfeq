@@ -242,6 +242,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         WriteToDeviceCommand = new AsyncRelayCommand(WriteEditorPresetToDeviceAsync, CanExecuteWriteToDevice);
         SwitchSlotCommand = new AsyncParameterRelayCommand(SwitchSlotAsync, _ => IsDeviceConnected);
         LoadFromSlotCommand = new AsyncRelayCommand(LoadFromSlotAsync, () => IsDeviceConnected && K13HardwareEqIoEnabled);
+        LoadLibraryPresetIntoEditorCommand = new RelayCommand(LoadLibraryPresetIntoEditor, () => SelectedPreset is not null);
+        WriteLibraryPresetToSlotCommand = new AsyncRelayCommand(WriteLibraryPresetToSlotAsync, () => SelectedPreset is not null && CanExecuteWriteToDevice());
+        LoadOnlineProfileIntoEditorCommand = new AsyncRelayCommand(LoadOnlineProfileIntoEditorAsync, () => SelectedGitHubProfile is not null);
+        WriteOnlineProfileToSlotCommand = new AsyncRelayCommand(WriteOnlineProfileToSlotAsync, () => SelectedGitHubProfile is not null && CanExecuteWriteToDevice());
     }
 
     public ObservableCollection<EqPreset> Presets { get; }
@@ -520,6 +524,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 {
                     IsProfileLibraryDirty = true;
                 }
+
+                (LoadLibraryPresetIntoEditorCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (WriteLibraryPresetToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -719,6 +726,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (SetField(ref _selectedGitHubProfile, value))
             {
                 _ = LoadGitHubProfilePreviewAsync(value);
+                (LoadOnlineProfileIntoEditorCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                (WriteOnlineProfileToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -827,8 +836,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand WriteToDeviceCommand { get; }
     public ICommand SwitchSlotCommand { get; }
     public ICommand LoadFromSlotCommand { get; }
+    public ICommand LoadLibraryPresetIntoEditorCommand { get; }
+    public ICommand WriteLibraryPresetToSlotCommand { get; }
+    public ICommand LoadOnlineProfileIntoEditorCommand { get; }
+    public ICommand WriteOnlineProfileToSlotCommand { get; }
     public EditorSessionState EditorSession { get; } = new();
     public string EditorSyncStatusText => EditorSession.StatusText(EditorTargetSlotDisplayName);
+
+    /// <summary>
+    /// Whether this build allows hardware EQ input/output at all (the safety flag).
+    /// Views read this to explain disabled write buttons in plain English.
+    /// </summary>
+    public bool HardwareIoEnabled => K13HardwareEqIoEnabled;
 
     /// <summary>
     /// Confirmation hook the view wires up later ((title, message) => proceed).
@@ -1795,12 +1814,22 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     private async Task ImportGitHubProfileAsync()
+        => await ImportSelectedGitHubProfileToLibraryAsync();
+
+    /// <summary>
+    /// Downloads the selected online profile into the library (deduplicated, selected,
+    /// persisted) and returns the imported preset, or null when nothing was imported.
+    /// Shared by the Download, "Load into editor", and "Write to slot" online actions.
+    /// Note: selecting the imported preset also loads it into the editor (legacy
+    /// SelectedPreset behavior kept until U7 revisits it).
+    /// </summary>
+    private async Task<EqPreset?> ImportSelectedGitHubProfileToLibraryAsync()
     {
         if (SelectedGitHubProfile is not AutoEqProfileIndexEntry profile)
         {
             Status = "Select an online headphone profile first.";
             AddLog(Status);
-            return;
+            return null;
         }
 
         Status = $"Downloading online AutoEq profile: {profile.Name}...";
@@ -1821,12 +1850,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ? $"Downloaded and saved AutoEq profile: {profile.Name}."
                 : $"Downloaded AutoEq profile: {profile.Name}, but local save failed: {saveError}";
             AddLog(Status);
+            return preset;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or FileNotFoundException)
         {
             GitHubProfileStatus = $"Online download failed: {ex.Message}";
             Status = GitHubProfileStatus;
             AddLog(Status);
+            return null;
         }
     }
 
@@ -2181,6 +2212,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         (LoadFromSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         (SwitchSlotCommand as AsyncParameterRelayCommand)?.RaiseCanExecuteChanged();
         (SaveToLibraryCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (WriteLibraryPresetToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (WriteOnlineProfileToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private string? EditorTargetSlotDisplayName
@@ -2338,6 +2371,188 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Status = $"Load from device failed: {ex.Message}";
             SetConnectionState(false);
             AddLog(Status);
+        }
+    }
+
+    /// <summary>
+    /// Explicit, guarded "Load into editor" for the selected library preset. Works even
+    /// when the preset is already selected (re-load), and asks before replacing unsaved
+    /// edits. Never touches hardware.
+    /// </summary>
+    private void LoadLibraryPresetIntoEditor()
+    {
+        if (SelectedPreset is null)
+        {
+            Status = "Pick a preset in My Library first.";
+            AddLog(Status);
+            return;
+        }
+
+        if (!ConfirmReplaceUnsavedEdits(SelectedPreset.Name))
+        {
+            return;
+        }
+
+        LoadSelectedPreset();
+        EditorSession.NotifyLoadedFromLibrary();
+        Status = $"Loaded {SelectedPreset.Name} into the editor.";
+        AddLog(Status);
+    }
+
+    /// <summary>Writes the selected library preset straight to the current target slot.</summary>
+    private async Task WriteLibraryPresetToSlotAsync()
+    {
+        if (SelectedPreset is null)
+        {
+            Status = "Pick a preset in My Library first.";
+            AddLog(Status);
+            return;
+        }
+
+        await WritePresetToSlotAsync(SelectedPreset);
+    }
+
+    /// <summary>
+    /// Online row "Load into editor": saves the profile into the library, then loads it
+    /// (import selects the preset, and selection loads it). Guarded like a library load.
+    /// </summary>
+    private async Task LoadOnlineProfileIntoEditorAsync()
+    {
+        if (SelectedGitHubProfile is not AutoEqProfileIndexEntry profile)
+        {
+            Status = "Select an online headphone profile first.";
+            AddLog(Status);
+            return;
+        }
+
+        if (!ConfirmReplaceUnsavedEdits(profile.Name))
+        {
+            return;
+        }
+
+        var preset = await ImportSelectedGitHubProfileToLibraryAsync();
+        if (preset is null)
+        {
+            return;
+        }
+
+        EditorSession.NotifyLoadedFromLibrary();
+        Status = $"Saved {preset.Name} to your library and loaded it into the editor.";
+        AddLog(Status);
+    }
+
+    /// <summary>
+    /// Online row "Write to slot" (KTD6): one action, two effects — the profile is saved
+    /// into the local library, then written to the current target slot. Guarded because
+    /// the import step also selects the preset into the editor.
+    /// </summary>
+    private async Task WriteOnlineProfileToSlotAsync()
+    {
+        if (SelectedGitHubProfile is not AutoEqProfileIndexEntry profile)
+        {
+            Status = "Select an online headphone profile first.";
+            AddLog(Status);
+            return;
+        }
+
+        if (!ConfirmReplaceUnsavedEdits(profile.Name))
+        {
+            return;
+        }
+
+        var preset = await ImportSelectedGitHubProfileToLibraryAsync();
+        if (preset is null)
+        {
+            return;
+        }
+
+        EditorSession.NotifyLoadedFromLibrary();
+        var slotDisplay = await WritePresetToSlotAsync(preset);
+        if (slotDisplay is not null)
+        {
+            Status = $"Saved {preset.Name} to your library and wrote it to {slotDisplay}.";
+            GitHubProfileStatus = $"Saved {preset.Name} and wrote it to {slotDisplay}";
+            AddLog(Status);
+        }
+    }
+
+    /// <summary>
+    /// Asks before an action that would replace unsaved editor edits. Returns true to
+    /// proceed. Also true when there is nothing to lose or no dialog hook is wired.
+    /// </summary>
+    private bool ConfirmReplaceUnsavedEdits(string incomingName)
+    {
+        if (!EditorSession.WouldReplaceUnsavedEdits)
+        {
+            return true;
+        }
+
+        var proceed = ConfirmDialog?.Invoke(
+            "Replace unsaved changes?",
+            $"The editor has changes that are not saved yet. Loading {incomingName} will replace them.") ?? true;
+        if (!proceed)
+        {
+            Status = "Load canceled. The editor kept your changes.";
+            AddLog(Status);
+        }
+
+        return proceed;
+    }
+
+    /// <summary>
+    /// Writes a library preset to the current target slot using the same device path and
+    /// settle logic as <see cref="WriteEditorPresetToDeviceAsync"/>. Returns the slot's
+    /// display name on success, null on failure. Sync state afterwards: when the written
+    /// preset is the editor's current content (always true today, because selecting a
+    /// preset loads it), the write is honestly reported via NotifyWriteSucceeded; otherwise
+    /// NotifySlotSwitched keeps the target current without claiming the editor is in sync.
+    /// </summary>
+    private async Task<string?> WritePresetToSlotAsync(EqPreset preset)
+    {
+        if (!K13HardwareEqIoEnabled)
+        {
+            Status = "Hardware EQ writes are disabled in this safety build.";
+            AddLog("Blocked hardware EQ write; no HID SET packets were sent.");
+            return null;
+        }
+
+        var targetSlotId = EditorSession.TargetSlotId ?? SelectedDeviceUserPreset.PresetId;
+        var slotDisplay = DeviceUserPresets.FirstOrDefault(option => option.PresetId == targetSlotId)?.DisplayName
+                          ?? SelectedDeviceProfile.GetPresetDisplayName(targetSlotId);
+        var isEditorContent = ReferenceEquals(preset, SelectedPreset);
+        Status = $"Writing {preset.Name} to {slotDisplay}...";
+        AddLog($"Guarded library write requested: {preset.Name} -> {slotDisplay} (0x{targetSlotId:X2}).");
+
+        try
+        {
+            var result = await _deviceService.SaveCurrentUserPresetAsync(preset, targetSlotId);
+            foreach (var line in result.TransportLog)
+            {
+                AddLog($"  {line}");
+            }
+
+            AddLog($"Waiting for {slotDisplay} to settle after hardware write.");
+            var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync(SelectedDeviceProfile.ReloadEqAfterSave);
+            if (isEditorContent)
+            {
+                EditorSession.NotifyWriteSucceeded(targetSlotId);
+            }
+            else
+            {
+                EditorSession.NotifySlotSwitched(targetSlotId);
+            }
+
+            Status = reloadedHardware
+                ? $"Wrote {preset.Name} to {slotDisplay}."
+                : $"Wrote {preset.Name} to {slotDisplay}; the device is reconnecting. Click Connect if it does not return.";
+            AddLog(Status);
+            return slotDisplay;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception or ArgumentException)
+        {
+            Status = $"Device write failed: {ex.Message}";
+            AddLog(Status);
+            return null;
         }
     }
 
