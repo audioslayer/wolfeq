@@ -1,0 +1,246 @@
+<UserControl x:Class="WolfEQ.Views.DeviceDock"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:WolfEQ"
+             mc:Ignorable="d"
+             d:DesignWidth="1280"
+             d:DesignHeight="56"
+             Foreground="{StaticResource WolfTextBrush}">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
+
+        <!-- Detect reads quiet while connected, accent-bordered while disconnected. -->
+        <Style x:Key="DetectButton" TargetType="{x:Type Button}" BasedOn="{StaticResource QuietButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDeviceConnected}" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource WolfCyanDimBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- One hardware slot chip; the chip matching SelectedDeviceUserPreset renders accent-filled. -->
+        <Style x:Key="SlotChipButton" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="{StaticResource WolfShellBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfCyanDimBrush}"/>
+                            </Trigger>
+                            <!-- Active slot; declared last so it wins over hover. -->
+                            <DataTrigger Value="True">
+                                <DataTrigger.Binding>
+                                    <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                        <Binding/>
+                                        <Binding Path="DataContext.SelectedDeviceUserPreset"
+                                                 RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
+                                    </MultiBinding>
+                                </DataTrigger.Binding>
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Value="True">
+                    <DataTrigger.Binding>
+                        <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                            <Binding/>
+                            <Binding Path="DataContext.SelectedDeviceUserPreset"
+                                     RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
+                        </MultiBinding>
+                    </DataTrigger.Binding>
+                    <Setter Property="Foreground" Value="#06130B"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource PanelBorder}"
+            Padding="12,8"
+            MinHeight="56">
+        <Grid VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 1. Connection cluster -->
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center">
+                <Ellipse Width="8"
+                         Height="8"
+                         Margin="0,0,8,0"
+                         VerticalAlignment="Center">
+                    <Ellipse.Style>
+                        <Style TargetType="{x:Type Ellipse}">
+                            <Setter Property="Fill" Value="{StaticResource WolfDimBrush}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                    <Setter Property="Fill" Value="{DynamicResource WolfGreenBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+                <TextBlock Text="{Binding SelectedDeviceProfile.DisplayLabel}"
+                           ToolTip="{Binding ConnectionText}"
+                           Foreground="{StaticResource WolfMutedBrush}"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <Button Content="Detect"
+                        Command="{Binding ConnectCommand}"
+                        Style="{StaticResource DetectButton}"
+                        ToolTip="Scan for a connected device"
+                        VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <Rectangle Grid.Column="1"
+                       Width="1"
+                       Fill="{StaticResource WolfLineSoftBrush}"
+                       Margin="12,2"/>
+
+            <!-- 2. Slot chips (scrolls horizontally when a profile exposes many slots) -->
+            <ScrollViewer Grid.Column="2"
+                          x:Name="SlotChipScroller"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled"
+                          MaxWidth="480"
+                          VerticalAlignment="Center"
+                          PreviewMouseWheel="SlotChipScroller_PreviewMouseWheel">
+                <ItemsControl ItemsSource="{Binding DeviceUserPresets}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource SlotChipButton}"
+                                    Command="{Binding DataContext.SwitchSlotCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                    CommandParameter="{Binding}"
+                                    ToolTip="Make this the device's active EQ slot">
+                                <TextBlock FontSize="12" VerticalAlignment="Center">
+                                    <Run Text="{Binding Slot, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" · "/><Run Text="{Binding DeviceName, Mode=OneWay}"/>
+                                </TextBlock>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- 3. Load from slot -->
+            <Button Grid.Column="3"
+                    Content="Load from slot"
+                    Command="{Binding LoadFromSlotCommand}"
+                    Style="{StaticResource QuietButton}"
+                    ToolTip="Read this slot's EQ into the editor"
+                    VerticalAlignment="Center"
+                    Margin="4,0,0,0"/>
+
+            <!-- 4. Sync indicator (dot fill and text color set from code-behind on EditorSession.Changed) -->
+            <StackPanel Grid.Column="4"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="16,0">
+                <Ellipse x:Name="SyncStateDot"
+                         Width="8"
+                         Height="8"
+                         Fill="{StaticResource WolfDimBrush}"
+                         Margin="0,0,7,0"
+                         VerticalAlignment="Center"/>
+                <TextBlock x:Name="SyncStateText"
+                           Text="{Binding EditorSyncStatusText}"
+                           Foreground="{StaticResource WolfMutedBrush}"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <!-- 5. Live-sync toggle (only for profiles that support live EQ writes) -->
+            <StackPanel Grid.Column="5"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0"
+                        ToolTip="Push edits to the device as you make them"
+                        Visibility="{Binding SelectedDeviceProfile.SupportsLiveEqWrites, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <ToggleButton Style="{StaticResource BandPowerToggle}"
+                              IsChecked="{Binding LiveDeviceEqSyncEnabled, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,7,0"/>
+                <TextBlock Text="Live sync"
+                           Foreground="{StaticResource WolfMutedBrush}"
+                           FontSize="12"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- 6. Actions: disabled-reason line + Save to Library + Write -->
+            <StackPanel Grid.Column="6"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center">
+                <TextBlock x:Name="WriteDisabledReasonText"
+                           Style="{StaticResource DimText}"
+                           MaxWidth="180"
+                           TextAlignment="Right"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           Visibility="Collapsed"/>
+                <Button Content="Save to Library"
+                        Command="{Binding SaveToLibraryCommand}"
+                        Style="{StaticResource QuietButton}"
+                        ToolTip="Keep the editor's EQ in My Library"
+                        VerticalAlignment="Center"/>
+                <Button Command="{Binding WriteToDeviceCommand}"
+                        Style="{StaticResource SavePresetButton}"
+                        ToolTip="Write the editor's EQ to the device slot"
+                        VerticalAlignment="Center">
+                    <TextBlock>
+                        <Run Text="Write to "/><Run Text="{Binding SelectedDeviceUserPreset.DeviceName, Mode=OneWay, FallbackValue=device, TargetNullValue=device}"/>
+                    </TextBlock>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
