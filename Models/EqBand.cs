@@ -59,6 +59,17 @@ public sealed class EqBand : INotifyPropertyChanged
         set => SetField(ref _enabled, value);
     }
 
+    /// <summary>Deep copy with no event subscribers, used to detach editor content from library presets.</summary>
+    public EqBand Clone() => new()
+    {
+        Number = _number,
+        FrequencyHz = _frequencyHz,
+        GainDb = _gainDb,
+        Q = _q,
+        FilterType = _filterType,
+        Enabled = _enabled
+    };
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

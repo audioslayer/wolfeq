@@ -58,7 +58,7 @@ public sealed class EditorSessionStateTests
     }
 
     [Fact]
-    public void WriteFailure_OnlyNotifyWriteSucceededTransitionsToInSync()
+    public void FailedWrite_CallsNoTransition_SoEditedStateIsPreserved()
     {
         var session = ConnectedSession();
         session.NotifyEdit();
@@ -67,6 +67,37 @@ public sealed class EditorSessionStateTests
         Assert.Equal(DeviceSyncState.Modified, session.DeviceSyncState);
         Assert.True(session.LibraryDirty);
         Assert.True(session.WouldReplaceUnsavedEdits);
+    }
+
+    [Fact]
+    public void EditThenSlotSwitch_StaysModified_UntilWriteSucceeds()
+    {
+        var session = ConnectedSession();
+        session.NotifyLoadedFromSlot(SlotA);
+        session.NotifyEdit();
+
+        session.NotifySlotSwitched(SlotB);
+
+        Assert.Equal(DeviceSyncState.Modified, session.DeviceSyncState);
+        Assert.Equal(SlotB, session.TargetSlotId);
+
+        session.NotifyWriteSucceeded(SlotB);
+
+        Assert.Equal(DeviceSyncState.InSync, session.DeviceSyncState);
+        Assert.Equal(SlotB, session.TargetSlotId);
+    }
+
+    [Fact]
+    public void WriteSucceeded_ClearsUnsavedEdits()
+    {
+        var session = ConnectedSession();
+        session.NotifyEdit();
+
+        session.NotifyWriteSucceeded(SlotA);
+
+        // The edits are on the device now, so they no longer count as unsaved.
+        Assert.False(session.WouldReplaceUnsavedEdits);
+        Assert.True(session.ShouldAutoLoadOnConnect);
     }
 
     // --- Slot switching ---
@@ -147,12 +178,14 @@ public sealed class EditorSessionStateTests
     }
 
     [Fact]
-    public void ShouldAutoLoadOnConnect_FalseWhenLibraryDirty()
+    public void ShouldAutoLoadOnConnect_TrueAfterSlotLoad_WithoutEdits()
     {
         var session = ConnectedSession();
         session.NotifyLoadedFromSlot(SlotA);
 
-        Assert.False(session.ShouldAutoLoadOnConnect);
+        // Slot-loaded content can be reloaded harmlessly; only actual edits block the
+        // auto-load. (Previously LibraryDirty disabled it forever after one slot load.)
+        Assert.True(session.ShouldAutoLoadOnConnect);
     }
 
     // --- Reset (device profile switch) ---
@@ -197,7 +230,7 @@ public sealed class EditorSessionStateTests
     }
 
     [Fact]
-    public void ReconnectWhileClean_AllowsAutoLoadOnce()
+    public void ReconnectWhileClean_AllowsAutoLoad()
     {
         var session = ConnectedSession();
         session.NotifyDeviceDisconnected();
@@ -205,8 +238,32 @@ public sealed class EditorSessionStateTests
 
         Assert.True(session.ShouldAutoLoadOnConnect);
 
-        // The auto-load happens: after loading from the slot, a second auto-load is not allowed.
+        // The auto-load happens; unedited slot content stays safe to reload, so a
+        // later reconnect may auto-load again.
         session.NotifyLoadedFromSlot(SlotA);
+
+        Assert.True(session.ShouldAutoLoadOnConnect);
+    }
+
+    [Fact]
+    public void SlotLoadThenReconnect_AllowsAutoLoad()
+    {
+        var session = ConnectedSession();
+        session.NotifyLoadedFromSlot(SlotA);
+        session.NotifyDeviceDisconnected();
+        session.NotifyDeviceConnected();
+
+        Assert.True(session.ShouldAutoLoadOnConnect);
+    }
+
+    [Fact]
+    public void EditAfterSlotLoadThenReconnect_SuppressesAutoLoad()
+    {
+        var session = ConnectedSession();
+        session.NotifyLoadedFromSlot(SlotA);
+        session.NotifyEdit();
+        session.NotifyDeviceDisconnected();
+        session.NotifyDeviceConnected();
 
         Assert.False(session.ShouldAutoLoadOnConnect);
     }
@@ -285,6 +342,14 @@ public sealed class EditorSessionStateTests
         var session = new EditorSessionState();
 
         Assert.Equal("No device connected", session.StatusText("Slot 1 - USER 1"));
+    }
+
+    [Fact]
+    public void StatusText_ConnectedButNothingLoaded_SaysSlotNotLoadedYet()
+    {
+        var session = ConnectedSession();
+
+        Assert.Equal("Device slot not loaded yet", session.StatusText("Slot 1 - USER 1"));
     }
 
     [Fact]

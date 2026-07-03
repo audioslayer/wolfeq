@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -56,7 +56,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private double _deviceVolume = 50;
     private double _deviceVolumeLimit = 99;
     private double _deviceChannelBalance;
-    private EqPreset _selectedPreset;
+    private EqPreset? _selectedPreset;
     private DeviceUserPresetOption _selectedDeviceUserPreset = null!;
     private FiioDeviceProfile _selectedDeviceProfile = FiioDeviceProfiles.Default;
     private DeviceInputSourceOption _selectedDeviceInputSource;
@@ -84,6 +84,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _isLoadingSlotLightingProfile;
     private bool _isProfileLibraryDirty;
     private bool _suppressPresetLoadGuard;
+    private bool _deviceBusy;
+    private int _editGeneration;
     private Dictionary<int, SlotLightingProfileData> _slotLightingProfiles = [];
 
     public MainViewModel()
@@ -179,7 +181,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AddLog("Ready. Device reads, USER switching, input, lighting, EQ on/off, live preamp, and single-band EQ writes are guarded.");
         AddLog($"File log: {_log.LogFilePath}");
 
-        ConnectCommand = new AsyncRelayCommand(DetectDeviceAsync);
+        ConnectCommand = new AsyncRelayCommand(DetectDeviceAsync, () => !_deviceBusy);
         RenameUserSlotCommand = new AsyncRelayCommand(RenameCurrentUserSlotAsync);
         ReadLightsCommand = new AsyncRelayCommand(ReadLightsAsync);
         LedOnCommand = new AsyncRelayCommand(SetLightsOnAsync);
@@ -216,7 +218,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         CaptureCompareCommand = new RelayCommand(CaptureComparePreset);
         SwapCompareCommand = new RelayCommand(SwapComparePreset);
         ClearCompareCommand = new RelayCommand(ClearComparePreset);
-        DuplicatePresetCommand = new RelayCommand(DuplicateSelectedPreset);
+        DuplicatePresetCommand = new RelayCommand(DuplicateSelectedPreset, () => SelectedPreset is not null);
         DeletePresetCommand = new RelayCommand(DeleteSelectedPreset, () => SelectedPreset is not null);
         CreateFlatPresetCommand = new RelayCommand(CreateFlatPreset);
         EnableAllBandsCommand = new RelayCommand(EnableAllBands);
@@ -234,10 +236,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OpenBuyMeCoffeeCommand = new RelayCommand(() => OpenUrl("https://www.buymeacoffee.com/audioslayer", "Buy Me a Coffee"));
 
         EditorSession.Changed += OnEditorSessionChanged;
-        SaveToLibraryCommand = new RelayCommand(SaveToLibrary, () => SelectedPreset is not null);
+        // Detached editor content (a device readback with no library selection) can
+        // still be saved: SaveToLibrary then creates a new library preset from it.
+        SaveToLibraryCommand = new RelayCommand(SaveToLibrary, () => SelectedPreset is not null || Bands.Count > 0);
         WriteToDeviceCommand = new AsyncRelayCommand(WriteEditorPresetToDeviceAsync, CanExecuteWriteToDevice);
-        SwitchSlotCommand = new AsyncParameterRelayCommand(SwitchSlotAsync, _ => IsDeviceConnected);
-        LoadFromSlotCommand = new AsyncRelayCommand(LoadFromSlotAsync, () => IsDeviceConnected && K13HardwareEqIoEnabled);
+        SwitchSlotCommand = new AsyncParameterRelayCommand(SwitchSlotAsync, _ => IsDeviceConnected && !_deviceBusy);
+        LoadFromSlotCommand = new AsyncRelayCommand(LoadFromSlotAsync, () => IsDeviceConnected && K13HardwareEqIoEnabled && !_deviceBusy);
         LoadLibraryPresetIntoEditorCommand = new RelayCommand(LoadLibraryPresetIntoEditor, () => SelectedPreset is not null);
         WriteLibraryPresetToSlotCommand = new AsyncRelayCommand(WriteLibraryPresetToSlotAsync, () => SelectedPreset is not null && CanExecuteWriteToDevice());
         LoadOnlineProfileIntoEditorCommand = new AsyncRelayCommand(LoadOnlineProfileIntoEditorAsync, () => SelectedGitHubProfile is not null);
@@ -261,7 +265,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public int EnabledBandCount => Bands.Count(band => band.Enabled);
     public double MaxEnabledBoostDb => Bands.Count == 0 ? 0 : Bands.Where(band => band.Enabled).Select(band => band.GainDb).DefaultIfEmpty(0).Max();
     public double RecommendedPreampDb => Math.Min(0, -MaxEnabledBoostDb);
-    public string PresetEditSummaryText => $"{EnabledBandCount}/{Bands.Count} on · headroom {RecommendedPreampDb:F1} dB";
+    public string PresetEditSummaryText => $"{EnabledBandCount}/{Bands.Count} on Â· headroom {RecommendedPreampDb:F1} dB";
     public string HeadroomGuardianTitle => PreampDb + MaxEnabledBoostDb > 0 ? "Clipping Risk" : "Safe Headroom";
     public string HeadroomGuardianText => PreampDb + MaxEnabledBoostDb > 0
         ? $"Reduce preamp to {RecommendedPreampDb:F1} dB before writing this preset."
@@ -330,7 +334,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public int GitHubProfileCount => GitHubProfiles.Count;
     public int FavoritePresetCount => Presets.Count(preset => preset.IsFavorite);
     public int K13StageablePresetCount => Presets.Count(IsK13StageablePreset);
-    public string ProfileLibrarySummaryText => $"{FilteredPresetCount}/{Presets.Count} shown · {FavoritePresetCount} favorite(s) · {K13StageablePresetCount} K13-stageable";
+    public string ProfileLibrarySummaryText => $"{FilteredPresetCount}/{Presets.Count} shown Â· {FavoritePresetCount} favorite(s) Â· {K13StageablePresetCount} K13-stageable";
     public string ProfileLibraryHint => BuildProfileLibraryHint();
     public string ClippingHeadroomText => PreampDb + MaxEnabledBoostDb > 0
         ? $"Clipping risk: preamp + max boost = {PreampDb + MaxEnabledBoostDb:F1} dB. Suggested preamp {RecommendedPreampDb:F1} dB."
@@ -340,7 +344,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public double PresenceAverageDb => AverageGainForRange(2000, 6000);
     public double AirAverageDb => AverageGainForRange(6000, 20000);
     public string TonalSnapshotText =>
-        $"Bass {BassAverageDb:+0.0;-0.0;0.0} dB · mids {MidAverageDb:+0.0;-0.0;0.0} dB · presence {PresenceAverageDb:+0.0;-0.0;0.0} dB · air {AirAverageDb:+0.0;-0.0;0.0} dB";
+        $"Bass {BassAverageDb:+0.0;-0.0;0.0} dB Â· mids {MidAverageDb:+0.0;-0.0;0.0} dB Â· presence {PresenceAverageDb:+0.0;-0.0;0.0} dB Â· air {AirAverageDb:+0.0;-0.0;0.0} dB";
     public string TonalBalanceHint => BuildTonalBalanceHint();
     public string K13ReadinessText => BuildK13ReadinessText();
     public string K13ReadinessHint => BuildK13ReadinessHint();
@@ -367,6 +371,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _isDeviceConnected;
         private set => SetField(ref _isDeviceConnected, value);
+    }
+
+    /// <summary>
+    /// True for the full duration of a device slot write or load (including the
+    /// post-write settle). Gates every command that opens the HID interface so a
+    /// second transfer cannot start mid-operation.
+    /// </summary>
+    public bool IsDeviceBusy
+    {
+        get => _deviceBusy;
+        private set
+        {
+            if (SetField(ref _deviceBusy, value))
+            {
+                WriteToDeviceCommand.RaiseCanExecuteChanged();
+                SwitchSlotCommand.RaiseCanExecuteChanged();
+                LoadFromSlotCommand.RaiseCanExecuteChanged();
+                ConnectCommand.RaiseCanExecuteChanged();
+                WriteLibraryPresetToSlotCommand.RaiseCanExecuteChanged();
+                WriteOnlineProfileToSlotCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public EqPreset? ComparePreset
@@ -489,7 +515,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string SlotLightingTitle => $"{SelectedDeviceUserPreset.DisplayName} Lighting";
     public string SlotLightingSummary => $"{TopLedSummary} / {KnobLedSummary}";
 
-    public EqPreset SelectedPreset
+    /// <summary>
+    /// The selected library preset, or null while the editor holds detached device
+    /// content that is not in the library (see <see cref="DetachEditorFromLibrary"/>).
+    /// </summary>
+    public EqPreset? SelectedPreset
     {
         get => _selectedPreset;
         set
@@ -533,8 +563,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     IsProfileLibraryDirty = true;
                 }
 
-                LoadLibraryPresetIntoEditorCommand.RaiseCanExecuteChanged();
-                WriteLibraryPresetToSlotCommand.RaiseCanExecuteChanged();
+                RaiseEditorPresetCommandsCanExecuteChanged();
             }
         }
     }
@@ -546,9 +575,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (SetField(ref _preampDb, Math.Clamp(Math.Round(value, 1), -24.0, 12.0)))
             {
-                SelectedPreset.PreampDb = _preampDb;
+                if (SelectedPreset is { } selectedPreset)
+                {
+                    selectedPreset.PreampDb = _preampDb;
+                }
+
                 RefreshHeadroomProperties();
-                QueueProfileAutosave();
+                NotifyEditorContentEdited();
                 QueueLiveDevicePreampSync();
             }
         }
@@ -783,7 +816,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public ICommand ConnectCommand { get; }
+    public AsyncRelayCommand ConnectCommand { get; }
     public ICommand RenameUserSlotCommand { get; }
     public ICommand ReadLightsCommand { get; }
     public ICommand LedOnCommand { get; }
@@ -1010,11 +1043,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// KTD5: a slot readback fills the editor's bands and preamp in place and never
-    /// creates, selects, or saves a library preset — the library changes only on
+    /// creates, selects, or saves a library preset â€” the library changes only on
     /// explicit Save/Download/Import. Callers update <see cref="EditorSession"/>.
+    /// Device content must never be written through into a library preset, so the
+    /// editor detaches from the selected preset first (owner decision, P1).
     /// </summary>
     private void ApplySnapshotToEditor(K13EqReadback snapshot)
     {
+        DetachEditorFromLibrary();
         ResizeBandTemplate(snapshot.Bands.Count);
 
         _isLoadingPreset = true;
@@ -1809,7 +1845,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 : $"Found {GitHubProfileCount} online AutoEq profile(s).";
             AddLog(Status);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException or FormatException)
         {
             GitHubProfileStatus = $"Online search failed: {ex.Message}";
             Status = GitHubProfileStatus;
@@ -1870,7 +1906,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             AddLog(Status);
             return preset;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or FileNotFoundException)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException or FormatException or FileNotFoundException)
         {
             GitHubProfileStatus = $"Online download failed: {ex.Message}";
             Status = GitHubProfileStatus;
@@ -1912,7 +1948,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (OperationCanceledException)
         {
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or FormatException or FileNotFoundException)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException or FormatException or FileNotFoundException)
         {
             if (ReferenceEquals(_githubPreviewCts, cts))
             {
@@ -1947,7 +1983,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (FavoritesOnly)
         {
             return FavoritePresetCount == 0
-                ? "Mark strong profiles with ★ Favorite to build a short audition list."
+                ? "Mark strong profiles with â˜… Favorite to build a short audition list."
                 : "Favorites view is active: good for quickly cycling the strongest offline candidates.";
         }
 
@@ -2199,6 +2235,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void SaveToLibrary()
     {
+        if (SelectedPreset is null)
+        {
+            SaveDetachedEditorToLibrary();
+            return;
+        }
+
         if (TrySaveProfileLibraryQuietly(out var saveError))
         {
             EditorSession.NotifySavedToLibrary();
@@ -2209,12 +2251,44 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Status = $"Couldn't save to your library: {saveError}";
     }
 
+    /// <summary>
+    /// Save-to-library while the editor is detached (device content with no library
+    /// selection): a new library preset named after the loaded slot is created from
+    /// the editor state and selected, which re-aliases the editor to that new preset
+    /// (legacy semantics). Device sync state is untouched, so a slot readback that is
+    /// saved this way stays "In sync" with its slot.
+    /// </summary>
+    private void SaveDetachedEditorToLibrary()
+    {
+        if (Bands.Count == 0)
+        {
+            Status = "Nothing to save yet. Load a slot or pick a preset first.";
+            AddLog(Status);
+            return;
+        }
+
+        var preset = BuildEditorPresetSnapshot();
+        AddPresetAndSelect(preset, preset.Category);
+        if (TrySaveProfileLibraryQuietly(out var saveError))
+        {
+            EditorSession.NotifySavedToLibrary();
+            Status = $"Saved '{preset.Name}' to your library.";
+        }
+        else
+        {
+            Status = $"Couldn't save to your library: {saveError}";
+        }
+
+        AddLog(Status);
+    }
+
     private bool CanExecuteWriteToDevice()
     {
         var targetSlotId = EditorSession.TargetSlotId ?? _selectedDeviceUserPreset?.PresetId;
         var hasWritableTarget = targetSlotId is byte slotId
             && SelectedDeviceProfile.WritableSlots.Any(slot => slot.Id == slotId);
-        return EditorSession.CanWriteToDevice(IsDeviceConnected, K13HardwareEqIoEnabled, hasWritableTarget);
+        return !_deviceBusy
+            && EditorSession.CanWriteToDevice(IsDeviceConnected, K13HardwareEqIoEnabled, hasWritableTarget);
     }
 
     private async Task WriteEditorPresetToDeviceAsync()
@@ -2226,15 +2300,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        var preset = SelectedPreset ?? BuildEditorPresetSnapshot();
         var targetSlotId = EditorSession.TargetSlotId ?? SelectedDeviceUserPreset.PresetId;
         var slotDisplay = DeviceUserPresets.FirstOrDefault(option => option.PresetId == targetSlotId)?.DisplayName
                           ?? SelectedDeviceProfile.GetPresetDisplayName(targetSlotId);
-        Status = $"Writing '{SelectedPreset.Name}' to {slotDisplay}...";
-        AddLog($"Guarded device write requested: {SelectedPreset.Name} -> {slotDisplay} (0x{targetSlotId:X2}).");
+        var editGenerationAtWrite = _editGeneration;
+        Status = $"Writing '{preset.Name}' to {slotDisplay}...";
+        AddLog($"Guarded device write requested: {preset.Name} -> {slotDisplay} (0x{targetSlotId:X2}).");
 
+        IsDeviceBusy = true;
         try
         {
-            var result = await _deviceService.SaveCurrentUserPresetAsync(SelectedPreset, targetSlotId);
+            var result = await _deviceService.SaveCurrentUserPresetAsync(preset, targetSlotId);
             foreach (var line in result.TransportLog)
             {
                 AddLog($"  {line}");
@@ -2242,10 +2319,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             AddLog($"Waiting for {slotDisplay} to settle after hardware write.");
             var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync(SelectedDeviceProfile.ReloadEqAfterSave);
-            EditorSession.NotifyWriteSucceeded(targetSlotId);
-            Status = reloadedHardware
-                ? $"Wrote '{SelectedPreset.Name}' to {slotDisplay}."
-                : $"Wrote '{SelectedPreset.Name}' to {slotDisplay}; the device is reconnecting. Click Detect if it does not come back.";
+            var editedDuringWrite = _editGeneration != editGenerationAtWrite;
+
+            // Honest stamping: only claim "in sync" when the device settled and the
+            // editor was not edited while waiting. A failed settle already downgraded
+            // the state through the disconnect path; edits already marked it Modified.
+            if (reloadedHardware && !editedDuringWrite)
+            {
+                EditorSession.NotifyWriteSucceeded(targetSlotId);
+            }
+
+            Status = !reloadedHardware
+                ? $"Wrote '{preset.Name}' to {slotDisplay}; the device is reconnecting. Click Detect if it does not come back."
+                : editedDuringWrite
+                    ? $"Wrote '{preset.Name}' to {slotDisplay}. Edits made during the write are not on the device yet."
+                    : $"Wrote '{preset.Name}' to {slotDisplay}.";
             AddLog(Status);
         }
         catch (OperationCanceledException)
@@ -2257,6 +2345,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             Status = $"Device write failed: {ex.Message}";
             AddLog(Status);
+        }
+        finally
+        {
+            IsDeviceBusy = false;
         }
     }
 
@@ -2341,6 +2433,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Status = $"Loading the active slot from {SelectedDeviceProfile.DisplayName}...";
         AddLog("Explicit load-from-slot requested. GET packets only; no SET/save commands will be sent.");
 
+        IsDeviceBusy = true;
         try
         {
             var snapshot = await ReadAndApplyDeviceEqAsync();
@@ -2356,6 +2449,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Status = $"Load from device failed: {ex.Message}";
             SetConnectionState(false);
             AddLog(Status);
+        }
+        finally
+        {
+            IsDeviceBusy = false;
         }
     }
 
@@ -2427,7 +2524,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Online row "Write to slot" (KTD6): one action, two effects — the profile is saved
+    /// Online row "Write to slot" (KTD6): one action, two effects â€” the profile is saved
     /// into the local library, then written to the current target slot. Guarded because
     /// the import step also selects the preset into the editor.
     /// </summary>
@@ -2459,6 +2556,96 @@ public sealed class MainViewModel : INotifyPropertyChanged
             GitHubProfileStatus = $"Saved {preset.Name} and wrote it to {slotDisplay}";
             AddLog(Status);
         }
+    }
+
+    /// <summary>
+    /// Detaches the editor from the selected library preset before device content is
+    /// loaded into it: the aliased band list is deep-cloned into a fresh editor-owned
+    /// collection and the library selection is cleared (device content is not a
+    /// library preset). Direct library editing keeps the legacy by-reference aliasing;
+    /// Save to Library re-aliases by creating a new preset from the detached content.
+    /// </summary>
+    private void DetachEditorFromLibrary()
+    {
+        if (SelectedPreset is not { } selectedPreset || !ReferenceEquals(Bands, selectedPreset.Bands))
+        {
+            return;
+        }
+
+        UnwatchBands(Bands);
+        Bands = new ObservableCollection<EqBand>(selectedPreset.Bands.Select(band => band.Clone()));
+        WatchBands(Bands);
+
+        // Clear the selection through the internal (guard-free) path: the public
+        // setter rejects null because two-way bindings must not clear it.
+        _selectedPreset = null;
+        FilteredPresets.MoveCurrentTo(null);
+        OnPropertyChanged(nameof(SelectedPreset));
+        OnPropertyChanged(nameof(Bands));
+        RaiseEditorPresetCommandsCanExecuteChanged();
+    }
+
+    /// <summary>Refreshes every command whose availability depends on the library selection.</summary>
+    private void RaiseEditorPresetCommandsCanExecuteChanged()
+    {
+        SaveToLibraryCommand.RaiseCanExecuteChanged();
+        LoadLibraryPresetIntoEditorCommand.RaiseCanExecuteChanged();
+        WriteLibraryPresetToSlotCommand.RaiseCanExecuteChanged();
+        foreach (var command in new[]
+                 {
+                     ResetCommand,
+                     ExportApoToFileCommand,
+                     ExportApoToClipboardCommand,
+                     ExportFiioXmlToFileCommand,
+                     ToggleFavoriteCommand,
+                     ExportJsonToFileCommand,
+                     CopyTuningReportCommand,
+                     CopyTuningCardCommand,
+                     DuplicatePresetCommand,
+                     DeletePresetCommand
+                 })
+        {
+            if (command is RelayCommand relayCommand)
+            {
+                relayCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>The editor content's display name, also usable while detached from the library.</summary>
+    private string EditorContentDisplayName => SelectedPreset?.Name ?? $"From {LoadedSlotDeviceName}";
+
+    /// <summary>Plain name of the slot the detached editor content came from (e.g. "USER 2").</summary>
+    private string LoadedSlotDeviceName
+    {
+        get
+        {
+            var slotId = EditorSession.TargetSlotId ?? _confirmedDevicePresetId;
+            var option = slotId is byte id
+                ? DeviceUserPresets.FirstOrDefault(candidate => candidate.PresetId == id)
+                : null;
+            return option?.DeviceName ?? _selectedDeviceUserPreset?.DeviceName ?? "device";
+        }
+    }
+
+    /// <summary>
+    /// Standalone snapshot of the current editor content. Used wherever an
+    /// <see cref="EqPreset"/> is needed and the editor may be detached (device writes,
+    /// A/B capture, Save to Library after a device load).
+    /// </summary>
+    private EqPreset BuildEditorPresetSnapshot(string? name = null)
+    {
+        var source = SelectedPreset;
+        return new EqPreset
+        {
+            Name = name ?? EditorContentDisplayName,
+            Category = source?.Category ?? "Manual",
+            SourceName = source?.SourceName ?? "Device readback",
+            Description = source?.Description ?? "Editor content loaded from the device.",
+            IsFavorite = source?.IsFavorite ?? false,
+            PreampDb = PreampDb,
+            Bands = new ObservableCollection<EqBand>(Bands.Select(band => band.Clone()))
+        };
     }
 
     /// <summary>
@@ -2550,6 +2737,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>
     /// Resizes the editor's band collection to the requested count, keeping existing
     /// band values where they fit and padding with flat bands (same template as Reset).
+    /// A resize only happens for device-driven flows (readbacks, profile switches), so
+    /// it must never mutate a library preset's collection: detach first.
     /// </summary>
     private void ResizeBandTemplate(int bandCount)
     {
@@ -2558,7 +2747,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        var flat = CreateFlatPresetModel(SelectedPreset.Name);
+        DetachEditorFromLibrary();
+        var flat = CreateFlatPresetModel(SelectedPreset?.Name ?? "Flat");
         _isLoadingPreset = true;
         try
         {
@@ -2621,9 +2811,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// Writes a library preset to the current target slot using the same device path and
     /// settle logic as <see cref="WriteEditorPresetToDeviceAsync"/>. Returns the slot's
     /// display name on success, null on failure. Sync state afterwards: when the written
-    /// preset is the editor's current content (always true today, because selecting a
-    /// preset loads it), the write is honestly reported via NotifyWriteSucceeded; otherwise
-    /// NotifySlotSwitched keeps the target current without claiming the editor is in sync.
+    /// preset is the editor's current content (true whenever a preset is selected, because
+    /// selecting a preset loads it), the write is honestly reported via NotifyWriteSucceeded;
+    /// otherwise NotifySlotSwitched keeps the target current without claiming the editor
+    /// is in sync.
     /// </summary>
     private async Task<string?> WritePresetToSlotAsync(EqPreset preset)
     {
@@ -2638,9 +2829,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var slotDisplay = DeviceUserPresets.FirstOrDefault(option => option.PresetId == targetSlotId)?.DisplayName
                           ?? SelectedDeviceProfile.GetPresetDisplayName(targetSlotId);
         var isEditorContent = ReferenceEquals(preset, SelectedPreset);
+        var editGenerationAtWrite = _editGeneration;
         Status = $"Writing '{preset.Name}' to {slotDisplay}...";
         AddLog($"Guarded library write requested: {preset.Name} -> {slotDisplay} (0x{targetSlotId:X2}).");
 
+        IsDeviceBusy = true;
         try
         {
             var result = await _deviceService.SaveCurrentUserPresetAsync(preset, targetSlotId);
@@ -2651,9 +2844,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             AddLog($"Waiting for {slotDisplay} to settle after hardware write.");
             var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync(SelectedDeviceProfile.ReloadEqAfterSave);
+            var editedDuringWrite = _editGeneration != editGenerationAtWrite;
             if (isEditorContent)
             {
-                EditorSession.NotifyWriteSucceeded(targetSlotId);
+                // Same honest stamping as the editor write: only claim "in sync" when
+                // the device settled and nothing was edited while waiting.
+                if (reloadedHardware && !editedDuringWrite)
+                {
+                    EditorSession.NotifyWriteSucceeded(targetSlotId);
+                }
             }
             else
             {
@@ -2677,6 +2876,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Status = $"Device write failed: {ex.Message}";
             AddLog(Status);
             return null;
+        }
+        finally
+        {
+            IsDeviceBusy = false;
         }
     }
 
@@ -2721,6 +2924,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ImportApoFromFile()
     {
+        // R20 guard: importing selects the preset into the editor, so ask before the
+        // file dialog opens rather than after its side effects.
+        if (!ConfirmReplaceUnsavedEdits("an imported APO preset"))
+        {
+            return;
+        }
+
         var dialog = new OpenFileDialog
         {
             Title = "Import Equalizer APO / Peace preset",
@@ -2754,6 +2964,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        // R20 guard: importing selects the preset into the editor.
+        if (!ConfirmReplaceUnsavedEdits("the clipboard APO preset"))
+        {
+            return;
+        }
+
         try
         {
             ImportApoText(Clipboard.GetText(), "Clipboard APO preset");
@@ -2779,6 +2995,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         };
 
         AddPresetAndSelect(imported, "Imported");
+        EditorSession.NotifyLoadedFromLibrary();
         Status = TrySaveProfileLibraryQuietly(out var saveError)
             ? $"Imported and saved {imported.Bands.Count} APO filter(s)."
             : $"Imported {imported.Bands.Count} APO filter(s), but local save failed: {saveError}";
@@ -2787,11 +3004,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ExportApoToFile()
     {
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
         var dialog = new SaveFileDialog
         {
             Title = "Export Equalizer APO / Peace preset",
             Filter = "Equalizer APO text (*.txt)|*.txt|All files (*.*)|*.*",
-            FileName = MakeSafeFileName(SelectedPreset.Name) + ".txt",
+            FileName = MakeSafeFileName(selectedPreset.Name) + ".txt",
             OverwritePrompt = true
         };
 
@@ -2802,7 +3024,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            File.WriteAllText(dialog.FileName, EqualizerApoPresetCodec.Export(SelectedPreset));
+            File.WriteAllText(dialog.FileName, EqualizerApoPresetCodec.Export(selectedPreset));
             Status = "Exported APO text.";
             AddLog(Status);
         }
@@ -2815,13 +3037,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ExportApoToClipboard()
     {
-        Clipboard.SetText(EqualizerApoPresetCodec.Export(SelectedPreset));
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
+        Clipboard.SetText(EqualizerApoPresetCodec.Export(selectedPreset));
         Status = "Copied APO/Peace preset text.";
         AddLog(Status);
     }
 
     private void ImportFiioXmlFromFile()
     {
+        // R20 guard: importing selects the preset into the editor.
+        if (!ConfirmReplaceUnsavedEdits("an imported FiiO XML profile"))
+        {
+            return;
+        }
+
         var dialog = new OpenFileDialog
         {
             Title = "Import FiiO Control XML profile",
@@ -2839,6 +3072,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var preset = FiioDspXmlPresetCodec.Import(File.ReadAllText(dialog.FileName), Path.GetFileNameWithoutExtension(dialog.FileName));
             AddPresetAndSelect(preset, "Imported");
+            EditorSession.NotifyLoadedFromLibrary();
             Status = TrySaveProfileLibraryQuietly(out var saveError)
                 ? $"Imported and saved FiiO XML profile: {preset.Name}."
                 : $"Imported FiiO XML profile: {preset.Name}, but local save failed: {saveError}";
@@ -2853,11 +3087,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ExportFiioXmlToFile()
     {
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
         var dialog = new SaveFileDialog
         {
             Title = "Export FiiO Control XML profile",
             Filter = "FiiO DSP XML (*.xml)|*.xml|All files (*.*)|*.*",
-            FileName = MakeSafeFileName(SelectedPreset.Name) + "-fiio.xml",
+            FileName = MakeSafeFileName(selectedPreset.Name) + "-fiio.xml",
             OverwritePrompt = true
         };
 
@@ -2868,7 +3107,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            File.WriteAllText(dialog.FileName, FiioDspXmlPresetCodec.Export(SelectedPreset));
+            File.WriteAllText(dialog.FileName, FiioDspXmlPresetCodec.Export(selectedPreset));
             Status = "Exported FiiO XML profile.";
             AddLog(Status);
         }
@@ -2881,6 +3120,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ImportJsonFromFile()
     {
+        // R20 guard: importing selects the preset into the editor.
+        if (!ConfirmReplaceUnsavedEdits("an imported WolfEQ preset"))
+        {
+            return;
+        }
+
         var dialog = new OpenFileDialog
         {
             Title = "Import WolfEQ JSON preset",
@@ -2898,6 +3143,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var preset = WolfEqPresetJsonCodec.Import(File.ReadAllText(dialog.FileName), Path.GetFileNameWithoutExtension(dialog.FileName));
             AddPresetAndSelect(preset, string.IsNullOrWhiteSpace(preset.Category) ? "Imported" : preset.Category);
+            EditorSession.NotifyLoadedFromLibrary();
             Status = TrySaveProfileLibraryQuietly(out var saveError)
                 ? $"Imported and saved WolfEQ profile: {preset.Name}."
                 : $"Imported WolfEQ profile: {preset.Name}, but local save failed: {saveError}";
@@ -2912,11 +3158,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ExportJsonToFile()
     {
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
         var dialog = new SaveFileDialog
         {
             Title = "Export WolfEQ JSON preset",
             Filter = "WolfEQ preset JSON (*.json)|*.json|All files (*.*)|*.*",
-            FileName = MakeSafeFileName(SelectedPreset.Name) + ".json",
+            FileName = MakeSafeFileName(selectedPreset.Name) + ".json",
             OverwritePrompt = true
         };
 
@@ -2927,7 +3178,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            File.WriteAllText(dialog.FileName, WolfEqPresetJsonCodec.Export(SelectedPreset));
+            File.WriteAllText(dialog.FileName, WolfEqPresetJsonCodec.Export(selectedPreset));
             Status = "Exported WolfEQ profile.";
             AddLog(Status);
         }
@@ -2940,6 +3191,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ImportLibraryJsonFromFile()
     {
+        // R20 guard: the library import selects its first preset into the editor.
+        if (!ConfirmReplaceUnsavedEdits("an imported preset library"))
+        {
+            return;
+        }
+
         var dialog = new OpenFileDialog
         {
             Title = "Import WolfEQ preset library JSON",
@@ -2965,6 +3222,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             RefreshProfileLibrary();
             SelectPresetInternal(imported[0]);
             FilteredPresets.MoveCurrentTo(imported[0]);
+            EditorSession.NotifyLoadedFromLibrary();
             Status = TrySaveProfileLibraryQuietly(out var saveError)
                 ? $"Imported and saved {imported.Count} WolfEQ library profile(s)."
                 : $"Imported {imported.Count} WolfEQ library profile(s), but local save failed: {saveError}";
@@ -3007,26 +3265,36 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void CopyTuningReportToClipboard()
     {
-        Clipboard.SetText(BuildTuningReport());
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
+        Clipboard.SetText(BuildTuningReport(selectedPreset));
         Status = "Copied WolfEQ tuning report.";
         AddLog(Status);
     }
 
     private void CopyTuningCardToClipboard()
     {
-        Clipboard.SetText(BuildTuningCard());
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
+        Clipboard.SetText(BuildTuningCard(selectedPreset));
         Status = "Copied Reddit-ready tuning card.";
         AddLog(Status);
     }
 
-    private string BuildTuningCard()
+    private string BuildTuningCard(EqPreset selectedPreset)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"# {SelectedPreset.Name}");
+        builder.AppendLine($"# {selectedPreset.Name}");
         builder.AppendLine();
         builder.AppendLine($"Device: {SelectedDeviceProfile.DisplayName}");
         builder.AppendLine($"Target slot: {SelectedDeviceUserPreset.DisplayName}");
-        builder.AppendLine($"Source: {SelectedPreset.SourceName}");
+        builder.AppendLine($"Source: {selectedPreset.SourceName}");
         builder.AppendLine($"Preamp: {PreampDb:F1} dB");
         builder.AppendLine($"Safety: {HeadroomGuardianTitle} - {HeadroomGuardianText}");
         builder.AppendLine($"Fit: {DeviceFitReportText}");
@@ -3040,19 +3308,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         builder.AppendLine();
         builder.AppendLine("```txt");
-        builder.Append(EqualizerApoPresetCodec.Export(SelectedPreset));
+        builder.Append(EqualizerApoPresetCodec.Export(selectedPreset));
         builder.AppendLine("```");
         return builder.ToString();
     }
 
-    private string BuildTuningReport()
+    private string BuildTuningReport(EqPreset selectedPreset)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"WolfEQ tuning report - {SelectedPreset.Name}");
+        builder.AppendLine($"WolfEQ tuning report - {selectedPreset.Name}");
         builder.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"Category: {SelectedPreset.Category}");
-        builder.AppendLine($"Source: {SelectedPreset.SourceName}");
-        builder.AppendLine($"Description: {SelectedPreset.Description}");
+        builder.AppendLine($"Category: {selectedPreset.Category}");
+        builder.AppendLine($"Source: {selectedPreset.SourceName}");
+        builder.AppendLine($"Description: {selectedPreset.Description}");
         builder.AppendLine($"Preamp: {PreampDb:F1} dB");
         builder.AppendLine($"Target device slot: {SelectedDeviceUserPreset.DisplayName}");
         builder.AppendLine($"{HeadroomGuardianTitle}: {HeadroomGuardianText}");
@@ -3089,10 +3357,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ToggleSelectedFavorite()
     {
-        SelectedPreset.IsFavorite = !SelectedPreset.IsFavorite;
-        Status = SelectedPreset.IsFavorite
-            ? $"Favorited {SelectedPreset.Name}."
-            : $"Removed favorite from {SelectedPreset.Name}.";
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
+        selectedPreset.IsFavorite = !selectedPreset.IsFavorite;
+        Status = selectedPreset.IsFavorite
+            ? $"Favorited {selectedPreset.Name}."
+            : $"Removed favorite from {selectedPreset.Name}.";
         AddLog(Status);
         RefreshProfileLibrary();
         OnPropertyChanged(nameof(SelectedPreset));
@@ -3108,18 +3381,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void DuplicateSelectedPreset()
     {
-        var copy = ClonePreset(SelectedPreset, $"Copy - {SelectedPreset.Name}");
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
+        var copy = ClonePreset(selectedPreset, $"Copy - {selectedPreset.Name}");
         copy.IsFavorite = false;
         Presets.Add(copy);
         RefreshProfileLibrary();
         SelectPresetInternal(copy);
+        // The copy includes any in-editor edits, so the editor now mirrors it exactly.
+        EditorSession.NotifyLoadedFromLibrary();
         Status = $"Duplicated profile: {copy.Name}.";
         AddLog(Status);
     }
 
     private void DeleteSelectedPreset()
     {
-        var preset = SelectedPreset;
+        if (SelectedPreset is not { } preset)
+        {
+            return;
+        }
+
         var index = Presets.IndexOf(preset);
         if (index < 0)
         {
@@ -3150,6 +3434,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var nextIndex = Math.Clamp(index, 0, Presets.Count - 1);
         SelectPresetInternal(Presets[nextIndex]);
         FilteredPresets.MoveCurrentTo(SelectedPreset);
+        // The neighbor preset replaced the deleted content in the editor.
+        EditorSession.NotifyLoadedFromLibrary();
 
         Status = $"Deleted preset: {preset.Name}.";
         AddLog(Status);
@@ -3267,6 +3553,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Status = "Sorted bands by frequency.";
         AddLog(Status);
         RefreshHeadroomProperties();
+        // The handlers were detached during the rebuild, so mark the edit explicitly.
+        NotifyEditorContentEdited();
     }
 
     private void RenumberBandsByOrder()
@@ -3287,6 +3575,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshProfileLibrary();
         SelectedProfileCategory = "Reference";
         SelectPresetInternal(preset);
+        EditorSession.NotifyLoadedFromLibrary();
         Status = "Created flat 10-band profile.";
         AddLog(Status);
     }
@@ -3324,7 +3613,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var safePreamp = Math.Round(Math.Min(0, Math.Min(PreampDb, -maxBoost)), 1);
         var prepared = new EqPreset
         {
-            Name = $"K13 Staged - {SelectedPreset.Name}",
+            Name = $"K13 Staged - {EditorContentDisplayName}",
             Category = "Reference",
             SourceName = "WolfEQ K13 staging",
             Description = "10-band K13-ready copy with sorted bands and safe headroom.",
@@ -3336,6 +3625,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshProfileLibrary();
         SelectedProfileCategory = "Reference";
         SelectPresetInternal(prepared);
+        EditorSession.NotifyLoadedFromLibrary();
         Status = "Prepared a K13-ready 10-band copy.";
         AddLog(Status);
     }
@@ -3375,7 +3665,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var safePreamp = Math.Round(Math.Min(0, Math.Min(PreampDb, -maxBoost)), 1);
         var preset = new EqPreset
         {
-            Name = $"Smooth K13 - {SelectedPreset.Name}",
+            Name = $"Smooth K13 - {EditorContentDisplayName}",
             Category = "Reference",
             SourceName = "WolfEQ safety smoothing",
             Description = "Smoothed 10-band K13-ready copy with safer gains, Q, and headroom.",
@@ -3387,6 +3677,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshProfileLibrary();
         SelectedProfileCategory = "Reference";
         SelectPresetInternal(preset);
+        EditorSession.NotifyLoadedFromLibrary();
         Status = "Created a smoothed K13-ready copy.";
         AddLog(Status);
     }
@@ -3428,7 +3719,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void CreateToneShapePreset(string toneName, string description, Func<EqBand, double> gainDeltaForBand)
     {
-        var shapedBands = SelectedPreset.Bands.Select(band => new EqBand
+        // Shapes the current editor content (identical to the selected preset when one
+        // is selected, and still available when the editor holds detached device content).
+        var sourceName = EditorContentDisplayName;
+        var shapedBands = Bands.Select(band => new EqBand
         {
             Number = band.Number,
             Enabled = true,
@@ -3438,13 +3732,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Q = band.Q
         }).ToList();
 
-        var safePreamp = Math.Min(SelectedPreset.PreampDb, -shapedBands.Where(band => band.Enabled).Select(band => band.GainDb).DefaultIfEmpty(0).Max());
+        var safePreamp = Math.Min(PreampDb, -shapedBands.Where(band => band.Enabled).Select(band => band.GainDb).DefaultIfEmpty(0).Max());
         var preset = new EqPreset
         {
-            Name = $"{SelectedPreset.Name} + {toneName}",
+            Name = $"{sourceName} + {toneName}",
             Category = "Listening",
             SourceName = "WolfEQ tone macro",
-            Description = $"{description} Based on '{SelectedPreset.Name}'.",
+            Description = $"{description} Based on '{sourceName}'.",
             IsFavorite = false,
             PreampDb = Math.Round(Math.Min(0, safePreamp), 1),
             Bands = new ObservableCollection<EqBand>(shapedBands)
@@ -3454,14 +3748,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshProfileLibrary();
         SelectedProfileCategory = "Listening";
         SelectPresetInternal(preset);
+        EditorSession.NotifyLoadedFromLibrary();
         Status = $"Created {toneName} tone-shape profile.";
         AddLog(Status);
     }
 
     private void CaptureComparePreset()
     {
-        ComparePreset = ClonePreset(SelectedPreset, $"A/B copy - {SelectedPreset.Name}");
-        CompareStatus = $"A/B captured: {SelectedPreset.Name}";
+        // Captures the editor content, which also works while detached from the library.
+        var capturedName = EditorContentDisplayName;
+        ComparePreset = BuildEditorPresetSnapshot($"A/B copy - {capturedName}");
+        CompareStatus = $"A/B captured: {capturedName}";
         Status = "Captured current profile to A/B slot.";
         AddLog(Status);
         CommandManager.InvalidateRequerySuggested();
@@ -3474,7 +3771,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        var current = ClonePreset(SelectedPreset, $"A/B copy - {SelectedPreset.Name}");
+        var current = BuildEditorPresetSnapshot($"A/B copy - {EditorContentDisplayName}");
         var next = ClonePreset(ComparePreset, ComparePreset.Name.Replace("A/B copy - ", string.Empty));
         if (!Presets.Contains(next))
         {
@@ -3483,6 +3780,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         ComparePreset = current;
         SelectPresetInternal(next);
+        EditorSession.NotifyLoadedFromLibrary();
         RefreshProfileLibrary();
         CompareStatus = $"A/B swapped. Slot now holds {current.Name.Replace("A/B copy - ", string.Empty)}";
         Status = "Swapped A/B profile.";
@@ -3501,16 +3799,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ResetSelectedPreset()
     {
-        var flat = CreateFlatPresetModel(SelectedPreset.Name);
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
+        var flat = CreateFlatPresetModel(selectedPreset.Name);
 
         _isLoadingPreset = true;
         try
         {
-            SelectedPreset.PreampDb = flat.PreampDb;
-            SelectedPreset.Bands.Clear();
+            selectedPreset.PreampDb = flat.PreampDb;
+            selectedPreset.Bands.Clear();
             foreach (var band in flat.Bands.Take(SelectedDeviceProfile.BandCount))
             {
-                SelectedPreset.Bands.Add(new EqBand
+                selectedPreset.Bands.Add(new EqBand
                 {
                     Number = band.Number,
                     Enabled = true,
@@ -3530,27 +3833,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         OnPropertyChanged(nameof(Bands));
         RefreshHeadroomProperties();
-        QueueProfileAutosave();
-        IsProfileLibraryDirty = true;
-        EditorSession.NotifyEdit();
-        Status = $"Reset {SelectedPreset.Name} to a flat EQ.";
+        NotifyEditorContentEdited();
+        Status = $"Reset {selectedPreset.Name} to a flat EQ.";
         AddLog(Status);
     }
 
     private void LoadSelectedPreset()
     {
+        if (SelectedPreset is not { } selectedPreset)
+        {
+            return;
+        }
+
         _isLoadingPreset = true;
         UnwatchBands(Bands);
-        Bands = SelectedPreset.Bands;
+        Bands = selectedPreset.Bands;
         WatchBands(Bands);
-        PreampDb = SelectedPreset.PreampDb;
+        PreampDb = selectedPreset.PreampDb;
         _isLoadingPreset = false;
         OnPropertyChanged(nameof(Bands));
         OnPropertyChanged(nameof(DeviceBandEditorTitle));
         OnPropertyChanged(nameof(BandCardWidth));
         OnPropertyChanged(nameof(SupportsK13PresetTools));
         RefreshHeadroomProperties();
-        Status = $"Loaded preset: {SelectedPreset.Name}";
+        Status = $"Loaded preset: {selectedPreset.Name}";
     }
 
     private void CommitSavedProfileState()
@@ -3580,17 +3886,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
            && Math.Abs(preset.PreampDb - snapshot.PreampDb) < 0.005
            && preset.Bands.Count == snapshot.Bands.Count
            && preset.Bands.Zip(snapshot.Bands).All(pair => BandsMatch(pair.First, pair.Second));
-
-    private static EqBand CloneBand(EqBand band)
-        => new()
-        {
-            Number = band.Number,
-            Enabled = band.Enabled,
-            FilterType = band.FilterType,
-            FrequencyHz = band.FrequencyHz,
-            GainDb = band.GainDb,
-            Q = band.Q
-        };
 
     private static bool BandsMatch(EqBand left, EqBand right)
         => left.Number == right.Number
@@ -3637,13 +3932,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         RefreshHeadroomProperties();
-        QueueProfileAutosave();
+        NotifyEditorContentEdited();
     }
 
     private void BandOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         RefreshHeadroomProperties();
-        QueueProfileAutosave();
+        NotifyEditorContentEdited();
         if (sender is EqBand band
             && e.PropertyName is nameof(EqBand.Enabled) or nameof(EqBand.FrequencyHz) or nameof(EqBand.GainDb) or nameof(EqBand.Q) or nameof(EqBand.FilterType))
         {
@@ -3651,6 +3946,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Marks the local library as needing a save. Library metadata actions (favorite
+    /// toggles, duplicates, collection changes) call this directly; they must NOT mark
+    /// the editor session dirty, or the app claims "Unsaved changes" for edits that
+    /// never touched the EQ content.
+    /// </summary>
     private void QueueProfileAutosave()
     {
         if (_isLoadingPreset)
@@ -3660,7 +3961,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         _profileAutosaveTimer.Stop();
         IsProfileLibraryDirty = true;
+    }
+
+    /// <summary>
+    /// Marks an actual EQ-content edit (band values, band layout, preamp): the editor
+    /// session becomes dirty, the write-race generation counter advances, and the
+    /// library save is queued. This is the only place that feeds
+    /// <see cref="EditorSessionState.NotifyEdit"/> from editing.
+    /// </summary>
+    private void NotifyEditorContentEdited()
+    {
+        if (_isLoadingPreset)
+        {
+            return;
+        }
+
+        _editGeneration++;
         EditorSession.NotifyEdit();
+        QueueProfileAutosave();
     }
 
     private void ProfileAutosaveTimerOnTick(object? sender, EventArgs e)
@@ -3669,7 +3987,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (TrySaveProfileLibraryQuietly(out var saveError))
         {
             EditorSession.NotifySavedToLibrary();
-            AddLog($"Auto-saved profile: {SelectedPreset.Name}");
+            AddLog($"Auto-saved profile: {EditorContentDisplayName}");
             return;
         }
 
@@ -3910,7 +4228,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return $"Fits {SelectedDeviceProfile.DisplayName}: {Bands.Count}/{SelectedDeviceProfile.BandCount} bands, {EnabledBandCount} enabled.";
         }
 
-        return $"Needs cleanup for {SelectedDeviceProfile.DisplayName}: {string.Join(" · ", issues.Take(2))}";
+        return $"Needs cleanup for {SelectedDeviceProfile.DisplayName}: {string.Join(" Â· ", issues.Take(2))}";
     }
 
     private int BuildTuningConfidenceScore()
@@ -3958,13 +4276,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var enabled = Bands.Where(band => band.Enabled).ToList();
         if (enabled.Count == 0)
         {
-            return "No enabled bands · curve is bypassed.";
+            return "No enabled bands Â· curve is bypassed.";
         }
 
         var strongestBoost = enabled.OrderByDescending(band => band.GainDb).First();
         var strongestCut = enabled.OrderBy(band => band.GainDb).First();
         var narrowest = enabled.OrderByDescending(band => band.Q).First();
-        return $"Boost B{strongestBoost.Number} {strongestBoost.GainDb:+0.0;-0.0;0.0} dB @ {strongestBoost.FrequencyHz} Hz · cut B{strongestCut.Number} {strongestCut.GainDb:+0.0;-0.0;0.0} dB @ {strongestCut.FrequencyHz} Hz · narrowest Q B{narrowest.Number} {narrowest.Q:F2}";
+        return $"Boost B{strongestBoost.Number} {strongestBoost.GainDb:+0.0;-0.0;0.0} dB @ {strongestBoost.FrequencyHz} Hz Â· cut B{strongestCut.Number} {strongestCut.GainDb:+0.0;-0.0;0.0} dB @ {strongestCut.FrequencyHz} Hz Â· narrowest Q B{narrowest.Number} {narrowest.Q:F2}";
     }
 
     private string BuildBandInspectorHint()
@@ -3993,7 +4311,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return "Band moves look controlled. Use Smooth Copy if an imported profile feels too sharp.";
         }
 
-        return string.Join(" · ", warnings.Take(3));
+        return string.Join(" Â· ", warnings.Take(3));
     }
 
     private string BuildCompareDeltaText()
@@ -4006,12 +4324,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var deltas = GetCompareGainDeltas().ToList();
         if (deltas.Count == 0)
         {
-            return $"A/B active · preamp delta {PreampDb - ComparePreset.PreampDb:+0.0;-0.0;0.0} dB";
+            return $"A/B active Â· preamp delta {PreampDb - ComparePreset.PreampDb:+0.0;-0.0;0.0} dB";
         }
 
         var average = deltas.Average();
         var max = deltas.OrderByDescending(delta => Math.Abs(delta)).First();
-        return $"A/B delta · avg {average:+0.0;-0.0;0.0} dB · max {max:+0.0;-0.0;0.0} dB · preamp {PreampDb - ComparePreset.PreampDb:+0.0;-0.0;0.0} dB";
+        return $"A/B delta Â· avg {average:+0.0;-0.0;0.0} dB Â· max {max:+0.0;-0.0;0.0} dB Â· preamp {PreampDb - ComparePreset.PreampDb:+0.0;-0.0;0.0} dB";
     }
 
     private string BuildCompareDeltaHint()
@@ -4056,8 +4374,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         var issues = GetK13ReadinessIssues().ToList();
         return issues.Count == 0
-            ? $"Device-ready · {Bands.Count} bands · {EnabledBandCount} on · headroom {PreampDb:F1} dB"
-            : $"Needs cleanup · {issues.Count} change(s)";
+            ? $"Device-ready Â· {Bands.Count} bands Â· {EnabledBandCount} on Â· headroom {PreampDb:F1} dB"
+            : $"Needs cleanup Â· {issues.Count} change(s)";
     }
 
     private string BuildK13ReadinessHint()
@@ -4068,7 +4386,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return "Fits the current 10-band device profile.";
         }
 
-        return string.Join(" · ", issues.Take(3));
+        return string.Join(" Â· ", issues.Take(3));
     }
 
     private IEnumerable<string> GetK13ReadinessIssues()
@@ -4532,15 +4850,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Description = preset.Description,
         IsFavorite = preset.IsFavorite,
         PreampDb = preset.PreampDb,
-        Bands = new ObservableCollection<EqBand>(preset.Bands.Select(band => new EqBand
-        {
-            Number = band.Number,
-            Enabled = band.Enabled,
-            FilterType = band.FilterType,
-            FrequencyHz = band.FrequencyHz,
-            GainDb = band.GainDb,
-            Q = band.Q
-        }))
+        Bands = new ObservableCollection<EqBand>(preset.Bands.Select(band => band.Clone()))
     };
 
     private static EqFilterType ToEqFilterType(byte filterType)

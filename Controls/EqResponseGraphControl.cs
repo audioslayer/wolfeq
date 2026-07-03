@@ -75,7 +75,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         nameof(MaxQ),
         typeof(double),
         typeof(EqResponseGraphControl),
-        new FrameworkPropertyMetadata(12.0));
+        new FrameworkPropertyMetadata(10.0));
 
     public static readonly DependencyProperty MinFrequencyHzProperty = DependencyProperty.Register(
         nameof(MinFrequencyHz),

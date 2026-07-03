@@ -32,12 +32,14 @@ public sealed class EditorSessionState
     public byte? TargetSlotId { get; private set; }
 
     /// <summary>True when loading new content into the editor would discard edits that are not saved anywhere.</summary>
-    public bool WouldReplaceUnsavedEdits
-        => _hasEdits && (LibraryDirty || DeviceSyncState == DeviceSyncState.Modified);
+    public bool WouldReplaceUnsavedEdits => _hasEdits;
 
-    /// <summary>True when an automatic load-from-device on connect would not clobber anything.</summary>
-    public bool ShouldAutoLoadOnConnect
-        => !LibraryDirty && DeviceSyncState != DeviceSyncState.Modified;
+    /// <summary>
+    /// True when an automatic load-from-device on connect would not clobber anything.
+    /// Only actual user edits block the auto-load: slot-loaded or library-loaded content
+    /// can be reloaded harmlessly, so it must not disable the auto-load forever.
+    /// </summary>
+    public bool ShouldAutoLoadOnConnect => !_hasEdits;
 
     /// <summary>Pure guard for device writes: all three conditions must hold.</summary>
     public bool CanWriteToDevice(bool isConnected, bool hardwareIoEnabled, bool hasWritableTarget)
@@ -52,11 +54,15 @@ public sealed class EditorSessionState
         RaiseChanged();
     }
 
-    /// <summary>The editor preset was written to the given slot; library state is unaffected.</summary>
+    /// <summary>
+    /// The editor preset was written to the given slot; library state is unaffected.
+    /// The edits are now on the device, so they no longer count as unsaved.
+    /// </summary>
     public void NotifyWriteSucceeded(byte slotId)
     {
         TargetSlotId = slotId;
         DeviceSyncState = DeviceSyncState.InSync;
+        _hasEdits = false;
         RaiseChanged();
     }
 
