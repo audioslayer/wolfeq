@@ -1,39 +1,172 @@
 using System.Globalization;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
-using WolfEQ.Models;
+using System.Windows.Media.Animation;
 using WolfEQ.ViewModels;
 
 namespace WolfEQ;
 
 public partial class MainWindow : Window
 {
-    private const double CollapsedEqBandCardMinWidth = 124;
-    private const double ExpandedInspectorDrawerWidth = 420;
-    private const double EqBandCardGap = 8;
-    private Point _bandDragStartPoint;
-    private EqBand? _bandDragCandidate;
-    private bool _inspectorDrawerCollapsed = true;
+    private static readonly Duration PanelSlideDuration = new(TimeSpan.FromMilliseconds(180));
+
+    /// <summary>The overlay panel currently open (LibraryHost or SettingsHost), if any.</summary>
+    private FrameworkElement? _openOverlayPanel;
 
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = new MainViewModel();
+
+        var viewModel = new MainViewModel
+        {
+            ConfirmDialog = (title, message) =>
+                MessageBox.Show(this, message, title, MessageBoxButton.OKCancel, MessageBoxImage.Warning)
+                == MessageBoxResult.OK
+        };
+        DataContext = viewModel;
+
+        LibraryHost.CloseRequested += (_, _) => CloseOverlayPanel();
+        SettingsHost.CloseRequested += (_, _) => CloseOverlayPanel();
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        SetInspectorDrawerCollapsed(true);
-
         if (DataContext is MainViewModel viewModel)
         {
             await viewModel.AutoConnectAndReadDeviceAsync();
         }
     }
+
+    // --- Overlay panels (Library / Settings right slide-overs) ---
+
+    private void LibraryHeaderButton_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleOverlayPanel(LibraryHost);
+        e.Handled = true;
+    }
+
+    private void SettingsHeaderButton_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleOverlayPanel(SettingsHost);
+        e.Handled = true;
+    }
+
+    private void OverlayDimmer_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        CloseOverlayPanel();
+        e.Handled = true;
+    }
+
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // Only intercept Esc while a slide-over is open; the editor's selected-band
+        // strip uses Esc to revert a typed value, and that must keep working.
+        if (e.Key == Key.Escape && _openOverlayPanel is not null)
+        {
+            CloseOverlayPanel();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Opens the panel, or closes it when it is already the open one. Only one panel is open at a time.</summary>
+    private void ToggleOverlayPanel(FrameworkElement panel)
+    {
+        if (ReferenceEquals(_openOverlayPanel, panel))
+        {
+            CloseOverlayPanel();
+            return;
+        }
+
+        if (_openOverlayPanel is not null)
+        {
+            HideOverlayPanel(_openOverlayPanel, animated: false);
+        }
+
+        _openOverlayPanel = panel;
+        OverlayLayer.Visibility = Visibility.Visible;
+        panel.Visibility = Visibility.Visible;
+        AnimatePanel(panel, toX: 0, onCompleted: null);
+    }
+
+    private void CloseOverlayPanel()
+    {
+        if (_openOverlayPanel is null)
+        {
+            return;
+        }
+
+        var panel = _openOverlayPanel;
+        _openOverlayPanel = null;
+        HideOverlayPanel(panel, animated: true);
+    }
+
+    private void HideOverlayPanel(FrameworkElement panel, bool animated)
+    {
+        var offscreenX = GetOffscreenX(panel);
+
+        if (!animated)
+        {
+            if (panel.RenderTransform is TranslateTransform transform)
+            {
+                transform.BeginAnimation(TranslateTransform.XProperty, null);
+                transform.X = offscreenX;
+            }
+
+            panel.Visibility = Visibility.Collapsed;
+            CollapseOverlayIfIdle();
+            return;
+        }
+
+        AnimatePanel(panel, offscreenX, onCompleted: () =>
+        {
+            // Skip the collapse when the same panel was reopened mid-animation.
+            if (!ReferenceEquals(_openOverlayPanel, panel))
+            {
+                panel.Visibility = Visibility.Collapsed;
+                CollapseOverlayIfIdle();
+            }
+        });
+    }
+
+    private void CollapseOverlayIfIdle()
+    {
+        if (_openOverlayPanel is null)
+        {
+            OverlayLayer.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private static void AnimatePanel(FrameworkElement panel, double toX, Action? onCompleted)
+    {
+        if (panel.RenderTransform is not TranslateTransform transform)
+        {
+            onCompleted?.Invoke();
+            return;
+        }
+
+        var animation = new DoubleAnimation(toX, PanelSlideDuration)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        if (onCompleted is not null)
+        {
+            animation.Completed += (_, _) => onCompleted();
+        }
+
+        transform.BeginAnimation(TranslateTransform.XProperty, animation);
+    }
+
+    private static double GetOffscreenX(FrameworkElement panel)
+    {
+        var width = panel.ActualWidth > 0 ? panel.ActualWidth : panel.Width;
+        return (double.IsNaN(width) ? 480 : width) + panel.Margin.Right + 8;
+    }
+
+    // --- Window chrome ---
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -79,342 +212,6 @@ public partial class MainWindow : Window
         Close();
     }
 
-    private void ProfileSwitcherButton_Click(object sender, RoutedEventArgs e)
-    {
-        UserProfileFlyout.IsOpen = !UserProfileFlyout.IsOpen;
-        e.Handled = true;
-    }
-
-    private async void UserProfileItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel &&
-            sender is FrameworkElement { DataContext: DeviceUserPresetOption option })
-        {
-            if (!viewModel.SelectUserPresetCommand.CanExecute(null))
-            {
-                UserProfileFlyout.IsOpen = false;
-                e.Handled = true;
-                return;
-            }
-
-            viewModel.SelectedDeviceUserPreset = option;
-            await ExecuteUserPresetSwitchAsync(viewModel);
-        }
-
-        UserProfileFlyout.IsOpen = false;
-        e.Handled = true;
-    }
-
-    private void SidebarSettingsButton_Click(object sender, RoutedEventArgs e)
-    {
-        MainTabs.SelectedItem = SettingsTab;
-        e.Handled = true;
-    }
-
-    private void AccentColorSwatch_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel &&
-            sender is FrameworkElement { DataContext: AccentColorOption option })
-        {
-            viewModel.SelectedAccentColorOption = option;
-        }
-
-        e.Handled = true;
-    }
-
-    private async void TopLedColorSwatch_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel &&
-            sender is FrameworkElement { DataContext: LedColorOption option })
-        {
-            await viewModel.SetTopLedColorAsync(option);
-        }
-
-        e.Handled = true;
-    }
-
-    private async void KnobLedColorSwatch_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel &&
-            sender is FrameworkElement { DataContext: LedColorOption option })
-        {
-            await viewModel.SetKnobLedColorAsync(option);
-        }
-
-        e.Handled = true;
-    }
-
-    private async void TopLedMode_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel &&
-            sender is FrameworkElement { DataContext: LedModeOption option })
-        {
-            await viewModel.SetTopLedModeAsync(option);
-        }
-
-        e.Handled = true;
-    }
-
-    private async void KnobLedMode_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel &&
-            sender is FrameworkElement { DataContext: LedModeOption option })
-        {
-            await viewModel.SetKnobLedModeAsync(option);
-        }
-
-        e.Handled = true;
-    }
-
-    private async void TopLedPower_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel)
-        {
-            await viewModel.SetTopLedPowerAsync(!viewModel.TopLedOn);
-        }
-
-        e.Handled = true;
-    }
-
-    private async void KnobLedPower_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel)
-        {
-            await viewModel.SetKnobLedPowerAsync(!viewModel.KnobLedOn);
-        }
-
-        e.Handled = true;
-    }
-
-    private async void LedScene_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel &&
-            sender is FrameworkElement { DataContext: LedSceneOption scene })
-        {
-            await viewModel.ApplyLedSceneAsync(scene);
-        }
-
-        e.Handled = true;
-    }
-
-    private async void SlotLightingUserComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!IsLoaded ||
-            e.AddedItems.Count == 0 ||
-            sender is not ComboBox comboBox ||
-            (!comboBox.IsDropDownOpen && !comboBox.IsKeyboardFocusWithin && !comboBox.IsMouseOver) ||
-            DataContext is not MainViewModel viewModel ||
-            !viewModel.SelectUserPresetCommand.CanExecute(null))
-        {
-            return;
-        }
-
-        await ExecuteUserPresetSwitchAsync(viewModel);
-    }
-
-    private static async Task ExecuteUserPresetSwitchAsync(MainViewModel viewModel)
-    {
-        if (viewModel.SelectUserPresetCommand is not AsyncRelayCommand command || !command.CanExecute(null))
-        {
-            return;
-        }
-
-        command.Execute(null);
-        while (!command.CanExecute(null))
-        {
-            await Task.Delay(50);
-        }
-    }
-
-    private void ToggleInspectorDrawer_Click(object sender, RoutedEventArgs e)
-    {
-        SetInspectorDrawerCollapsed(!_inspectorDrawerCollapsed);
-        e.Handled = true;
-    }
-
-    private void SetInspectorDrawerCollapsed(bool collapsed)
-    {
-        _inspectorDrawerCollapsed = collapsed;
-        InspectorDrawerColumn.Width = collapsed
-            ? new GridLength(0)
-            : new GridLength(ExpandedInspectorDrawerWidth);
-        InspectorDrawerHost.Visibility = collapsed
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-        InspectorDrawerToggleButton.Tag = collapsed ? "Collapsed" : "Expanded";
-
-        InspectorDrawerToggleButton.ApplyTemplate();
-
-        UpdateEqBandCardLayout();
-    }
-
-    private void EqBandScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (_inspectorDrawerCollapsed)
-        {
-            UpdateEqBandCardLayout();
-        }
-    }
-
-    private void BandValueTextBox_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter || sender is not TextBox textBox)
-        {
-            return;
-        }
-
-        textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-        Keyboard.ClearFocus();
-        e.Handled = true;
-    }
-
-    private void UpdateEqBandCardLayout()
-    {
-        if (DataContext is not MainViewModel viewModel)
-        {
-            return;
-        }
-
-        var bandCount = Math.Max(1, viewModel.Bands.Count);
-        var preferredWidth = viewModel.BandCardWidth;
-        if (!_inspectorDrawerCollapsed)
-        {
-            EqBandItemsControl.Tag = preferredWidth;
-            EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
-            return;
-        }
-
-        if (bandCount > 16)
-        {
-            EqBandItemsControl.Tag = preferredWidth;
-            EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
-            return;
-        }
-
-        var viewportWidth = EqBandScrollViewer.ActualWidth;
-        if (viewportWidth <= 0)
-        {
-            return;
-        }
-
-        var totalGapWidth = EqBandCardGap * bandCount;
-        var cardWidth = Math.Floor((viewportWidth - totalGapWidth - 2) / bandCount);
-        if (cardWidth < CollapsedEqBandCardMinWidth)
-        {
-            EqBandItemsControl.Tag = preferredWidth;
-            EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
-            return;
-        }
-
-        EqBandItemsControl.Tag = Math.Max(preferredWidth, cardWidth);
-        EqBandScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
-    }
-
-    private void BandDragHandle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not FrameworkElement { DataContext: EqBand band })
-        {
-            return;
-        }
-
-        _bandDragCandidate = band;
-        _bandDragStartPoint = e.GetPosition(this);
-    }
-
-    private void BandDragHandle_MouseMove(object sender, MouseEventArgs e)
-    {
-        if (_bandDragCandidate == null)
-        {
-            return;
-        }
-
-        if (e.LeftButton != MouseButtonState.Pressed)
-        {
-            _bandDragCandidate = null;
-            return;
-        }
-
-        var position = e.GetPosition(this);
-        if (Math.Abs(position.X - _bandDragStartPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(position.Y - _bandDragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
-        {
-            return;
-        }
-
-        var data = new DataObject(typeof(EqBand), _bandDragCandidate);
-        DragDrop.DoDragDrop((DependencyObject)sender, data, DragDropEffects.Move);
-        _bandDragCandidate = null;
-    }
-
-    private void BandCard_DragEnter(object sender, DragEventArgs e) => UpdateBandDropTarget(sender, e);
-
-    private void BandCard_DragOver(object sender, DragEventArgs e) => UpdateBandDropTarget(sender, e);
-
-    private void BandCard_DragLeave(object sender, DragEventArgs e)
-    {
-        ClearBandDropTarget(sender);
-    }
-
-    private void BandCard_Drop(object sender, DragEventArgs e)
-    {
-        ClearBandDropTarget(sender);
-
-        if (DataContext is not MainViewModel viewModel ||
-            sender is not Border targetCard ||
-            targetCard.DataContext is not EqBand targetBand ||
-            !TryGetDraggedBand(e, out var sourceBand) ||
-            ReferenceEquals(sourceBand, targetBand))
-        {
-            e.Effects = DragDropEffects.None;
-            e.Handled = true;
-            return;
-        }
-
-        var insertAfter = e.GetPosition(targetCard).X > targetCard.ActualWidth / 2;
-        viewModel.MoveBand(sourceBand, targetBand, insertAfter);
-        e.Effects = DragDropEffects.Move;
-        e.Handled = true;
-    }
-
-    private void UpdateBandDropTarget(object sender, DragEventArgs e)
-    {
-        if (sender is not Border targetCard ||
-            targetCard.DataContext is not EqBand targetBand ||
-            !TryGetDraggedBand(e, out var sourceBand) ||
-            ReferenceEquals(sourceBand, targetBand))
-        {
-            ClearBandDropTarget(sender);
-            e.Effects = DragDropEffects.None;
-            e.Handled = true;
-            return;
-        }
-
-        targetCard.BorderBrush = (Brush)FindResource("WolfFiioRedBrush");
-        e.Effects = DragDropEffects.Move;
-        e.Handled = true;
-    }
-
-    private static bool TryGetDraggedBand(DragEventArgs e, out EqBand band)
-    {
-        if (e.Data.GetDataPresent(typeof(EqBand)) &&
-            e.Data.GetData(typeof(EqBand)) is EqBand draggedBand)
-        {
-            band = draggedBand;
-            return true;
-        }
-
-        band = null!;
-        return false;
-    }
-
-    private static void ClearBandDropTarget(object sender)
-    {
-        if (sender is Border targetCard)
-        {
-            targetCard.ClearValue(Border.BorderBrushProperty);
-        }
-    }
-
     private void ToggleWindowState()
     {
         WindowState = WindowState == WindowState.Maximized
@@ -434,27 +231,6 @@ public partial class MainWindow : Window
             }
 
             current = VisualTreeHelper.GetParent(current);
-        }
-
-        return null;
-    }
-
-    private static T? FindVisualChild<T>(DependencyObject source, string name)
-        where T : FrameworkElement
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(source); i++)
-        {
-            var child = VisualTreeHelper.GetChild(source, i);
-            if (child is T typedChild && typedChild.Name == name)
-            {
-                return typedChild;
-            }
-
-            var match = FindVisualChild<T>(child, name);
-            if (match is not null)
-            {
-                return match;
-            }
         }
 
         return null;

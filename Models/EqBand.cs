@@ -44,7 +44,7 @@ public sealed class EqBand : INotifyPropertyChanged
     public double Q
     {
         get => _q;
-        set => SetField(ref _q, Math.Clamp(Math.Round(value, 2), 0.10, 10.0));
+        set => SetField(ref _q, Math.Clamp(Math.Round(value, 2), 0.10, 12.0));
     }
 
     public EqFilterType FilterType

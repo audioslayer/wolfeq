@@ -84,6 +84,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _isSyncingLiveDeviceEq;
     private bool _isLoadingSlotLightingProfile;
     private bool _isProfileLibraryDirty;
+    private bool _suppressPresetLoadGuard;
     private Dictionary<int, SlotLightingProfileData> _slotLightingProfiles = [];
 
     public MainViewModel()
@@ -288,25 +289,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
         get => _selectedDeviceProfile;
         set
         {
-            if (value is null)
+            if (value is null || ReferenceEquals(_selectedDeviceProfile, value))
             {
                 return;
             }
 
-            if (SetField(ref _selectedDeviceProfile, value))
+            // R22 guard: switching devices resets the editor, so ask first when that
+            // would lose unsaved edits. A declined dialog re-pushes the kept profile to
+            // the bound ComboBox; the re-entrant set of the old value exits above.
+            if (!ConfirmDeviceProfileSwitch())
             {
-                _deviceService.SelectedProfile = value;
-                RebuildDeviceUserPresets(value);
-                EditorSession.Reset();
-                DeviceSelectionStatus = $"Using {value.DisplayLabel}.";
-                OnPropertyChanged(nameof(DeviceProfileCapabilityText));
-                OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
-                OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
-                OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
-                OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
-                OnPropertyChanged(nameof(SupportsK13PresetTools));
-                RaiseDeviceControlsCanExecuteChanged();
-                SetConnectionState(IsDeviceConnected);
+                PushPropertyBackToView(nameof(SelectedDeviceProfile));
+                return;
+            }
+
+            ApplyDeviceProfile(value);
+            DeviceSelectionStatus = $"Using {value.DisplayLabel}.";
+            SetConnectionState(IsDeviceConnected);
+
+            // R22 + R19: a manual profile switch while connected loads the new device's
+            // active slot (the editor was just reset, so the guarded load proceeds).
+            if (IsDeviceConnected)
+            {
+                _ = RunGuardedConnectLoadAsync();
             }
         }
     }
@@ -517,9 +522,40 @@ public sealed class MainViewModel : INotifyPropertyChanged
         get => _selectedPreset;
         set
         {
+            if (value is null || ReferenceEquals(_selectedPreset, value))
+            {
+                return;
+            }
+
+            // R20 guard for user selection (library list): selecting a preset loads it
+            // into the editor, so ask before replacing unsaved edits. Internal flows
+            // (imports, readbacks, housekeeping) go through SelectPresetInternal and
+            // manage EditorSession state themselves. A declined dialog re-pushes the
+            // kept preset to the bound ListBox; the re-entrant set of the old value
+            // exits above.
+            var isUserSelection = !_suppressPresetLoadGuard;
+            if (isUserSelection && EditorSession.WouldReplaceUnsavedEdits)
+            {
+                var proceed = ConfirmDialog?.Invoke(
+                    "Replace unsaved changes?",
+                    $"Loading '{value.Name}' will replace your unsaved edits.") ?? true;
+                if (!proceed)
+                {
+                    Status = "Load canceled. The editor kept your changes.";
+                    AddLog(Status);
+                    PushPropertyBackToView(nameof(SelectedPreset));
+                    return;
+                }
+            }
+
             if (SetField(ref _selectedPreset, value))
             {
                 LoadSelectedPreset();
+                if (isUserSelection)
+                {
+                    EditorSession.NotifyLoadedFromLibrary();
+                }
+
                 if (!ReferenceEquals(_selectedPreset, _savedSelectedPreset))
                 {
                     IsProfileLibraryDirty = true;
@@ -862,15 +898,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task AutoConnectAndReadDeviceAsync()
     {
+        // DetectDeviceAsync runs the R19 guarded connect-load itself.
         await DetectDeviceAsync();
 
-        if (IsDeviceConnected)
+        if (IsDeviceConnected && SelectedDeviceSupportsBleDeviceControls)
         {
-            await ReadDeviceEqAsync();
-            if (SelectedDeviceSupportsBleDeviceControls)
-            {
-                await ReadDeviceControlsAsync();
-            }
+            await ReadDeviceControlsAsync();
         }
     }
 
@@ -923,6 +956,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             AddLog("Detection complete.");
+
+            if (result.IsDetected)
+            {
+                await RunGuardedConnectLoadAsync();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -933,6 +971,48 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             Status = $"USB HID detection failed: {ex.Message}";
+            SetConnectionState(false);
+            AddLog(Status);
+        }
+    }
+
+    /// <summary>
+    /// R19 guarded connect-load: after a successful detect+connect (launch, reconnect,
+    /// or a profile switch while connected), the active slot's EQ is loaded into the
+    /// editor only when doing so cannot clobber unsaved edits. This replaces the old
+    /// unconditional auto-read on connect.
+    /// </summary>
+    private async Task RunGuardedConnectLoadAsync()
+    {
+        if (!EditorSession.ShouldAutoLoadOnConnect)
+        {
+            Status = "Kept your unsaved changes; device slot not loaded.";
+            AddLog(Status);
+            return;
+        }
+
+        if (!K13HardwareEqIoEnabled)
+        {
+            AddLog("Skipped the connect-time slot load; hardware EQ readback is disabled in this safety build.");
+            return;
+        }
+
+        Status = $"Reading {SelectedDeviceProfile.DisplayName} EQ with read-only GET packets...";
+        AddLog("Connect-time slot load started. GET packets only; no SET/save commands will be sent.");
+
+        try
+        {
+            var snapshot = await ReadAndApplyDeviceEqAsync();
+            EditorSession.NotifyLoadedFromSlot(snapshot.PresetId);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Device EQ readback was canceled.";
+            AddLog(Status);
+        }
+        catch (Exception ex)
+        {
+            Status = $"Device EQ readback failed: {ex.Message}";
             SetConnectionState(false);
             AddLog(Status);
         }
@@ -988,7 +1068,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         else
         {
-            SelectedPreset = readbackPreset;
+            SelectPresetInternal(readbackPreset);
         }
 
         if (!TrySaveProfileLibraryQuietly(out var saveError))
@@ -1814,7 +1894,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     private async Task ImportGitHubProfileAsync()
-        => await ImportSelectedGitHubProfileToLibraryAsync();
+    {
+        // Downloading selects the imported preset into the editor, so it is guarded
+        // like any other load that could replace unsaved edits (R20).
+        if (SelectedGitHubProfile is AutoEqProfileIndexEntry profile &&
+            !ConfirmReplaceUnsavedEdits(profile.Name))
+        {
+            return;
+        }
+
+        var preset = await ImportSelectedGitHubProfileToLibraryAsync();
+        if (preset is not null)
+        {
+            EditorSession.NotifyLoadedFromLibrary();
+        }
+    }
 
     /// <summary>
     /// Downloads the selected online profile into the library (deduplicated, selected,
@@ -2126,6 +2220,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _localLibraryService.Save(Presets);
             CommitSavedProfileState();
             IsProfileLibraryDirty = false;
+            EditorSession.NotifySavedToLibrary();
             Status = wroteToHardware
                 ? reloadedHardware
                     ? $"Saved and reloaded {SelectedDeviceUserPreset.DisplayName} from hardware."
@@ -2477,6 +2572,134 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Selects a preset from an internal flow (import, readback, housekeeping) without
+    /// the user-selection guard; callers manage <see cref="EditorSession"/> themselves.
+    /// </summary>
+    private void SelectPresetInternal(EqPreset preset)
+    {
+        _suppressPresetLoadGuard = true;
+        try
+        {
+            SelectedPreset = preset;
+        }
+        finally
+        {
+            _suppressPresetLoadGuard = false;
+        }
+    }
+
+    /// <summary>
+    /// Re-raises a property change on the dispatcher so a two-way-bound selector
+    /// (ComboBox/ListBox) snaps back to the kept value after a declined guard dialog.
+    /// The deferred raise is required: a synchronous raise inside the setter is ignored
+    /// by the binding that is mid-update.
+    /// </summary>
+    private void PushPropertyBackToView(string propertyName)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null)
+        {
+            OnPropertyChanged(propertyName);
+            return;
+        }
+
+        dispatcher.BeginInvoke(DispatcherPriority.DataBind, new Action(() => OnPropertyChanged(propertyName)));
+    }
+
+    /// <summary>
+    /// R22 guard: asks before a device-profile switch that would reset away unsaved
+    /// editor edits. True to proceed (also when clean or no dialog hook is wired).
+    /// </summary>
+    private bool ConfirmDeviceProfileSwitch()
+    {
+        if (!EditorSession.WouldReplaceUnsavedEdits)
+        {
+            return true;
+        }
+
+        var proceed = ConfirmDialog?.Invoke(
+            "Switch device?",
+            "Switching devices resets the editor. Your unsaved changes will be lost.") ?? true;
+        if (!proceed)
+        {
+            Status = "Device switch canceled. The editor kept your changes.";
+            AddLog(Status);
+        }
+
+        return proceed;
+    }
+
+    /// <summary>
+    /// Applies a device profile: service selection, slot chips, editor-session reset,
+    /// and a band-template rebuild when the new profile's band count differs.
+    /// Shared by the manual picker and auto-detection.
+    /// </summary>
+    private void ApplyDeviceProfile(FiioDeviceProfile value)
+    {
+        _selectedDeviceProfile = value;
+        _deviceService.SelectedProfile = value;
+        OnPropertyChanged(nameof(SelectedDeviceProfile));
+        RebuildDeviceUserPresets(value);
+        EditorSession.Reset();
+        EnsureBandTemplateMatchesProfile(value);
+        OnPropertyChanged(nameof(DeviceProfileCapabilityText));
+        OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
+        OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
+        OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
+        OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
+        OnPropertyChanged(nameof(SupportsK13PresetTools));
+        RaiseDeviceControlsCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Resizes the editor's band template to the profile's band count, keeping existing
+    /// band values where they fit and padding with flat bands (same template as Reset).
+    /// Runs without marking edits: a profile switch resets the session instead.
+    /// </summary>
+    private void EnsureBandTemplateMatchesProfile(FiioDeviceProfile profile)
+    {
+        if (Bands.Count == profile.BandCount)
+        {
+            return;
+        }
+
+        var flat = CreateFlatPresetModel(SelectedPreset.Name);
+        _isLoadingPreset = true;
+        try
+        {
+            while (Bands.Count > profile.BandCount)
+            {
+                Bands.RemoveAt(Bands.Count - 1);
+            }
+
+            while (Bands.Count < profile.BandCount)
+            {
+                var index = Bands.Count;
+                var template = index < flat.Bands.Count ? flat.Bands[index] : flat.Bands[^1];
+                Bands.Add(new EqBand
+                {
+                    Number = index + 1,
+                    Enabled = true,
+                    FilterType = EqFilterType.Peak,
+                    FrequencyHz = template.FrequencyHz,
+                    GainDb = 0,
+                    Q = 1
+                });
+            }
+        }
+        finally
+        {
+            _isLoadingPreset = false;
+        }
+
+        OnPropertyChanged(nameof(Bands));
+        OnPropertyChanged(nameof(DeviceBandEditorTitle));
+        OnPropertyChanged(nameof(BandCardWidth));
+        OnPropertyChanged(nameof(SupportsK13PresetTools));
+        RefreshHeadroomProperties();
+    }
+
+    /// <summary>
     /// Asks before an action that would replace unsaved editor edits. Returns true to
     /// proceed. Also true when there is nothing to lose or no dialog hook is wired.
     /// </summary>
@@ -2586,7 +2809,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             RefreshProfileLibrary();
         }
 
-        SelectedPreset = preset;
+        SelectPresetInternal(preset);
         FilteredPresets.MoveCurrentTo(preset);
     }
 
@@ -2839,7 +3062,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             SelectedProfileCategory = "Imported";
             RefreshProfileLibrary();
-            SelectedPreset = imported[0];
+            SelectPresetInternal(imported[0]);
             FilteredPresets.MoveCurrentTo(imported[0]);
             Status = TrySaveProfileLibraryQuietly(out var saveError)
                 ? $"Imported and saved {imported.Count} WolfEQ library profile(s)."
@@ -2988,7 +3211,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         copy.IsFavorite = false;
         Presets.Add(copy);
         RefreshProfileLibrary();
-        SelectedPreset = copy;
+        SelectPresetInternal(copy);
         Status = $"Duplicated profile: {copy.Name}.";
         AddLog(Status);
     }
@@ -3024,7 +3247,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshProfileLibrary();
 
         var nextIndex = Math.Clamp(index, 0, Presets.Count - 1);
-        SelectedPreset = Presets[nextIndex];
+        SelectPresetInternal(Presets[nextIndex]);
         FilteredPresets.MoveCurrentTo(SelectedPreset);
 
         Status = $"Deleted preset: {preset.Name}.";
@@ -3162,7 +3385,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Presets.Add(preset);
         RefreshProfileLibrary();
         SelectedProfileCategory = "Reference";
-        SelectedPreset = preset;
+        SelectPresetInternal(preset);
         Status = "Created flat 10-band profile.";
         AddLog(Status);
     }
@@ -3211,7 +3434,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Presets.Add(prepared);
         RefreshProfileLibrary();
         SelectedProfileCategory = "Reference";
-        SelectedPreset = prepared;
+        SelectPresetInternal(prepared);
         Status = "Prepared a K13-ready 10-band copy.";
         AddLog(Status);
     }
@@ -3262,7 +3485,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Presets.Add(preset);
         RefreshProfileLibrary();
         SelectedProfileCategory = "Reference";
-        SelectedPreset = preset;
+        SelectPresetInternal(preset);
         Status = "Created a smoothed K13-ready copy.";
         AddLog(Status);
     }
@@ -3329,7 +3552,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Presets.Add(preset);
         RefreshProfileLibrary();
         SelectedProfileCategory = "Listening";
-        SelectedPreset = preset;
+        SelectPresetInternal(preset);
         Status = $"Created {toneName} tone-shape profile.";
         AddLog(Status);
     }
@@ -3358,7 +3581,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         ComparePreset = current;
-        SelectedPreset = next;
+        SelectPresetInternal(next);
         RefreshProfileLibrary();
         CompareStatus = $"A/B swapped. Slot now holds {current.Name.Replace("A/B copy - ", string.Empty)}";
         Status = "Swapped A/B profile.";
@@ -3557,6 +3780,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _profileAutosaveTimer.Stop();
         if (TrySaveProfileLibraryQuietly(out var saveError))
         {
+            EditorSession.NotifySavedToLibrary();
             AddLog($"Auto-saved profile: {SelectedPreset.Name}");
             return;
         }
@@ -4372,7 +4596,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ProfileSearchText = string.Empty;
         SelectedProfileCategory = "All";
         RefreshProfileLibrary();
-        SelectedPreset = target;
+        SelectPresetInternal(target);
         FilteredPresets.MoveCurrentTo(target);
         return target;
     }
@@ -4578,18 +4802,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         if (!ReferenceEquals(_selectedDeviceProfile, profile))
         {
-            _selectedDeviceProfile = profile;
-            _deviceService.SelectedProfile = profile;
-            OnPropertyChanged(nameof(SelectedDeviceProfile));
-            RebuildDeviceUserPresets(profile);
-            EditorSession.Reset();
-            OnPropertyChanged(nameof(DeviceProfileCapabilityText));
-            OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
-            OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
-            OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
-            OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
-            OnPropertyChanged(nameof(SupportsK13PresetTools));
-            RaiseDeviceControlsCanExecuteChanged();
+            // R22 guard: an auto-detected different device also resets the editor.
+            // Declining keeps the current profile; the R19 connect-load that follows
+            // detection will then skip because the editor still holds unsaved edits.
+            if (!ConfirmDeviceProfileSwitch())
+            {
+                DeviceSelectionStatus =
+                    $"Detected {profile.DisplayLabel}, but kept {_selectedDeviceProfile.DisplayLabel} so your unsaved changes stay.";
+                return;
+            }
+
+            ApplyDeviceProfile(profile);
         }
 
         var product = candidate is not null ? $"{candidate.VendorProductDisplay} {candidate.InterfaceDisplay}" : "USB HID";
