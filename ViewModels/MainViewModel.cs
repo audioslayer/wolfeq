@@ -236,6 +236,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync);
         OpenReleasesCommand = new RelayCommand(() => OpenUrl("https://github.com/audioslayer/wolfeq/releases", "WolfEQ releases"));
         OpenBuyMeCoffeeCommand = new RelayCommand(() => OpenUrl("https://www.buymeacoffee.com/audioslayer", "Buy Me a Coffee"));
+
+        EditorSession.Changed += OnEditorSessionChanged;
+        SaveToLibraryCommand = new RelayCommand(SaveToLibrary, () => SelectedPreset is not null);
+        WriteToDeviceCommand = new AsyncRelayCommand(WriteEditorPresetToDeviceAsync, CanExecuteWriteToDevice);
+        SwitchSlotCommand = new AsyncParameterRelayCommand(SwitchSlotAsync, _ => IsDeviceConnected);
+        LoadFromSlotCommand = new AsyncRelayCommand(LoadFromSlotAsync, () => IsDeviceConnected && K13HardwareEqIoEnabled);
     }
 
     public ObservableCollection<EqPreset> Presets { get; }
@@ -287,6 +293,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             {
                 _deviceService.SelectedProfile = value;
                 RebuildDeviceUserPresets(value);
+                EditorSession.Reset();
                 DeviceSelectionStatus = $"Using {value.DisplayLabel}.";
                 OnPropertyChanged(nameof(DeviceProfileCapabilityText));
                 OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
@@ -816,6 +823,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand CheckForUpdatesCommand { get; }
     public ICommand OpenReleasesCommand { get; }
     public ICommand OpenBuyMeCoffeeCommand { get; }
+    public ICommand SaveToLibraryCommand { get; }
+    public ICommand WriteToDeviceCommand { get; }
+    public ICommand SwitchSlotCommand { get; }
+    public ICommand LoadFromSlotCommand { get; }
+    public EditorSessionState EditorSession { get; } = new();
+    public string EditorSyncStatusText => EditorSession.StatusText(EditorTargetSlotDisplayName);
+
+    /// <summary>
+    /// Confirmation hook the view wires up later ((title, message) => proceed).
+    /// Null means proceed without asking.
+    /// </summary>
+    public Func<string, string, bool>? ConfirmDialog { get; set; }
+
     public bool CanWriteToHardware => false;
     public bool CanUseDeviceVolumeControls => IsDeviceConnected && SelectedDeviceSupportsBleDeviceControls && !_isWritingDeviceVolume;
 
@@ -2154,6 +2174,173 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private void OnEditorSessionChanged()
+    {
+        OnPropertyChanged(nameof(EditorSyncStatusText));
+        (WriteToDeviceCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (LoadFromSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (SwitchSlotCommand as AsyncParameterRelayCommand)?.RaiseCanExecuteChanged();
+        (SaveToLibraryCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private string? EditorTargetSlotDisplayName
+        => EditorSession.TargetSlotId is byte slotId
+            ? DeviceUserPresets.FirstOrDefault(option => option.PresetId == slotId)?.DisplayName
+              ?? SelectedDeviceProfile.GetPresetDisplayName(slotId)
+            : _selectedDeviceUserPreset?.DisplayName;
+
+    private void SaveToLibrary()
+    {
+        if (TrySaveProfileLibraryQuietly(out var saveError))
+        {
+            EditorSession.NotifySavedToLibrary();
+            Status = $"Saved {Presets.Count} profile(s) to WolfEQ.";
+            return;
+        }
+
+        Status = $"Profile save failed: {saveError}";
+    }
+
+    private bool CanExecuteWriteToDevice()
+    {
+        var targetSlotId = EditorSession.TargetSlotId ?? _selectedDeviceUserPreset?.PresetId;
+        var hasWritableTarget = targetSlotId is byte slotId
+            && SelectedDeviceProfile.WritableSlots.Any(slot => slot.Id == slotId);
+        return EditorSession.CanWriteToDevice(IsDeviceConnected, K13HardwareEqIoEnabled, hasWritableTarget);
+    }
+
+    private async Task WriteEditorPresetToDeviceAsync()
+    {
+        if (!K13HardwareEqIoEnabled)
+        {
+            Status = "Hardware EQ writes are disabled in this safety build.";
+            AddLog("Blocked hardware EQ write; no HID SET packets were sent.");
+            return;
+        }
+
+        var targetSlotId = EditorSession.TargetSlotId ?? SelectedDeviceUserPreset.PresetId;
+        var slotDisplay = DeviceUserPresets.FirstOrDefault(option => option.PresetId == targetSlotId)?.DisplayName
+                          ?? SelectedDeviceProfile.GetPresetDisplayName(targetSlotId);
+        Status = $"Writing {SelectedPreset.Name} to {slotDisplay}...";
+        AddLog($"Guarded device write requested: {SelectedPreset.Name} -> {slotDisplay} (0x{targetSlotId:X2}).");
+
+        try
+        {
+            var result = await _deviceService.SaveCurrentUserPresetAsync(SelectedPreset, targetSlotId);
+            foreach (var line in result.TransportLog)
+            {
+                AddLog($"  {line}");
+            }
+
+            AddLog($"Waiting for {slotDisplay} to settle after hardware write.");
+            var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync(SelectedDeviceProfile.ReloadEqAfterSave);
+            EditorSession.NotifyWriteSucceeded(targetSlotId);
+            Status = reloadedHardware
+                ? $"Wrote {slotDisplay} to the device."
+                : $"Wrote {slotDisplay}; the device is reconnecting. Click Connect if it does not return.";
+            AddLog(Status);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception or ArgumentException)
+        {
+            Status = $"Device write failed: {ex.Message}";
+            AddLog(Status);
+        }
+    }
+
+    private async Task SwitchSlotAsync(object? parameter)
+    {
+        var option = ResolveSlotOption(parameter);
+        if (option is null)
+        {
+            Status = "Pick a device slot to switch to.";
+            AddLog(Status);
+            return;
+        }
+
+        Status = $"Switching to {option.DisplayName}...";
+        AddLog($"Guarded slot switch requested (editor keeps its settings): {option.DisplayName} (0x{option.PresetId:X2}).");
+
+        try
+        {
+            var result = await _deviceService.SelectUserPresetAsync(option.PresetId);
+            foreach (var line in result.TransportLog)
+            {
+                AddLog($"  {line}");
+            }
+
+            if (!result.Confirmed)
+            {
+                Status = $"Device did not confirm {option.DisplayName}; active slot still reads {result.AfterDisplay}.";
+                AddLog(Status);
+                return;
+            }
+
+            _confirmedDevicePresetId = result.AfterPresetId;
+            SelectDeviceUserPresetOption(result.AfterPresetId);
+            EditorSession.NotifySlotSwitched(result.AfterPresetId);
+            Status = $"Switched to {option.DisplayName}. Editor kept your current settings.";
+            AddLog(Status);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception)
+        {
+            Status = $"Slot switch failed: {ex.Message}";
+            SetConnectionState(false);
+            AddLog(Status);
+        }
+    }
+
+    private DeviceUserPresetOption? ResolveSlotOption(object? parameter)
+        => parameter switch
+        {
+            DeviceUserPresetOption option => option,
+            byte presetId => DeviceUserPresets.FirstOrDefault(option => option.PresetId == presetId),
+            null => SelectedDeviceUserPreset,
+            _ => null
+        };
+
+    private async Task LoadFromSlotAsync()
+    {
+        if (!K13HardwareEqIoEnabled)
+        {
+            Status = "Hardware EQ readback is disabled in this safety build.";
+            AddLog("Blocked hardware EQ readback; no HID GET packets were sent.");
+            return;
+        }
+
+        if (EditorSession.WouldReplaceUnsavedEdits)
+        {
+            var proceed = ConfirmDialog?.Invoke(
+                "Load from device?",
+                "The editor has changes that are not saved yet. Loading from the device will replace them.") ?? true;
+            if (!proceed)
+            {
+                Status = "Load from device canceled.";
+                AddLog(Status);
+                return;
+            }
+        }
+
+        Status = $"Loading the active slot from {SelectedDeviceProfile.DisplayName}...";
+        AddLog("Explicit load-from-slot requested. GET packets only; no SET/save commands will be sent.");
+
+        try
+        {
+            var snapshot = await ReadAndApplyDeviceEqAsync();
+            EditorSession.NotifyLoadedFromSlot(snapshot.PresetId);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Load from device was canceled.";
+            AddLog(Status);
+        }
+        catch (Exception ex)
+        {
+            Status = $"Load from device failed: {ex.Message}";
+            SetConnectionState(false);
+            AddLog(Status);
+        }
+    }
+
     private void AddPresetAndSelect(EqPreset preset, string selectedCategory)
     {
         var existingMatches = Presets
@@ -3019,6 +3206,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshHeadroomProperties();
         QueueProfileAutosave();
         IsProfileLibraryDirty = true;
+        EditorSession.NotifyEdit();
         Status = $"Reset {SelectedPreset.Name} to a flat EQ.";
         AddLog(Status);
     }
@@ -3146,6 +3334,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         _profileAutosaveTimer.Stop();
         IsProfileLibraryDirty = true;
+        EditorSession.NotifyEdit();
     }
 
     private void ProfileAutosaveTimerOnTick(object? sender, EventArgs e)
@@ -4178,6 +4367,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _deviceService.SelectedProfile = profile;
             OnPropertyChanged(nameof(SelectedDeviceProfile));
             RebuildDeviceUserPresets(profile);
+            EditorSession.Reset();
             OnPropertyChanged(nameof(DeviceProfileCapabilityText));
             OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
             OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
@@ -4263,6 +4453,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private void SetConnectionState(bool connected)
     {
         IsDeviceConnected = connected;
+        if (connected)
+        {
+            EditorSession.NotifyDeviceConnected();
+        }
+        else
+        {
+            EditorSession.NotifyDeviceDisconnected();
+        }
+
         ConnectionText = connected ? "Connected" : "Disconnected";
         LiveDeviceEqSyncStatus = connected
             ? SelectedDeviceProfile.SupportsLiveEqWrites
