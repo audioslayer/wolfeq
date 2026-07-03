@@ -267,6 +267,130 @@ public sealed class FiioK13DeviceService
             transportLog);
     }
 
+    public async Task<K13BleDeviceControlsSnapshot> ReadDeviceControlsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var transportLog = new List<string>
+        {
+            "USB HID device controls readback started. Candidate FiiO Control setting triplets only."
+        };
+
+        var (stream, inputReportLength, outputReportLength, candidate) =
+            await OpenSelectedHidAsync("device-controls", transportLog, cancellationToken).ConfigureAwait(false);
+        await using (stream.ConfigureAwait(false))
+        {
+            var volume = await TryReadUsbSettingByteAsync(stream, inputReportLength, outputReportLength, UsbVolumeCommand, transportLog, cancellationToken)
+                .ConfigureAwait(false);
+            var volumeLimit = await TryReadUsbSettingByteAsync(stream, inputReportLength, outputReportLength, UsbVolumeLimitCommand, transportLog, cancellationToken)
+                .ConfigureAwait(false);
+            var gain = await TryReadUsbSettingByteAsync(stream, inputReportLength, outputReportLength, UsbGainModeCommand, transportLog, cancellationToken)
+                .ConfigureAwait(false);
+            var balance = await TryReadUsbBalanceAsync(stream, inputReportLength, outputReportLength, transportLog, cancellationToken)
+                .ConfigureAwait(false);
+            var dre = UsbDreCommand is null
+                ? null
+                : await TryReadUsbSettingByteAsync(stream, inputReportLength, outputReportLength, UsbDreCommand, transportLog, cancellationToken)
+                    .ConfigureAwait(false);
+
+            if (UsbDreCommand is null)
+            {
+                transportLog.Add("USB HID DRE command is not mapped yet; DRE readback skipped.");
+            }
+
+            transportLog.Add($"Opened {candidate.InterfaceDisplay} for USB HID device controls.");
+            return new K13BleDeviceControlsSnapshot(
+                volume is <= 99 ? volume : null,
+                volumeLimit is <= 99 ? volumeLimit : null,
+                gain,
+                balance,
+                dre is null ? null : dre != 0,
+                transportLog);
+        }
+    }
+
+    public async Task<K13BleVolumeSnapshot> SetDeviceVolumeAsync(
+        byte volume,
+        CancellationToken cancellationToken = default)
+    {
+        if (volume > 99)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), "Volume must be between 0 and 99.");
+        }
+
+        var before = await ReadDeviceControlsAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = await ApplyDeviceControlsAsync(
+            volume,
+            (byte)(before.VolumeLimit ?? 99),
+            before.ChannelBalance ?? 0,
+            before.GainMode is not null && before.GainMode != 0,
+            before.DreEnabled ?? false,
+            cancellationToken).ConfigureAwait(false);
+        return new K13BleVolumeSnapshot(
+            before.Volume ?? volume,
+            snapshot.Volume ?? volume,
+            snapshot.Volume == volume,
+            "usb device-settings",
+            snapshot.TransportLog);
+    }
+
+    public async Task<K13BleDeviceControlsSnapshot> ApplyDeviceControlsAsync(
+        byte volume,
+        byte volumeLimit,
+        sbyte channelBalance,
+        bool highGain,
+        bool dreEnabled,
+        CancellationToken cancellationToken = default)
+    {
+        if (volume > 99)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), "Volume must be between 0 and 99.");
+        }
+
+        if (volumeLimit > 99)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volumeLimit), "Volume limit must be between 0 and 99.");
+        }
+
+        if (channelBalance is < -10 or > 10)
+        {
+            throw new ArgumentOutOfRangeException(nameof(channelBalance), "Channel balance must be between L10 and R10.");
+        }
+
+        var transportLog = new List<string>
+        {
+            "USB HID device controls write started. Candidate FiiO Control setting triplets only."
+        };
+
+        var (stream, inputReportLength, outputReportLength, _) =
+            await OpenSelectedHidAsync("device-control write", transportLog, cancellationToken).ConfigureAwait(false);
+        await using (stream.ConfigureAwait(false))
+        {
+            await TryWriteUsbSettingAsync(stream, inputReportLength, outputReportLength, UsbVolumeCommand, [volume], transportLog, cancellationToken)
+                .ConfigureAwait(false);
+            await TryWriteUsbSettingAsync(stream, inputReportLength, outputReportLength, UsbVolumeLimitCommand, [volumeLimit], transportLog, cancellationToken)
+                .ConfigureAwait(false);
+            await TryWriteUsbSettingAsync(stream, inputReportLength, outputReportLength, UsbGainModeCommand, [highGain ? (byte)1 : (byte)0], transportLog, cancellationToken)
+                .ConfigureAwait(false);
+            await TryWriteUsbBalanceAsync(stream, inputReportLength, outputReportLength, channelBalance, transportLog, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (UsbDreCommand is null)
+            {
+                transportLog.Add("USB HID DRE command is not mapped yet; DRE write skipped.");
+            }
+            else
+            {
+                await TryWriteUsbSettingAsync(stream, inputReportLength, outputReportLength, UsbDreCommand, [dreEnabled ? (byte)1 : (byte)0], transportLog, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+        }
+
+        var readback = await ReadDeviceControlsAsync(cancellationToken).ConfigureAwait(false);
+        return readback with { TransportLog = transportLog.Concat(readback.TransportLog).ToArray() };
+    }
+
     public Task SavePresetAsync(EqPreset preset, int slot, CancellationToken cancellationToken = default)
     {
         throw new NotSupportedException(
@@ -1187,17 +1311,176 @@ public sealed class FiioK13DeviceService
             .Where(candidate =>
                 IsSupportedHidDevice(candidate) &&
                 (profile.ProductId is null || candidate.ProductId == profile.ProductId) &&
-                (profile.ProductId is not null
-                    || profile.ProductNameAliases is not { Count: > 0 }
-                    || FiioDeviceProfiles.ProductNameMatches(profile, candidate.Product)) &&
                 (profile.HidInterfaceNumber is null || candidate.InterfaceNumber == profile.HidInterfaceNumber) &&
                 candidate.InputReportLength > 0 &&
                 candidate.OutputReportLength > 0)
             .OrderByDescending(candidate => candidate.ProductId == profile.ProductId)
+            .ThenByDescending(candidate => FiioDeviceProfiles.ProductNameMatches(profile, candidate.Product))
             .ThenByDescending(candidate => profile.HidInterfaceNumber is not null && candidate.InterfaceNumber == profile.HidInterfaceNumber)
             .ThenByDescending(candidate => candidate.InputReportLength == 33 && candidate.OutputReportLength == 33)
+            .ThenByDescending(IsVendorDefinedUsage)
+            .ThenByDescending(candidate => candidate.InputReportLength >= 8 && candidate.OutputReportLength >= 8)
+            .ThenByDescending(candidate => candidate.OutputReportLength)
             .ThenByDescending(candidate => candidate.UsagePage == 0x0001)
             .FirstOrDefault();
+
+    private static bool IsVendorDefinedUsage(HidDeviceCandidate candidate)
+        => candidate.UsagePage is >= 0xFF00;
+
+    private async Task<(FileStream Stream, int InputReportLength, int OutputReportLength, HidDeviceCandidate Candidate)> OpenSelectedHidAsync(
+        string label,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        var detection = await DetectUsbAsync(cancellationToken).ConfigureAwait(false);
+        var candidate = SelectReadbackCandidate(detection.Candidates);
+
+        if (candidate is null)
+        {
+            throw new InvalidOperationException(
+                $"No writable FiiO/SNOWSKY HID interface found for {label}. Candidates: {detection.Candidates.Count}.");
+        }
+
+        var inputReportLength = candidate.InputReportLength ?? 33;
+        var outputReportLength = candidate.OutputReportLength ?? 33;
+        transportLog.Add(
+            $"Opening {candidate.InterfaceDisplay} {candidate.UsageDisplay} with report lengths in/out {inputReportLength}/{outputReportLength}.");
+
+        var handle = CreateFile(
+            candidate.DevicePath,
+            GenericRead | GenericWrite,
+            FileShareRead | FileShareWrite,
+            IntPtr.Zero,
+            OpenExisting,
+            FileAttributeNormal | FileFlagOverlapped,
+            IntPtr.Zero);
+
+        if (handle.IsInvalid)
+        {
+            handle.Dispose();
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Unable to open FiiO HID {label} handle.");
+        }
+
+        var stream = new FileStream(
+            handle,
+            FileAccess.ReadWrite,
+            Math.Max(inputReportLength, outputReportLength),
+            isAsync: true);
+
+        return (stream, inputReportLength, outputReportLength, candidate);
+    }
+
+    private async Task<byte?> TryReadUsbSettingByteAsync(
+        FileStream stream,
+        int inputReportLength,
+        int outputReportLength,
+        UsbDeviceSettingCommand command,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await SendGetAsync(
+                stream,
+                inputReportLength,
+                outputReportLength,
+                command.Category,
+                [command.Command, command.Target],
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+            var data = ExtractResponsePayload(response);
+            var value = ExtractSettingValue(data, command);
+            transportLog.Add($"USB HID {command.Name} readback: {(value is null ? "(blank)" : $"0x{value:X2}")}.");
+            return value;
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or Win32Exception or InvalidOperationException)
+        {
+            transportLog.Add($"USB HID {command.Name} readback unavailable: {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task TryWriteUsbSettingAsync(
+        FileStream stream,
+        int inputReportLength,
+        int outputReportLength,
+        UsbDeviceSettingCommand command,
+        byte[] payload,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await SendSetOnlyAsync(
+                stream,
+                inputReportLength,
+                outputReportLength,
+                (byte)(command.Category | 0x10),
+                [command.Command, command.Target, ..payload],
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+            transportLog.Add($"USB HID {command.Name} write sent.");
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or Win32Exception or InvalidOperationException)
+        {
+            transportLog.Add($"USB HID {command.Name} write unavailable: {ex.Message}");
+        }
+    }
+
+    private async Task<sbyte?> TryReadUsbBalanceAsync(
+        FileStream stream,
+        int inputReportLength,
+        int outputReportLength,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await SendGetAsync(
+                stream,
+                inputReportLength,
+                outputReportLength,
+                UsbChannelBalanceCommand.Category,
+                [UsbChannelBalanceCommand.Command, UsbChannelBalanceCommand.Target],
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+            var data = ExtractResponsePayload(response);
+            var balanceData = StripSettingEcho(data, UsbChannelBalanceCommand);
+            if (balanceData.Length == 0)
+            {
+                return null;
+            }
+
+            var balance = DecodeChannelBalance(balanceData);
+            transportLog.Add($"USB HID channel balance readback: {balance:+0;-0;0}.");
+            return balance;
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or Win32Exception or InvalidOperationException)
+        {
+            transportLog.Add($"USB HID channel balance readback unavailable: {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task TryWriteUsbBalanceAsync(
+        FileStream stream,
+        int inputReportLength,
+        int outputReportLength,
+        sbyte channelBalance,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        var direction = channelBalance < 0 ? (byte)0x01 : channelBalance > 0 ? (byte)0x02 : (byte)0x00;
+        var magnitude = (byte)Math.Abs(channelBalance);
+        await TryWriteUsbSettingAsync(
+            stream,
+            inputReportLength,
+            outputReportLength,
+            UsbChannelBalanceCommand,
+            [direction, magnitude],
+            transportLog,
+            cancellationToken).ConfigureAwait(false);
+    }
 
     private async Task<string?> TryReadPresetNameAsync(
         FileStream stream,
@@ -1542,6 +1825,43 @@ public sealed class FiioK13DeviceService
     private byte[] StripReportId(byte[] report)
         => report.Length > 0 && report[0] == SelectedProfile.ReportId ? report[1..] : report;
 
+    private static byte[] ExtractResponsePayload(byte[] response)
+    {
+        if (response.Length <= 6)
+        {
+            return [];
+        }
+
+        var dataLength = response[5];
+        return response[6..Math.Min(response.Length, 6 + dataLength)];
+    }
+
+    private static byte[] StripSettingEcho(byte[] data, UsbDeviceSettingCommand command)
+        => data.Length >= 2 && data[0] == command.Command && data[1] == command.Target
+            ? data[2..]
+            : data;
+
+    private static byte? ExtractSettingValue(byte[] data, UsbDeviceSettingCommand command)
+    {
+        var payload = StripSettingEcho(data, command);
+        return payload.Length == 0 ? null : payload[^1];
+    }
+
+    private static sbyte DecodeChannelBalance(byte[] data)
+    {
+        if (data.Length >= 2)
+        {
+            return data[0] switch
+            {
+                0x01 => (sbyte)-Math.Min(data[1], (byte)10),
+                0x02 => (sbyte)Math.Min(data[1], (byte)10),
+                _ => 0
+            };
+        }
+
+        return unchecked((sbyte)data[0]);
+    }
+
     private static byte[] BuildGetPacket(byte command, byte[] data)
     {
         var packet = new byte[8 + data.Length];
@@ -1677,6 +1997,11 @@ public sealed class FiioK13DeviceService
     private const byte CmdEqCount = 0x18;
     private const byte CmdEqSwitch = 0x1A;
     private const byte CmdPresetName = 0x30;
+    private static readonly UsbDeviceSettingCommand UsbVolumeCommand = new("volume", 0x02, 0x01, 0x01);
+    private static readonly UsbDeviceSettingCommand UsbGainModeCommand = new("gain mode", 0x02, 0x02, 0x01);
+    private static readonly UsbDeviceSettingCommand UsbVolumeLimitCommand = new("volume limit", 0x02, 0x03, 0x01);
+    private static readonly UsbDeviceSettingCommand UsbChannelBalanceCommand = new("channel balance", 0x02, 0x06, 0x01);
+    private static readonly UsbDeviceSettingCommand? UsbDreCommand = null;
     private const uint GenericRead = 0x80000000;
     private const uint GenericWrite = 0x40000000;
     private const uint FileShareRead = 0x00000001;
@@ -1791,6 +2116,8 @@ public sealed class FiioK13DeviceService
 }
 
 internal sealed record HidDeviceId(ushort VendorId, ushort? ProductId);
+
+internal sealed record UsbDeviceSettingCommand(string Name, byte Category, byte Command, byte Target);
 
 public sealed record HidDetectionResult(
     int ScannedDeviceCount,

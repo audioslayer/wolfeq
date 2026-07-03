@@ -24,21 +24,25 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private static readonly bool K13HardwareEqIoEnabled = true;
     private readonly FiioK13DeviceService _deviceService = new();
     private readonly FiioK13BleLightService _bleLightService = new();
+    private readonly WindowsAudioEndpointVolumeService _windowsVolumeService = new();
     private readonly AutoEqGitHubProfileService _githubProfileService = new();
     private readonly LocalPresetLibraryService _localLibraryService = new();
     private readonly SlotLightingProfileService _slotLightingProfileService = new();
     private readonly AppLogService _log = new();
     private readonly DispatcherTimer _profileAutosaveTimer;
     private readonly DispatcherTimer _liveDeviceEqSyncTimer;
+    private readonly DispatcherTimer _deviceVolumeWriteTimer;
+    private readonly DispatcherTimer _deviceControlsWriteTimer;
     private readonly HashSet<int> _pendingLiveBandNumbers = [];
     private readonly Dictionary<EqPreset, EqPreset> _savedPresetSnapshots = [];
     private EqPreset? _savedSelectedPreset;
     private string _status = "Connect your device or edit profiles.";
-    private string _liveDeviceEqSyncStatus = "Manual device write - click Save Changes to write edits";
+    private string _liveDeviceEqSyncStatus = "Save-only mode - edit locally, then click Save Changes";
     private string _deviceSelectionStatus = "Auto-detect will choose a supported FiiO device profile.";
     private string _profileLibrarySaveStatus = "Saved";
-    private string _deviceProfileName = "ANANDA";
+    private string _deviceProfileName = "USER 1";
     private string _deviceVolumeDisplay = "Vol --";
+    private string _deviceControlsStatus = "Device controls will read on connect; slider and toggles write immediately when mapped.";
     private string _deviceInputDisplay = "Current input has not been read yet.";
     private string _githubProfileSearchText = "Ananda";
     private string _githubProfileStatus = "Online source ready";
@@ -47,7 +51,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _isDeviceConnected;
     private bool _topLedOn = true;
     private bool _knobLedOn = true;
+    private bool _deviceHighGain;
+    private bool _deviceDreEnabled;
     private double _preampDb;
+    private double _deviceVolume = 50;
+    private double _deviceVolumeLimit = 99;
+    private double _deviceChannelBalance;
     private EqPreset _selectedPreset;
     private DeviceUserPresetOption _selectedDeviceUserPreset = null!;
     private FiioDeviceProfile _selectedDeviceProfile = FiioDeviceProfiles.Default;
@@ -68,12 +77,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private EqPreset? _comparePreset;
     private byte? _confirmedDevicePresetId;
     private bool _isLoadingPreset;
+    private bool _isApplyingDeviceControlsSnapshot;
+    private bool _isWritingDeviceVolume;
     private bool _liveDeviceEqSyncEnabled = true;
     private bool _pendingLivePreampSync;
     private bool _isSyncingLiveDeviceEq;
     private bool _isLoadingSlotLightingProfile;
     private bool _isProfileLibraryDirty;
-    private bool _suppressSelectedPresetDirty;
     private Dictionary<int, SlotLightingProfileData> _slotLightingProfiles = [];
 
     public MainViewModel()
@@ -89,6 +99,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Interval = TimeSpan.FromMilliseconds(550)
         };
         _liveDeviceEqSyncTimer.Tick += LiveDeviceEqSyncTimerOnTick;
+        _deviceVolumeWriteTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(220)
+        };
+        _deviceVolumeWriteTimer.Tick += DeviceVolumeWriteTimerOnTick;
+        _deviceControlsWriteTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(420)
+        };
+        _deviceControlsWriteTimer.Tick += DeviceControlsWriteTimerOnTick;
 
         _selectedPreset = Presets[0];
         FilteredPresets = CollectionViewSource.GetDefaultView(Presets);
@@ -173,8 +193,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ReadVolumeCommand = new AsyncRelayCommand(ReadVolumeAsync);
         ProbeVolumeCommand = new AsyncRelayCommand(ProbeVolume85Async);
         ListenVolumeCommand = new AsyncRelayCommand(ListenVolumeAsync);
-        VolumeDownCommand = new AsyncRelayCommand(VolumeDownAsync, () => false);
-        VolumeUpCommand = new AsyncRelayCommand(VolumeUpAsync, () => false);
+        VolumeDownCommand = new AsyncRelayCommand(VolumeDownAsync, () => CanUseDeviceVolumeControls);
+        VolumeUpCommand = new AsyncRelayCommand(VolumeUpAsync, () => CanUseDeviceVolumeControls);
+        SetDeviceVolumeCommand = new AsyncRelayCommand(SetDeviceVolumeAsync, () => CanUseDeviceVolumeControls);
+        ReadDeviceControlsCommand = new AsyncRelayCommand(ReadDeviceControlsAsync, () => SelectedDeviceSupportsBleDeviceControls);
+        ApplyDeviceControlsCommand = new AsyncRelayCommand(ApplyDeviceControlsAsync, () => SelectedDeviceSupportsBleDeviceControls);
         SaveCommand = new RelayCommand(async () => await SaveAsync(), () => CanWriteToHardware);
         ResetCommand = new RelayCommand(ResetSelectedPreset, () => SelectedPreset is not null);
         ImportApoFromFileCommand = new RelayCommand(ImportApoFromFile);
@@ -268,7 +291,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(DeviceProfileCapabilityText));
                 OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
                 OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
+                OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
+                OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
                 OnPropertyChanged(nameof(SupportsK13PresetTools));
+                RaiseDeviceControlsCanExecuteChanged();
                 SetConnectionState(IsDeviceConnected);
             }
         }
@@ -277,6 +303,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string DeviceProfileCapabilityText => SelectedDeviceProfile.CapabilitySummary;
     public bool SelectedDeviceSupportsBleInput => SelectedDeviceProfile.HasBleInput;
     public bool SelectedDeviceSupportsBleLighting => SelectedDeviceProfile.HasBleLighting;
+    public bool SelectedDeviceSupportsBleDeviceControls => SelectedDeviceProfile.HasBleDeviceControls;
     public string ProfileLibrarySaveStatus
     {
         get => _profileLibrarySaveStatus;
@@ -482,7 +509,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (SetField(ref _selectedPreset, value))
             {
                 LoadSelectedPreset();
-                if (!_suppressSelectedPresetDirty && !ReferenceEquals(_selectedPreset, _savedSelectedPreset))
+                if (!ReferenceEquals(_selectedPreset, _savedSelectedPreset))
                 {
                     IsProfileLibraryDirty = true;
                 }
@@ -507,7 +534,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public bool LiveDeviceEqSyncEnabled
     {
-        get => K13HardwareEqIoEnabled && _liveDeviceEqSyncEnabled;
+        get => K13HardwareEqIoEnabled && _liveDeviceEqSyncEnabled && SelectedDeviceProfile.SupportsLiveEqWrites;
         set
         {
             if (!K13HardwareEqIoEnabled)
@@ -515,6 +542,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 SetField(ref _liveDeviceEqSyncEnabled, false);
                 LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
                 AddLog("Live device EQ sync is disabled in this safety build.");
+                return;
+            }
+
+            if (!SelectedDeviceProfile.SupportsLiveEqWrites)
+            {
+                SetField(ref _liveDeviceEqSyncEnabled, false);
+                LiveDeviceEqSyncStatus = $"{SelectedDeviceProfile.DisplayName} uses save-only EQ writes";
+                AddLog($"{SelectedDeviceProfile.DisplayName} live EQ writes are disabled; use Save Changes to write hardware.");
                 return;
             }
 
@@ -555,6 +590,81 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _deviceVolumeDisplay, value);
     }
 
+    public string DeviceControlsStatus
+    {
+        get => _deviceControlsStatus;
+        private set => SetField(ref _deviceControlsStatus, value);
+    }
+
+    public double DeviceVolume
+    {
+        get => _deviceVolume;
+        set
+        {
+            if (SetField(ref _deviceVolume, Math.Clamp(Math.Round(value), 0, 99)))
+            {
+                DeviceVolumeDisplay = $"Vol {_deviceVolume:0}/99";
+                QueueDeviceVolumeWrite();
+            }
+        }
+    }
+
+    public double DeviceVolumeLimit
+    {
+        get => _deviceVolumeLimit;
+        set
+        {
+            if (SetField(ref _deviceVolumeLimit, Math.Clamp(Math.Round(value), 0, 99)))
+            {
+                QueueDeviceControlsWrite();
+            }
+        }
+    }
+
+    public double DeviceChannelBalance
+    {
+        get => _deviceChannelBalance;
+        set
+        {
+            if (SetField(ref _deviceChannelBalance, Math.Clamp(Math.Round(value), -10, 10)))
+            {
+                OnPropertyChanged(nameof(DeviceChannelBalanceDisplay));
+                QueueDeviceControlsWrite();
+            }
+        }
+    }
+
+    public string DeviceChannelBalanceDisplay => DeviceChannelBalance switch
+    {
+        < 0 => $"L{Math.Abs(DeviceChannelBalance):0}",
+        > 0 => $"R{DeviceChannelBalance:0}",
+        _ => "Center"
+    };
+
+    public bool DeviceHighGain
+    {
+        get => _deviceHighGain;
+        set
+        {
+            if (SetField(ref _deviceHighGain, value))
+            {
+                QueueDeviceControlsWrite();
+            }
+        }
+    }
+
+    public bool DeviceDreEnabled
+    {
+        get => _deviceDreEnabled;
+        set
+        {
+            if (SetField(ref _deviceDreEnabled, value))
+            {
+                QueueDeviceControlsWrite();
+            }
+        }
+    }
+
     public string DeviceInputDisplay
     {
         get => _deviceInputDisplay;
@@ -580,6 +690,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (SetField(ref _selectedDeviceUserPreset, value))
             {
+                DeviceProfileName = value.DeviceName;
                 LoadSelectedSlotLightingProfileIntoUi();
                 OnPropertyChanged(nameof(SlotLightingTitle));
                 OnPropertyChanged(nameof(SlotLightingSummary));
@@ -664,6 +775,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand ListenVolumeCommand { get; }
     public ICommand VolumeDownCommand { get; }
     public ICommand VolumeUpCommand { get; }
+    public ICommand SetDeviceVolumeCommand { get; }
+    public ICommand ReadDeviceControlsCommand { get; }
+    public ICommand ApplyDeviceControlsCommand { get; }
     public ICommand SaveCommand { get; }
     public ICommand ResetCommand { get; }
     public ICommand ImportApoFromFileCommand { get; }
@@ -703,6 +817,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand OpenReleasesCommand { get; }
     public ICommand OpenBuyMeCoffeeCommand { get; }
     public bool CanWriteToHardware => false;
+    public bool CanUseDeviceVolumeControls => IsDeviceConnected && SelectedDeviceSupportsBleDeviceControls && !_isWritingDeviceVolume;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -713,6 +828,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (IsDeviceConnected)
         {
             await ReadDeviceEqAsync();
+            if (SelectedDeviceSupportsBleDeviceControls)
+            {
+                await ReadDeviceControlsAsync();
+            }
         }
     }
 
@@ -795,33 +914,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            var snapshot = await _deviceService.ReadCurrentEqAsync();
-            SetConnectionState(true);
-            _confirmedDevicePresetId = snapshot.PresetId;
-            SelectDeviceUserPresetOption(snapshot.PresetId);
-
-            foreach (var line in snapshot.TransportLog)
-            {
-                AddLog($"  {line}");
-            }
-
-            var readbackPreset = UpsertReadbackPreset(snapshot);
-            if (ReferenceEquals(SelectedPreset, readbackPreset))
-            {
-                LoadSelectedPreset();
-            }
-            else
-            {
-                SelectedPreset = readbackPreset;
-            }
-
-            if (!TrySaveProfileLibraryQuietly(out var saveError))
-            {
-                AddLog($"Device EQ readback was not saved locally: {saveError}");
-            }
-
-            Status = $"Read {snapshot.Bands.Count} band(s) from {snapshot.PresetDisplayName}.";
-            AddLog(Status);
+            await ReadAndApplyDeviceEqAsync();
         }
         catch (OperationCanceledException)
         {
@@ -834,6 +927,39 @@ public sealed class MainViewModel : INotifyPropertyChanged
             SetConnectionState(false);
             AddLog(Status);
         }
+    }
+
+    private async Task<K13EqReadback> ReadAndApplyDeviceEqAsync()
+    {
+        var snapshot = await _deviceService.ReadCurrentEqAsync();
+        SetConnectionState(true);
+        _confirmedDevicePresetId = snapshot.PresetId;
+        SelectDeviceUserPresetOption(snapshot.PresetId);
+        ApplyReadbackSlotName(snapshot);
+
+        foreach (var line in snapshot.TransportLog)
+        {
+            AddLog($"  {line}");
+        }
+
+        var readbackPreset = UpsertReadbackPreset(snapshot);
+        if (ReferenceEquals(SelectedPreset, readbackPreset))
+        {
+            LoadSelectedPreset();
+        }
+        else
+        {
+            SelectedPreset = readbackPreset;
+        }
+
+        if (!TrySaveProfileLibraryQuietly(out var saveError))
+        {
+            AddLog($"Device EQ readback was not saved locally: {saveError}");
+        }
+
+        Status = $"Read {snapshot.Bands.Count} band(s) from {snapshot.PresetDisplayName}.";
+        AddLog(Status);
+        return snapshot;
     }
 
     private async Task SelectUserPresetAsync()
@@ -859,8 +985,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             _confirmedDevicePresetId = result.AfterPresetId;
-            Status = $"Switched to {option.DisplayName}; reading device EQ...";
+            SelectDeviceEqPresetForSlot(result.AfterPresetId, createIfMissing: true);
+            Status = $"Switched to {option.DisplayName}; waiting for device readback...";
             AddLog(Status);
+            await Task.Delay(650);
+            Status = $"Reading {option.DisplayName} EQ into Tune...";
             await ReadDeviceEqAsync();
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception)
@@ -1269,40 +1398,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task ReadVolumeAsync()
     {
-        Status = "Reading K13 volume over BLE...";
-        AddLog("BLE volume readback requested.");
+        Status = $"Reading {SelectedDeviceProfile.DisplayName} Windows playback volume...";
+        AddLog("Windows playback endpoint volume readback requested.");
 
         try
         {
-            var snapshot = await _bleLightService.ReadVolumeAsync();
-            LogBleSnapshot(snapshot);
-            var isTrusted = !snapshot.CommandName.Contains("legacy", StringComparison.OrdinalIgnoreCase);
-            DeviceVolumeDisplay = isTrusted ? $"Vol {snapshot.After}/99" : "Vol ?";
-            Status = isTrusted
-                ? $"Volume: {snapshot.After}/99"
-                : $"Unverified volume candidate: {snapshot.After}/99 via {snapshot.CommandName}.";
+            var snapshot = await _windowsVolumeService.ReadVolumeAsync("RETRO NANO");
+            ApplyEndpointVolumeSnapshot(snapshot);
+            Status = $"Volume: {snapshot.Volume}/99 via {snapshot.EndpointName}.";
             AddLog(Status);
         }
         catch (OperationCanceledException)
         {
-            Status = "BLE volume readback was canceled.";
-            AddLog(Status);
-        }
-        catch (K13BleOperationException ex)
-        {
-            foreach (var line in ex.TransportLog)
-            {
-                AddLog($"  {line}");
-            }
-
-            Status = ex.InnerException is null
-                ? ex.Message
-                : $"{ex.Message} {ex.InnerException.Message}";
+            Status = "Windows playback volume readback was canceled.";
             AddLog(Status);
         }
         catch (Exception ex)
         {
-            Status = $"BLE volume readback failed: {ex.Message}";
+            Status = $"Windows playback volume readback failed: {ex.Message}";
             AddLog(Status);
         }
     }
@@ -1315,6 +1428,94 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private async Task VolumeUpAsync()
     {
         await ChangeVolumeAsync(direction: 1, label: "up one step");
+    }
+
+    private async Task SetDeviceVolumeAsync()
+    {
+        if (!CanUseDeviceVolumeControls)
+        {
+            return;
+        }
+
+        Status = $"Setting {SelectedDeviceProfile.DisplayName} Windows playback volume...";
+        AddLog($"Windows playback endpoint volume set requested: {DeviceVolume:0}/99.");
+        _isWritingDeviceVolume = true;
+        RaiseDeviceControlsCanExecuteChanged();
+
+        try
+        {
+            var snapshot = await _windowsVolumeService.SetVolumeAsync("RETRO NANO", (byte)DeviceVolume);
+            ApplyEndpointVolumeSnapshot(snapshot);
+            Status = $"Volume set: {snapshot.Volume}/99 via {snapshot.EndpointName}.";
+            AddLog(Status);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Windows playback volume set was canceled.";
+            AddLog(Status);
+        }
+        catch (Exception ex)
+        {
+            Status = $"Windows playback volume set failed: {ex.Message}";
+            AddLog(Status);
+        }
+        finally
+        {
+            _isWritingDeviceVolume = false;
+            RaiseDeviceControlsCanExecuteChanged();
+        }
+    }
+
+    private async Task ReadDeviceControlsAsync()
+    {
+        Status = $"Reading {SelectedDeviceProfile.DisplayName} volume. Other Retro Nano settings are not mapped yet.";
+        AddLog("Retro Nano device controls read requested. Volume uses Windows playback endpoint; gain/DRE/limit HID packets are not verified.");
+
+        try
+        {
+            var volumeSnapshot = await _windowsVolumeService.ReadVolumeAsync("RETRO NANO");
+            ApplyEndpointVolumeSnapshot(volumeSnapshot);
+            DeviceControlsStatus = $"Volume {volumeSnapshot.Volume}/99 via {volumeSnapshot.EndpointName}. Gain, DRE, volume limit, and channel balance still need verified Retro Nano packets.";
+            Status = DeviceControlsStatus;
+            AddLog(Status);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "USB HID device controls readback was canceled.";
+            AddLog(Status);
+        }
+        catch (Exception ex)
+        {
+            Status = $"USB HID device controls readback failed: {ex.Message}";
+            DeviceControlsStatus = Status;
+            AddLog(Status);
+        }
+    }
+
+    private async Task ApplyDeviceControlsAsync()
+    {
+        Status = $"Applying {SelectedDeviceProfile.DisplayName} volume only. Other settings are not mapped yet.";
+        AddLog("Retro Nano device controls write requested. Applying volume only to avoid sending unverified HID packets.");
+
+        try
+        {
+            var volumeSnapshot = await _windowsVolumeService.SetVolumeAsync("RETRO NANO", (byte)DeviceVolume);
+            ApplyEndpointVolumeSnapshot(volumeSnapshot);
+            DeviceControlsStatus = $"Volume set to {volumeSnapshot.Volume}/99. Gain, DRE, volume limit, and channel balance are waiting on verified Retro Nano packets.";
+            Status = DeviceControlsStatus;
+            AddLog(Status);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "USB HID device controls write was canceled.";
+            AddLog(Status);
+        }
+        catch (Exception ex)
+        {
+            Status = $"USB HID device controls write failed: {ex.Message}";
+            DeviceControlsStatus = Status;
+            AddLog(Status);
+        }
     }
 
     private async Task ProbeVolume85Async()
@@ -1477,40 +1678,64 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task ChangeVolumeAsync(int direction, string label)
     {
-        Status = $"Turning K13 volume {label} over BLE...";
-        AddLog($"BLE guarded volume change requested: {label}.");
+        DeviceVolume = Math.Clamp(DeviceVolume + direction, 0, 99);
+        Status = $"Volume queued: {DeviceVolume:0}/99.";
+        AddLog($"USB HID volume change queued: {label}.");
+        await SetDeviceVolumeAsync();
+    }
 
-        try
+    private async void DeviceVolumeWriteTimerOnTick(object? sender, EventArgs e)
+    {
+        _deviceVolumeWriteTimer.Stop();
+        await SetDeviceVolumeAsync();
+    }
+
+    private async void DeviceControlsWriteTimerOnTick(object? sender, EventArgs e)
+    {
+        _deviceControlsWriteTimer.Stop();
+        await ApplyDeviceControlsAsync();
+    }
+
+    private void QueueDeviceVolumeWrite()
+    {
+        if (_isApplyingDeviceControlsSnapshot || !IsDeviceConnected || !SelectedDeviceSupportsBleDeviceControls)
         {
-            var snapshot = await _bleLightService.ChangeVolumeByOneAsync(direction);
-            LogBleSnapshot(snapshot);
-            DeviceVolumeDisplay = $"Vol {snapshot.After}/99";
-            Status = snapshot.Changed
-                ? $"Volume changed: {snapshot.Before}/99 -> {snapshot.After}/99"
-                : $"Volume write unverified. Readback stayed {snapshot.After}/99.";
-            AddLog(Status);
+            return;
         }
-        catch (OperationCanceledException)
+
+        _deviceVolumeWriteTimer.Stop();
+        _deviceVolumeWriteTimer.Start();
+    }
+
+    private void QueueDeviceControlsWrite()
+    {
+        if (_isApplyingDeviceControlsSnapshot || !IsDeviceConnected || !SelectedDeviceSupportsBleDeviceControls)
         {
-            Status = "BLE volume change was canceled.";
-            AddLog(Status);
+            return;
         }
-        catch (K13BleOperationException ex)
+
+        DeviceControlsStatus = "This Retro Nano setting is not mapped yet. Volume writes are active; gain/DRE/limit/balance need verified packets.";
+    }
+
+    private void ApplyReadbackSlotName(K13EqReadback snapshot)
+    {
+        if (GetWritableSlotNumber(snapshot.PresetId, snapshot.Profile) is not int slotNumber)
         {
-            foreach (var line in ex.TransportLog)
+            return;
+        }
+
+        var name = string.IsNullOrWhiteSpace(snapshot.PresetName)
+            ? snapshot.Profile.GetPresetDisplayName(snapshot.PresetId)
+            : snapshot.PresetName;
+        for (var index = 0; index < DeviceUserPresets.Count; index++)
+        {
+            if (DeviceUserPresets[index].PresetId == snapshot.PresetId)
             {
-                AddLog($"  {line}");
+                DeviceUserPresets[index] = DeviceUserPresets[index] with { Name = name };
+                SelectedDeviceUserPreset = DeviceUserPresets[index];
+                DeviceProfileName = name;
+                break;
             }
-
-            Status = ex.InnerException is null
-                ? ex.Message
-                : $"{ex.Message} {ex.InnerException.Message}";
-            AddLog(Status);
-        }
-        catch (Exception ex)
-        {
-            Status = $"BLE volume change failed: {ex.Message}";
-            AddLog(Status);
         }
     }
 
@@ -1823,6 +2048,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task SaveProfileLibraryAsync()
     {
+        var wroteToHardware = false;
+        var reloadedHardware = false;
+
         try
         {
             if (IsDeviceConnected && K13HardwareEqIoEnabled)
@@ -1835,8 +2063,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     AddLog($"  {line}");
                 }
 
-                AddLog($"Reloading {SelectedDeviceUserPreset.DisplayName} from hardware after save.");
-                await ReadDeviceEqAsync();
+                wroteToHardware = true;
+                AddLog($"Waiting for {SelectedDeviceUserPreset.DisplayName} to settle after hardware save.");
+                reloadedHardware = await TryReloadDeviceEqAfterSaveAsync(SelectedDeviceProfile.ReloadEqAfterSave);
             }
             else if (IsDeviceConnected)
             {
@@ -1846,8 +2075,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _localLibraryService.Save(Presets);
             CommitSavedProfileState();
             IsProfileLibraryDirty = false;
-            Status = IsDeviceConnected && K13HardwareEqIoEnabled
-                ? $"Saved and reloaded {SelectedDeviceUserPreset.DisplayName} from hardware."
+            Status = wroteToHardware
+                ? reloadedHardware
+                    ? $"Saved and reloaded {SelectedDeviceUserPreset.DisplayName} from hardware."
+                    : $"Saved {SelectedDeviceUserPreset.DisplayName}; device is reconnecting. Click Connect if it does not return."
                 : $"Saved {Presets.Count} profile(s) to WolfEQ.";
             AddLog($"Saved local profile library: {_localLibraryService.LibraryPath}");
         }
@@ -1856,6 +2087,52 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Status = $"Profile save failed: {ex.Message}";
             AddLog(Status);
         }
+    }
+
+    private async Task<bool> TryReloadDeviceEqAfterSaveAsync(bool readBackAfterReconnect)
+    {
+        const int maxAttempts = 20;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            await Task.Delay(attempt == 1 ? 900 : 1500);
+            Status = $"Waiting for {SelectedDeviceProfile.DisplayName} after save ({attempt}/{maxAttempts})...";
+
+            try
+            {
+                var detection = await _deviceService.DetectUsbAsync();
+                if (!detection.IsDetected)
+                {
+                    AddLog($"Post-save reconnect attempt {attempt}: {detection.StatusMessage}");
+                    continue;
+                }
+
+                if (detection.MatchedProfile is not null)
+                {
+                    SelectDetectedDeviceProfile(detection.MatchedProfile, detection.MatchedCandidate);
+                }
+
+                SetConnectionState(true);
+                if (readBackAfterReconnect)
+                {
+                    AddLog($"Post-save reconnect detected {detection.MatchedProfile?.DisplayLabel ?? SelectedDeviceProfile.DisplayLabel}; reloading device EQ.");
+                    await ReadAndApplyDeviceEqAsync();
+                }
+                else
+                {
+                    AddLog($"Post-save reconnect detected {detection.MatchedProfile?.DisplayLabel ?? SelectedDeviceProfile.DisplayLabel}; readback skipped for save-only profile.");
+                }
+
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception)
+            {
+                AddLog($"Post-save reconnect attempt {attempt} failed: {ex.Message}");
+            }
+        }
+
+        SetConnectionState(false);
+        AddLog("Post-save reload did not complete. Hardware save may have succeeded, but Windows has not reopened the HID interface yet.");
+        return false;
     }
 
     private bool TrySaveProfileLibraryQuietly(out string? errorMessage)
@@ -2711,66 +2988,38 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void ResetSelectedPreset()
     {
-        if (_savedSelectedPreset is not null && !ReferenceEquals(SelectedPreset, _savedSelectedPreset))
-        {
-            _suppressSelectedPresetDirty = true;
-            try
-            {
-                SelectedPreset = _savedSelectedPreset;
-                FilteredPresets.MoveCurrentTo(_savedSelectedPreset);
-            }
-            finally
-            {
-                _suppressSelectedPresetDirty = false;
-            }
-
-            IsProfileLibraryDirty = HasUnsavedProfileState();
-            Status = $"Reset preset selection to {SelectedPreset.Name}.";
-            AddLog(Status);
-            return;
-        }
-
-        if (!_savedPresetSnapshots.TryGetValue(SelectedPreset, out var savedSnapshot))
-        {
-            LoadSelectedPreset();
-            Status = $"Reloaded preset: {SelectedPreset.Name}";
-            AddLog(Status);
-            return;
-        }
-
-        var originalPreset = SelectedPreset;
-        var restoredPreset = ClonePreset(savedSnapshot);
-        var selectedIndex = Presets.IndexOf(originalPreset);
-        if (selectedIndex < 0)
-        {
-            return;
-        }
+        var flat = CreateFlatPresetModel(SelectedPreset.Name);
 
         _isLoadingPreset = true;
         try
         {
-            Presets[selectedIndex] = restoredPreset;
-            _savedPresetSnapshots.Remove(originalPreset);
-            _savedPresetSnapshots[restoredPreset] = ClonePreset(restoredPreset);
-            if (ReferenceEquals(_savedSelectedPreset, originalPreset))
+            SelectedPreset.PreampDb = flat.PreampDb;
+            SelectedPreset.Bands.Clear();
+            foreach (var band in flat.Bands.Take(SelectedDeviceProfile.BandCount))
             {
-                _savedSelectedPreset = restoredPreset;
+                SelectedPreset.Bands.Add(new EqBand
+                {
+                    Number = band.Number,
+                    Enabled = true,
+                    FilterType = band.FilterType,
+                    FrequencyHz = band.FrequencyHz,
+                    GainDb = 0,
+                    Q = band.Q
+                });
             }
 
-            SelectedPreset = restoredPreset;
-            FilteredPresets.MoveCurrentTo(restoredPreset);
+            PreampDb = 0;
         }
         finally
         {
             _isLoadingPreset = false;
         }
 
-        if (_savedPresetSnapshots.Count == Presets.Count)
-        {
-            IsProfileLibraryDirty = HasUnsavedProfileState();
-        }
-
-        Status = $"Reset {SelectedPreset.Name} to the last saved version.";
+        OnPropertyChanged(nameof(Bands));
+        RefreshHeadroomProperties();
+        QueueProfileAutosave();
+        IsProfileLibraryDirty = true;
+        Status = $"Reset {SelectedPreset.Name} to a flat EQ.";
         AddLog(Status);
     }
 
@@ -2924,6 +3173,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        if (!SelectedDeviceProfile.SupportsLiveEqWrites)
+        {
+            LiveDeviceEqSyncStatus = $"Unsaved preamp edit - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}";
+            return;
+        }
+
         if (!IsDeviceConnected)
         {
             LiveDeviceEqSyncStatus = $"Connect {SelectedDeviceProfile.DisplayName} and click Save Changes to write edits";
@@ -2946,6 +3201,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        if (!SelectedDeviceProfile.SupportsLiveEqWrites)
+        {
+            LiveDeviceEqSyncStatus = $"Unsaved band {bandNumber} edit - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}";
+            return;
+        }
+
         if (!IsDeviceConnected)
         {
             LiveDeviceEqSyncStatus = $"Connect {SelectedDeviceProfile.DisplayName} and click Save Changes to write edits";
@@ -2960,6 +3221,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (!K13HardwareEqIoEnabled)
         {
             LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
+            return;
+        }
+
+        if (!SelectedDeviceProfile.SupportsLiveEqWrites)
+        {
+            LiveDeviceEqSyncStatus = $"{SelectedDeviceProfile.DisplayName} uses save-only EQ writes";
             return;
         }
 
@@ -2984,6 +3251,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (!K13HardwareEqIoEnabled)
         {
             LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
+            return;
+        }
+
+        if (!SelectedDeviceProfile.SupportsLiveEqWrites)
+        {
+            _pendingLivePreampSync = false;
+            _pendingLiveBandNumbers.Clear();
+            LiveDeviceEqSyncStatus = $"{SelectedDeviceProfile.DisplayName} uses save-only EQ writes";
             return;
         }
 
@@ -3578,6 +3853,72 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private void LogBleSnapshot(K13BleDeviceControlsSnapshot snapshot)
+    {
+        foreach (var line in snapshot.TransportLog)
+        {
+            AddLog($"  {line}");
+        }
+    }
+
+    private void ApplyEndpointVolumeSnapshot(WindowsEndpointVolumeSnapshot snapshot)
+    {
+        _isApplyingDeviceControlsSnapshot = true;
+        try
+        {
+            DeviceVolume = snapshot.Volume;
+            DeviceVolumeDisplay = $"Vol {snapshot.Volume}/99";
+        }
+        finally
+        {
+            _isApplyingDeviceControlsSnapshot = false;
+        }
+    }
+
+    private void ApplyDeviceControlsSnapshot(K13BleDeviceControlsSnapshot snapshot)
+    {
+        _isApplyingDeviceControlsSnapshot = true;
+        try
+        {
+            if (snapshot.Volume is byte volume)
+            {
+                DeviceVolume = volume;
+                DeviceVolumeDisplay = $"Vol {volume}/99";
+            }
+
+            if (snapshot.VolumeLimit is byte volumeLimit and <= 99)
+            {
+                DeviceVolumeLimit = volumeLimit;
+            }
+
+            if (snapshot.GainMode is byte gainMode)
+            {
+                DeviceHighGain = gainMode != 0;
+            }
+
+            if (snapshot.ChannelBalance is sbyte channelBalance)
+            {
+                DeviceChannelBalance = channelBalance;
+            }
+
+            if (snapshot.DreEnabled is bool dreEnabled)
+            {
+                DeviceDreEnabled = dreEnabled;
+            }
+        }
+        finally
+        {
+            _isApplyingDeviceControlsSnapshot = false;
+        }
+    }
+
+    private string FormatDeviceControlsStatus(K13BleDeviceControlsSnapshot snapshot)
+        => $"Device controls: volume {(snapshot.Volume?.ToString() ?? "?")}/99, " +
+           $"limit {(snapshot.VolumeLimit?.ToString() ?? "?")}/99, " +
+           $"gain {(snapshot.GainMode is null ? "?" : snapshot.GainMode == 0 ? "low" : "high")}, " +
+           $"balance {(snapshot.ChannelBalance is null ? "?" : DeviceChannelBalanceDisplay)}, " +
+           $"DRE {(snapshot.DreEnabled is null ? "?" : snapshot.DreEnabled.Value ? "on" : "off")}.";
+
     private EqPreset UpsertReadbackPreset(K13EqReadback snapshot)
     {
         var stableName = BuildReadbackPresetName(snapshot);
@@ -3840,6 +4181,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(DeviceProfileCapabilityText));
             OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
             OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
+            OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
+            OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
+            OnPropertyChanged(nameof(SupportsK13PresetTools));
+            RaiseDeviceControlsCanExecuteChanged();
         }
 
         var product = candidate is not null ? $"{candidate.VendorProductDisplay} {candidate.InterfaceDisplay}" : "USB HID";
@@ -3920,8 +4265,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsDeviceConnected = connected;
         ConnectionText = connected ? "Connected" : "Disconnected";
         LiveDeviceEqSyncStatus = connected
-            ? $"Manual device write - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}"
+            ? SelectedDeviceProfile.SupportsLiveEqWrites
+                ? $"Manual device write - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}"
+                : $"{SelectedDeviceProfile.DisplayName} save-only mode - click Save Changes to write {SelectedDeviceUserPreset.DisplayName}"
             : $"Connect {SelectedDeviceProfile.DisplayName} and click Save Changes to write edits";
+        OnPropertyChanged(nameof(CanUseDeviceVolumeControls));
+        RaiseDeviceControlsCanExecuteChanged();
+    }
+
+    private void RaiseDeviceControlsCanExecuteChanged()
+    {
+        foreach (var command in new[]
+                 {
+                     VolumeDownCommand,
+                     VolumeUpCommand,
+                     SetDeviceVolumeCommand,
+                     ReadDeviceControlsCommand,
+                     ApplyDeviceControlsCommand
+                 })
+        {
+            if (command is AsyncRelayCommand asyncCommand)
+            {
+                asyncCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     private static void SetBrush(ResourceDictionary resources, string key, Color color)
@@ -3957,7 +4324,7 @@ public sealed record DeviceUserPresetOption(int Slot, byte PresetId, string? Nam
 {
     public string DisplayName => string.Equals(Name, "No writable slots", StringComparison.OrdinalIgnoreCase)
         ? "No writable slots"
-        : $"Slot {Slot}";
+        : $"Slot {Slot} - {DeviceName}";
 
     public string DeviceName => string.IsNullOrWhiteSpace(Name) ? $"USER {Slot}" : Name;
 

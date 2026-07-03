@@ -28,6 +28,10 @@ public sealed class FiioK13BleLightService
         new("device-settings reference", 0x02, 0x01, 0x01),
         new("legacy probe", 0x00, 0x02, 0x02)
     ];
+    private static readonly BleDeviceSettingCommand VolumeLimitCommand = new("volume limit", 0x02, 0x03, 0x01);
+    private static readonly BleDeviceSettingCommand GainModeCommand = new("gain mode", 0x02, 0x02, 0x01);
+    private static readonly BleDeviceSettingCommand ChannelBalanceCommand = new("channel balance", 0x02, 0x06, 0x01);
+    private static readonly BleDeviceSettingCommand? DreCommand = null;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
     private ulong? _cachedAddress;
 
@@ -420,6 +424,195 @@ public sealed class FiioK13BleLightService
         {
             transportLog.Add($"BLE volume change failed internally: {ex.Message}");
             throw new K13BleOperationException("BLE volume change failed.", transportLog, ex);
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task<K13BleVolumeSnapshot> SetVolumeAsync(
+        byte level,
+        CancellationToken cancellationToken = default)
+    {
+        if (level > 99)
+        {
+            throw new ArgumentOutOfRangeException(nameof(level), "Volume must be between 0 and 99.");
+        }
+
+        var transportLog = new List<string>
+        {
+            $"BLE guarded volume set requested: {level}/99."
+        };
+
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            transportLog.Add("BLE operation lock acquired.");
+            await using var session = await ConnectAsync(transportLog, cancellationToken).ConfigureAwait(false);
+            var beforeReadback = await ReadVolumeCoreAsync(session, transportLog, cancellationToken).ConfigureAwait(false);
+            var before = beforeReadback.Level;
+
+            await SendSetAsync(
+                session,
+                BuildSetPacket(beforeReadback.Command, level),
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+
+            var afterReadback = await ReadVolumeCoreAsync(
+                session,
+                transportLog,
+                cancellationToken,
+                beforeReadback.Command).ConfigureAwait(false);
+            var after = afterReadback.Level;
+            var confirmed = after == level;
+
+            transportLog.Add(
+                confirmed
+                    ? $"Volume set confirmed: {before}/99 -> {after}/99."
+                    : $"Volume set unverified. Requested {level}/99; readback returned {after}/99.");
+
+            return new K13BleVolumeSnapshot(before, after, confirmed, afterReadback.Command.Name, transportLog);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            transportLog.Add($"BLE volume set failed internally: {ex.Message}");
+            throw new K13BleOperationException("BLE volume set failed.", transportLog, ex);
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task<K13BleDeviceControlsSnapshot> ReadDeviceControlsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var transportLog = new List<string>
+        {
+            "BLE device controls readback started. Candidate FiiO Control commands only."
+        };
+
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            transportLog.Add("BLE operation lock acquired.");
+            await using var session = await ConnectAsync(transportLog, cancellationToken).ConfigureAwait(false);
+
+            var volume = await ReadVolumeCoreAsync(session, transportLog, cancellationToken).ConfigureAwait(false);
+            var volumeLimit = await TryReadSettingByteAsync(session, VolumeLimitCommand, transportLog, cancellationToken).ConfigureAwait(false);
+            var gain = await TryReadSettingByteAsync(session, GainModeCommand, transportLog, cancellationToken).ConfigureAwait(false);
+            var balance = await TryReadBalanceAsync(session, transportLog, cancellationToken).ConfigureAwait(false);
+            var dre = DreCommand is null
+                ? null
+                : await TryReadSettingByteAsync(session, DreCommand, transportLog, cancellationToken).ConfigureAwait(false);
+            if (DreCommand is null)
+            {
+                transportLog.Add("BLE DRE command is not mapped yet; DRE readback skipped.");
+            }
+
+            return new K13BleDeviceControlsSnapshot(
+                volume.Level,
+                volumeLimit,
+                gain,
+                balance,
+                dre is null ? null : dre != 0,
+                transportLog);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            transportLog.Add($"BLE device controls readback failed internally: {ex.Message}");
+            throw new K13BleOperationException("BLE device controls readback failed.", transportLog, ex);
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task<K13BleDeviceControlsSnapshot> ApplyDeviceControlsAsync(
+        byte volume,
+        byte volumeLimit,
+        sbyte channelBalance,
+        bool highGain,
+        bool dreEnabled,
+        CancellationToken cancellationToken = default)
+    {
+        if (volume > 99)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), "Volume must be between 0 and 99.");
+        }
+
+        if (volumeLimit > 99)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volumeLimit), "Volume limit must be between 0 and 99.");
+        }
+
+        if (channelBalance is < -10 or > 10)
+        {
+            throw new ArgumentOutOfRangeException(nameof(channelBalance), "Channel balance must be between L10 and R10.");
+        }
+
+        var transportLog = new List<string>
+        {
+            "BLE device controls write requested. These FiiO Control commands are experimental and verified by readback."
+        };
+
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            transportLog.Add("BLE operation lock acquired.");
+            await using var session = await ConnectAsync(transportLog, cancellationToken).ConfigureAwait(false);
+
+            var volumeReadback = await ReadVolumeCoreAsync(session, transportLog, cancellationToken).ConfigureAwait(false);
+            await SendSetAsync(
+                session,
+                BuildSetPacket(volumeReadback.Command, volume),
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+
+            await TryWriteSettingAsync(session, VolumeLimitCommand, [volumeLimit], transportLog, cancellationToken).ConfigureAwait(false);
+            await TryWriteSettingAsync(session, GainModeCommand, [highGain ? (byte)1 : (byte)0], transportLog, cancellationToken).ConfigureAwait(false);
+            await TryWriteBalanceAsync(session, channelBalance, transportLog, cancellationToken).ConfigureAwait(false);
+            if (DreCommand is null)
+            {
+                transportLog.Add("BLE DRE command is not mapped yet; DRE write skipped.");
+            }
+            else
+            {
+                await TryWriteSettingAsync(session, DreCommand, [dreEnabled ? (byte)1 : (byte)0], transportLog, cancellationToken).ConfigureAwait(false);
+            }
+
+            await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+
+            var afterVolume = await ReadVolumeCoreAsync(
+                session,
+                transportLog,
+                cancellationToken,
+                volumeReadback.Command).ConfigureAwait(false);
+            var afterLimit = await TryReadSettingByteAsync(session, VolumeLimitCommand, transportLog, cancellationToken).ConfigureAwait(false);
+            var afterGain = await TryReadSettingByteAsync(session, GainModeCommand, transportLog, cancellationToken).ConfigureAwait(false);
+            var afterBalance = await TryReadBalanceAsync(session, transportLog, cancellationToken).ConfigureAwait(false);
+            var afterDre = DreCommand is null
+                ? null
+                : await TryReadSettingByteAsync(session, DreCommand, transportLog, cancellationToken).ConfigureAwait(false);
+
+            transportLog.Add(
+                $"Device control readback: volume {afterVolume.Level}/99, limit {(afterLimit?.ToString() ?? "?")}, " +
+                $"gain {(afterGain is null ? "?" : afterGain == 0 ? "low" : "high")}, balance {(afterBalance?.ToString() ?? "?")}, DRE {(afterDre is null ? "?" : afterDre != 0 ? "on" : "off")}.");
+
+            return new K13BleDeviceControlsSnapshot(
+                afterVolume.Level,
+                afterLimit,
+                afterGain,
+                afterBalance,
+                afterDre is null ? null : afterDre != 0,
+                transportLog);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            transportLog.Add($"BLE device controls write failed internally: {ex.Message}");
+            throw new K13BleOperationException("BLE device controls write failed.", transportLog, ex);
         }
         finally
         {
@@ -895,6 +1088,116 @@ public sealed class FiioK13BleLightService
         throw new TimeoutException("No volume GET command returned a valid 0-99 response.");
     }
 
+    private static async Task<byte?> TryReadSettingByteAsync(
+        BleSession session,
+        BleDeviceSettingCommand command,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await SendAndReceiveAsync(
+                session,
+                BuildGetPacket(command.Category, command.Command, command.Target),
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+            var data = ExtractResponseData(response);
+            var value = data.Length > 0 ? data[0] : (byte?)null;
+            transportLog.Add($"BLE {command.Name} readback: {(value is null ? "(blank)" : $"0x{value:X2}")}.");
+            return value;
+        }
+        catch (Exception ex) when (ex is TimeoutException or InvalidOperationException or IOException)
+        {
+            transportLog.Add($"BLE {command.Name} readback unavailable: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static async Task<sbyte?> TryReadBalanceAsync(
+        BleSession session,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await SendAndReceiveAsync(
+                session,
+                BuildGetPacket(ChannelBalanceCommand.Category, ChannelBalanceCommand.Command, ChannelBalanceCommand.Target),
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+            var data = ExtractResponseData(response);
+            if (data.Length == 0)
+            {
+                return null;
+            }
+
+            var balance = DecodeBalance(data);
+            transportLog.Add($"BLE channel balance readback: {balance:+0;-0;0}.");
+            return balance;
+        }
+        catch (Exception ex) when (ex is TimeoutException or InvalidOperationException or IOException)
+        {
+            transportLog.Add($"BLE channel balance readback unavailable: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static async Task TryWriteSettingAsync(
+        BleSession session,
+        BleDeviceSettingCommand command,
+        byte[] payload,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await SendSetAsync(
+                session,
+                BuildSetPacket(command.Category, command.Command, command.Target, payload),
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+            transportLog.Add($"BLE {command.Name} write sent: {FormatHex(payload)}.");
+        }
+        catch (Exception ex) when (ex is TimeoutException or InvalidOperationException or IOException)
+        {
+            transportLog.Add($"BLE {command.Name} write unavailable: {ex.Message}");
+        }
+    }
+
+    private static async Task TryWriteBalanceAsync(
+        BleSession session,
+        sbyte channelBalance,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        var direction = channelBalance < 0 ? (byte)0x01 : channelBalance > 0 ? (byte)0x02 : (byte)0x00;
+        var magnitude = (byte)Math.Abs(channelBalance);
+        await TryWriteSettingAsync(
+            session,
+            ChannelBalanceCommand,
+            [direction, magnitude],
+            transportLog,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static sbyte DecodeBalance(byte[] data)
+    {
+        if (data.Length >= 2)
+        {
+            var magnitude = (sbyte)Math.Clamp((int)data[1], 0, 10);
+            return data[0] switch
+            {
+                0x01 => (sbyte)-magnitude,
+                0x02 => magnitude,
+                _ => 0
+            };
+        }
+
+        return data[0] <= 10
+            ? (sbyte)data[0]
+            : unchecked((sbyte)data[0]);
+    }
+
     private static async Task<byte> SendGetSingleByteAsync(
         BleSession session,
         byte[] packet,
@@ -1044,6 +1347,9 @@ public sealed class FiioK13BleLightService
     private static byte[] BuildSetPacket(byte category, byte command, byte target, byte value)
         => BuildPacket([(byte)(category | 0x10), command, target], [value]);
 
+    private static byte[] BuildSetPacket(byte category, byte command, byte target, byte[] data)
+        => BuildPacket([(byte)(category | 0x10), command, target], data);
+
     private static byte[] BuildGetPacket(BleVolumeCommand command)
         => BuildPacket(command.GetTriplet, []);
 
@@ -1182,6 +1488,8 @@ public sealed class FiioK13BleLightService
         public byte[] SetTriplet => [(byte)(Category | 0x10), Command, Target];
     }
 
+    private sealed record BleDeviceSettingCommand(string Name, byte Category, byte Command, byte Target);
+
     private sealed record BleAdvertisementSample(string Name, short Rssi, bool HasService, int Count);
 
     private sealed record K13BleVolumeReadback(byte Level, BleVolumeCommand Command);
@@ -1278,6 +1586,14 @@ public sealed record K13BleVolumeSnapshot(
         ? $"{Before}/99 -> {After}/99"
         : $"{After}/99";
 }
+
+public sealed record K13BleDeviceControlsSnapshot(
+    byte? Volume,
+    byte? VolumeLimit,
+    byte? GainMode,
+    sbyte? ChannelBalance,
+    bool? DreEnabled,
+    IReadOnlyList<string> TransportLog);
 
 public sealed record K13BleInputSourceSnapshot(
     byte Before,

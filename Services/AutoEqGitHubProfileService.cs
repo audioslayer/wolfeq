@@ -64,11 +64,12 @@ public sealed partial class AutoEqGitHubProfileService
 
         var downloadUrl = await FindParametricEqDownloadUrlAsync(entry, cancellationToken).ConfigureAwait(false);
         var text = await Http.GetStringAsync(downloadUrl, cancellationToken).ConfigureAwait(false);
-        var parsed = EqualizerApoPresetCodec.Parse(text, $"AutoEq - {entry.Name}");
+        var importedName = BuildImportedProfileName(entry, "AutoEq");
+        var parsed = EqualizerApoPresetCodec.Parse(text, importedName);
 
         return new EqPreset
         {
-            Name = $"AutoEq - {entry.Name}",
+            Name = importedName,
             Category = "Online",
             SourceName = $"AutoEq / {entry.SourceSummary}",
             Description = $"Downloaded from an online AutoEq source. Source path: {entry.ShortPath}. Imported offline; no device writes were sent.",
@@ -86,7 +87,7 @@ public sealed partial class AutoEqGitHubProfileService
 
         return new EqPreset
         {
-            Name = $"OPRA - {entry.Name}",
+            Name = BuildImportedProfileName(entry, "OPRA"),
             Category = "Online",
             SourceName = entry.SourceSummary,
             Description = $"Downloaded from OPRA, the Open Profiles for Revealing Audio database. Source id: {entry.EncodedRelativePath}.",
@@ -255,6 +256,14 @@ public sealed partial class AutoEqGitHubProfileService
             "all_pass" => EqFilterType.AllPass,
             _ => EqFilterType.Peak
         };
+
+    private static string BuildImportedProfileName(AutoEqProfileIndexEntry entry, string provider)
+    {
+        var source = entry.SourceSummary;
+        return string.IsNullOrWhiteSpace(source)
+            ? $"{provider} - {entry.Name}"
+            : $"{provider} - {entry.Name} ({source})";
+    }
 
     private static async Task<string> FindParametricEqDownloadUrlAsync(
         AutoEqProfileIndexEntry entry,

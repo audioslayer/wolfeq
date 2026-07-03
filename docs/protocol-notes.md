@@ -34,6 +34,16 @@ Read-only USB probing notes:
 
 Windows HID readback uses report ID `0x07` and the `MI_03` collection with 33-byte input/output reports.
 
+Snowsky Retro Nano USB scan from a user report:
+
+- Device identity: VID `0x0A12`, PID `0x4007`, product `RETRO NANO`, manufacturer `FiiO`.
+- HID candidates:
+  - `MI_02`, usage `0x000C/0x0001`, reports `3/0/0`: consumer/media control, not usable for EQ traffic.
+  - `MI_02`, usage `0xFFA0/0x0001`, reports `65/65/0`: vendor-defined candidate.
+  - `MI_03`, usage `0xFF00/0x0001`, reports `66/66/4`: preferred vendor-defined EQ-control candidate.
+- Windows device inventory may also contain stale disabled FiiO BTR17 entries with the same CSR/Qualcomm VID/PID. Prefer enabled HID metadata with product string `RETRO NANO`.
+- First remote test of the MI_03 build: Retro Nano was recognized and saved EQ applied, but the device disconnected after save. Treat post-save HID loss/re-enumeration as expected and retry detection/readback before declaring failure.
+
 Guarded rename command:
 
 - `0x30` preset name SET. Data: `[preset_id, ...ascii_name_max_8_bytes]`.
@@ -71,8 +81,10 @@ Lighting controls are BLE-side, not USB HID.
 - Modes: always on `0x00`, breathe `0x01`
 - Colors: follow audio `0x00`, red `0x01`, blue `0x02`, turquoise `0x03`, purple `0x04`, yellow `0x05`, white `0x06`, green `0x07`, cycle `0x08`
 - Candidate GET volume from newer reference: `[0x02, 0x01, 0x01]`. Tyson's K13 did not respond to this command in WolfEQ testing.
+- Candidate GET volume limit used by WolfEQ's experimental Retro Nano controls: `[0x02, 0x03, 0x01]`, SET `[0x12, 0x03, 0x01] + [0-99]`. Needs real-device confirmation.
 - Candidate GET gain mode from newer Linux/Android-reference project: `[0x02, 0x02, 0x01]`, with candidate SET `[0x12, 0x02, 0x01] + [0x00 low / 0x01 high]`. Tyson's K13 did not respond to the direct GET on Windows BLE testing, so do not enable writes.
 - Candidate GET channel balance from newer reference: `[0x02, 0x06, 0x01]`, SET `[0x12, 0x06, 0x01] + [direction, magnitude]`.
+- DRE command is not mapped yet. The WolfEQ UI keeps the DRE toggle visible for Retro Nano testing, but writes are skipped until a packet is identified.
 - Candidate GET SPDIF output from newer reference: `[0x02, 0x08, 0x01]`, SET `[0x12, 0x08, 0x01] + [0/1]`.
 - Candidate GET DAC filter from newer reference: `[0x02, 0x09, 0x01]`, SET `[0x12, 0x09, 0x01] + [index]`.
 - Candidate GET harmonic/NOS-OS/SAM-style mode from newer reference: `[0x02, 0x0A, 0x01]`, SET `[0x12, 0x0A, 0x01] + [mode]`.
@@ -98,6 +110,63 @@ Verified on Tyson's K13:
 - `Probe Vol 85` scan found no response containing `0x55` while the K13 front-panel volume was `85`.
 - Standalone BLE GET scan over likely legacy/newer device-setting candidates found 38 responses and no `0x55` or BCD `0x85` while the front-panel volume was `85`.
 - Passive notification capture is the next read-only diagnostic: subscribe to BLE notifications, turn the K13 volume knob, and inspect any unsolicited packets before attempting more writes.
+
+## Retro Nano Bluetooth LE
+
+Confirmed from Android FiiO Control HCI snoop against `RETRO NANO`:
+
+- BLE advertisement/service data includes 16-bit service `0xfcc0`.
+- Command write handle: `0x0017`
+- Notification handle: `0x0019`
+- Enable notifications by writing `01 00` to CCCD handle `0x001a`.
+- There is also a secondary notify path at handle `0x0029` with CCCD `0x002b`; Android enables it and receives short `4c` / `4b` style keepalive/status values. Do not use that as the command channel.
+- Command family is raw `00 0A 04 ...`; replies are raw `00 0A 84 ...`.
+
+Read command shape:
+
+```text
+GET: 00 0A 04 02 CMD
+GET response: 00 0A 84 02 00 CMD ...DATA
+```
+
+Write command shape:
+
+```text
+SET: 00 0A 04 12 CMD ...DATA
+SET ack: 00 0A 84 12 00 CMD
+```
+
+Confirmed controls from Android app order:
+
+- Volume:
+  - GET: `00 0A 04 02 09`
+  - SET: `00 0A 04 12 09 LEVEL`
+  - Observed readback changed from `00 0A 84 02 00 09 18` to `00 0A 84 02 00 09 1F` after setting `1F`.
+  - Treat level as one byte, likely decimal `0` through `99`.
+- Volume limiter:
+  - GET: `00 0A 04 02 04`
+  - SET: `00 0A 04 12 04 LIMIT`
+  - Observed `06` and `08` round-tripped as readbacks.
+- Balance:
+  - GET: `00 0A 04 02 06`
+  - SET: `00 0A 04 12 06 SIDE AMOUNT`
+  - Observed readbacks: `00 0A 84 02 00 06 00 04`, `00 0A 84 02 00 06 01 04`, and `00 0A 84 02 00 06 01 00`.
+  - Side/direction labels are not confirmed yet. Keep UI/tool output raw until left/right mapping is verified.
+
+Controls not exposed by the Android app:
+
+- Gain
+- DRE
+
+Do not expose or write gain/DRE for Retro Nano until a separate verified source identifies those commands.
+
+Tooling:
+
+- `tools/K13BlePacketTest` now has Retro Nano mode:
+  - `--nano-scan` scans for and caches the Nano BLE address.
+  - `--nano-read` enumerates GATT, subscribes to notifications, and reads volume, volume limiter, and balance.
+  - `--nano-listen [seconds]` captures raw notifications.
+  - Write switches are explicit only: `--nano-set-volume N`, `--nano-set-limit N`, `--nano-set-balance SIDE AMOUNT`.
 
 ## PEQ band encoding
 

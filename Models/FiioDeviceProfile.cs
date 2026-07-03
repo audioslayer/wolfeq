@@ -20,7 +20,10 @@ public sealed record FiioDeviceProfile(
     int? HidInterfaceNumber = null,
     bool HasBleInput = false,
     bool HasBleLighting = false,
+    bool HasBleDeviceControls = false,
     bool SupportsUsbPresetNames = false,
+    bool SupportsLiveEqWrites = true,
+    bool ReloadEqAfterSave = true,
     byte SaveCommandId = 0x19,
     bool IsVerified = false,
     IReadOnlyList<string>? ProductNameAliases = null)
@@ -109,6 +112,7 @@ public static class FiioDeviceProfiles
         HidInterfaceNumber: 3,
         HasBleInput: true,
         HasBleLighting: true,
+        HasBleDeviceControls: true,
         SupportsUsbPresetNames: true,
         IsVerified: true);
 
@@ -212,7 +216,8 @@ public static class FiioDeviceProfiles
             new(0xA2, "USER 3", true),
             new(0xF0, "Close EQ", false)
         ],
-        DisabledPresetId: 0xF0);
+        DisabledPresetId: 0xF0,
+        ReloadEqAfterSave: false);
 
     public static readonly FiioDeviceProfile SnowskyRetroNano = new(
         Id: "snowsky-retro-nano",
@@ -243,6 +248,11 @@ public static class FiioDeviceProfiles
             new(0x0B, "Close EQ", false)
         ],
         DisabledPresetId: 0x0B,
+        HidInterfaceNumber: 3,
+        HasBleDeviceControls: true,
+        SupportsUsbPresetNames: true,
+        SupportsLiveEqWrites: false,
+        ReloadEqAfterSave: false,
         ProductNameAliases:
         [
             "RETRO NANO",
