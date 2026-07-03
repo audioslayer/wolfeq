@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows.Input;
 
 namespace WolfEQ.ViewModels;
@@ -23,6 +24,12 @@ public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute
             _isExecuting = true;
             RaiseCanExecuteChanged();
             await execute();
+        }
+        catch (Exception ex)
+        {
+            // Execute is async void, so no awaiter can observe this exception.
+            // Log and swallow it here instead of letting it crash the app.
+            Trace.TraceError($"AsyncRelayCommand execution failed: {ex}");
         }
         finally
         {

@@ -18,8 +18,8 @@ public sealed class EqResponseGraphControl : FrameworkElement
     private const double FilterPreviewMaxGain = 12.0;
     private const double PreviewSampleRate = 48000.0;
     private const double QWheelFactor = 1.12;
-    private const double FrequencyNudgeFactor = 1.02;
-    private const double FrequencyNudgeFactorCoarse = 1.1;
+    private const double FrequencyNudgeStep = 1.1;
+    private const double FrequencyNudgeStepFine = 1.02;
     private const double GainNudgeStepDb = 0.5;
     private const double GainNudgeStepFineDb = 0.1;
     private const double SelectionRingPadding = 3.5;
@@ -670,7 +670,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             case Key.Left:
             case Key.Right:
             {
-                var factor = shift ? FrequencyNudgeFactorCoarse : FrequencyNudgeFactor;
+                var factor = shift ? FrequencyNudgeStepFine : FrequencyNudgeStep;
                 NudgeFrequency(band, e.Key == Key.Right ? factor : 1.0 / factor);
                 e.Handled = true;
                 break;

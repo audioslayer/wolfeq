@@ -140,7 +140,7 @@ public partial class DeviceDock : UserControl
             return "Connect a device to write";
         }
 
-        if (!viewModel.LoadFromSlotCommand.CanExecute(null))
+        if (!viewModel.HardwareIoEnabled)
         {
             return "Hardware writes are off in this safety build";
         }

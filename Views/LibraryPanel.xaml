@@ -91,7 +91,7 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Foreground" Value="#06130B"/>
+                    <Setter Property="Foreground" Value="{StaticResource WolfGreenContrastBrush}"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </Trigger>
             </Style.Triggers>

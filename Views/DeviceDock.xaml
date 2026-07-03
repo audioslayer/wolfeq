@@ -82,7 +82,7 @@
                                      RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
                         </MultiBinding>
                     </DataTrigger.Binding>
-                    <Setter Property="Foreground" Value="#06130B"/>
+                    <Setter Property="Foreground" Value="{StaticResource WolfGreenContrastBrush}"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </DataTrigger>
             </Style.Triggers>

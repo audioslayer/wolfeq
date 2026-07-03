@@ -14,6 +14,7 @@
         <Color x:Key="WolfFiioRed">#C8102E</Color>
         <Color x:Key="WolfFiioRedDim">#331017</Color>
         <Color x:Key="WolfGreen">#00E676</Color>
+        <Color x:Key="WolfGreenContrast">#06130B</Color>
         <Color x:Key="WolfWarning">#FFB800</Color>
         <Color x:Key="WolfDanger">#FF5555</Color>
         <Color x:Key="WolfText">#E8E8E8</Color>
@@ -32,6 +33,7 @@
         <SolidColorBrush x:Key="WolfFiioRedBrush" Color="{StaticResource WolfFiioRed}"/>
         <SolidColorBrush x:Key="WolfFiioRedDimBrush" Color="{StaticResource WolfFiioRedDim}"/>
         <SolidColorBrush x:Key="WolfGreenBrush" Color="{StaticResource WolfGreen}"/>
+        <SolidColorBrush x:Key="WolfGreenContrastBrush" Color="{StaticResource WolfGreenContrast}"/>
         <SolidColorBrush x:Key="WolfWarningBrush" Color="{StaticResource WolfWarning}"/>
         <SolidColorBrush x:Key="WolfDangerBrush" Color="{StaticResource WolfDanger}"/>
         <SolidColorBrush x:Key="WolfTextBrush" Color="{StaticResource WolfText}"/>

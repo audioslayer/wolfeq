@@ -533,8 +533,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     IsProfileLibraryDirty = true;
                 }
 
-                (LoadLibraryPresetIntoEditorCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                (WriteLibraryPresetToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                LoadLibraryPresetIntoEditorCommand.RaiseCanExecuteChanged();
+                WriteLibraryPresetToSlotCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -734,8 +734,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (SetField(ref _selectedGitHubProfile, value))
             {
                 _ = LoadGitHubProfilePreviewAsync(value);
-                (LoadOnlineProfileIntoEditorCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-                (WriteOnlineProfileToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+                LoadOnlineProfileIntoEditorCommand.RaiseCanExecuteChanged();
+                WriteOnlineProfileToSlotCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -836,14 +836,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand CheckForUpdatesCommand { get; }
     public ICommand OpenReleasesCommand { get; }
     public ICommand OpenBuyMeCoffeeCommand { get; }
-    public ICommand SaveToLibraryCommand { get; }
-    public ICommand WriteToDeviceCommand { get; }
-    public ICommand SwitchSlotCommand { get; }
-    public ICommand LoadFromSlotCommand { get; }
-    public ICommand LoadLibraryPresetIntoEditorCommand { get; }
-    public ICommand WriteLibraryPresetToSlotCommand { get; }
-    public ICommand LoadOnlineProfileIntoEditorCommand { get; }
-    public ICommand WriteOnlineProfileToSlotCommand { get; }
+    public RelayCommand SaveToLibraryCommand { get; }
+    public AsyncRelayCommand WriteToDeviceCommand { get; }
+    public AsyncParameterRelayCommand SwitchSlotCommand { get; }
+    public AsyncRelayCommand LoadFromSlotCommand { get; }
+    public RelayCommand LoadLibraryPresetIntoEditorCommand { get; }
+    public AsyncRelayCommand WriteLibraryPresetToSlotCommand { get; }
+    public AsyncRelayCommand LoadOnlineProfileIntoEditorCommand { get; }
+    public AsyncRelayCommand WriteOnlineProfileToSlotCommand { get; }
     public EditorSessionState EditorSession { get; } = new();
     public string EditorSyncStatusText => EditorSession.StatusText(EditorTargetSlotDisplayName);
 
@@ -2183,12 +2183,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private void OnEditorSessionChanged()
     {
         OnPropertyChanged(nameof(EditorSyncStatusText));
-        (WriteToDeviceCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-        (LoadFromSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-        (SwitchSlotCommand as AsyncParameterRelayCommand)?.RaiseCanExecuteChanged();
-        (SaveToLibraryCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        (WriteLibraryPresetToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
-        (WriteOnlineProfileToSlotCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        WriteToDeviceCommand.RaiseCanExecuteChanged();
+        LoadFromSlotCommand.RaiseCanExecuteChanged();
+        SwitchSlotCommand.RaiseCanExecuteChanged();
+        SaveToLibraryCommand.RaiseCanExecuteChanged();
+        WriteLibraryPresetToSlotCommand.RaiseCanExecuteChanged();
+        WriteOnlineProfileToSlotCommand.RaiseCanExecuteChanged();
     }
 
     private string? EditorTargetSlotDisplayName
@@ -2248,6 +2248,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 : $"Wrote '{SelectedPreset.Name}' to {slotDisplay}; the device is reconnecting. Click Detect if it does not come back.";
             AddLog(Status);
         }
+        catch (OperationCanceledException)
+        {
+            Status = "Device write was canceled.";
+            AddLog(Status);
+        }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception or ArgumentException)
         {
             Status = $"Device write failed: {ex.Message}";
@@ -2287,6 +2292,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             SelectDeviceUserPresetOption(result.AfterPresetId);
             EditorSession.NotifySlotSwitched(result.AfterPresetId);
             Status = $"Switched to {option.DisplayName}. Editor kept your current settings.";
+            AddLog(Status);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Slot switch was canceled.";
             AddLog(Status);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception)
@@ -2516,9 +2526,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private void ApplyDeviceProfile(FiioDeviceProfile value)
     {
-        _selectedDeviceProfile = value;
         _deviceService.SelectedProfile = value;
-        OnPropertyChanged(nameof(SelectedDeviceProfile));
+        SetField(ref _selectedDeviceProfile, value, nameof(SelectedDeviceProfile));
         RebuildDeviceUserPresets(value);
         EditorSession.Reset();
         EnsureBandTemplateMatchesProfile(value);
@@ -2656,6 +2665,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 : $"Wrote '{preset.Name}' to {slotDisplay}; the device is reconnecting. Click Detect if it does not come back.";
             AddLog(Status);
             return slotDisplay;
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Device write was canceled.";
+            AddLog(Status);
+            return null;
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception or ArgumentException)
         {
