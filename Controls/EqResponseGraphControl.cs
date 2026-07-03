@@ -17,6 +17,12 @@ public sealed class EqResponseGraphControl : FrameworkElement
     private const double FilterPreviewMinGain = -24.0;
     private const double FilterPreviewMaxGain = 12.0;
     private const double PreviewSampleRate = 48000.0;
+    private const double QWheelFactor = 1.12;
+    private const double FrequencyNudgeFactor = 1.02;
+    private const double FrequencyNudgeFactorCoarse = 1.1;
+    private const double GainNudgeStepDb = 0.5;
+    private const double GainNudgeStepFineDb = 0.1;
+    private const double SelectionRingPadding = 3.5;
     private EqBand? _dragBand;
     private EqBand? _hoverBand;
     private Point? _hoverPoint;
@@ -51,6 +57,50 @@ public sealed class EqResponseGraphControl : FrameworkElement
         typeof(EqResponseGraphControl),
         new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender, OnIsInteractiveChanged));
 
+    public static readonly DependencyProperty SelectedBandProperty = DependencyProperty.Register(
+        nameof(SelectedBand),
+        typeof(EqBand),
+        typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(
+            null,
+            FrameworkPropertyMetadataOptions.BindsTwoWayByDefault | FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty MinQProperty = DependencyProperty.Register(
+        nameof(MinQ),
+        typeof(double),
+        typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(0.1));
+
+    public static readonly DependencyProperty MaxQProperty = DependencyProperty.Register(
+        nameof(MaxQ),
+        typeof(double),
+        typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(12.0));
+
+    public static readonly DependencyProperty MinFrequencyHzProperty = DependencyProperty.Register(
+        nameof(MinFrequencyHz),
+        typeof(double),
+        typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(20.0));
+
+    public static readonly DependencyProperty MaxFrequencyHzProperty = DependencyProperty.Register(
+        nameof(MaxFrequencyHz),
+        typeof(double),
+        typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(20000.0));
+
+    public static readonly DependencyProperty MinGainDbProperty = DependencyProperty.Register(
+        nameof(MinGainDb),
+        typeof(double),
+        typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(DisplayGraphMinGain, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty MaxGainDbProperty = DependencyProperty.Register(
+        nameof(MaxGainDb),
+        typeof(double),
+        typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(DisplayGraphMaxGain, FrameworkPropertyMetadataOptions.AffectsRender));
+
     public ObservableCollection<EqBand>? Bands
     {
         get => (ObservableCollection<EqBand>?)GetValue(BandsProperty);
@@ -79,6 +129,48 @@ public sealed class EqResponseGraphControl : FrameworkElement
     {
         get => (bool)GetValue(IsInteractiveProperty);
         set => SetValue(IsInteractiveProperty, value);
+    }
+
+    public EqBand? SelectedBand
+    {
+        get => (EqBand?)GetValue(SelectedBandProperty);
+        set => SetValue(SelectedBandProperty, value);
+    }
+
+    public double MinQ
+    {
+        get => (double)GetValue(MinQProperty);
+        set => SetValue(MinQProperty, value);
+    }
+
+    public double MaxQ
+    {
+        get => (double)GetValue(MaxQProperty);
+        set => SetValue(MaxQProperty, value);
+    }
+
+    public double MinFrequencyHz
+    {
+        get => (double)GetValue(MinFrequencyHzProperty);
+        set => SetValue(MinFrequencyHzProperty, value);
+    }
+
+    public double MaxFrequencyHz
+    {
+        get => (double)GetValue(MaxFrequencyHzProperty);
+        set => SetValue(MaxFrequencyHzProperty, value);
+    }
+
+    public double MinGainDb
+    {
+        get => (double)GetValue(MinGainDbProperty);
+        set => SetValue(MinGainDbProperty, value);
+    }
+
+    public double MaxGainDb
+    {
+        get => (double)GetValue(MaxGainDbProperty);
+        set => SetValue(MaxGainDbProperty, value);
     }
 
     public EqResponseGraphControl()
@@ -128,6 +220,12 @@ public sealed class EqResponseGraphControl : FrameworkElement
             }
         }
 
+        if (control.SelectedBand is EqBand selected &&
+            (e.NewValue is not ObservableCollection<EqBand> bands || !bands.Contains(selected)))
+        {
+            control.SelectedBand = null;
+        }
+
         control.InvalidateVisual();
     }
 
@@ -172,6 +270,11 @@ public sealed class EqResponseGraphControl : FrameworkElement
             {
                 band.PropertyChanged += OnBandChanged;
             }
+        }
+
+        if (SelectedBand is EqBand selected && (Bands is null || !Bands.Contains(selected)))
+        {
+            SelectedBand = null;
         }
 
         InvalidateVisual();
@@ -341,6 +444,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var activeDragFill = new SolidColorBrush(Lighten(accent, 0.28));
         var outline = new Pen(Brushes.White, 1);
         var focusOutline = new Pen(new SolidColorBrush(Lighten(accent, 0.55)), 1.8);
+        var selectionPen = new Pen(new SolidColorBrush(Lighten(accent, 0.45)), 2.0);
         var responseMarkerPen = new Pen(WithAlpha(accent, 0x88), 1);
         var responseStemPen = new Pen(WithAlpha(accent, 0x55), 1.1)
         {
@@ -368,6 +472,11 @@ public sealed class EqResponseGraphControl : FrameworkElement
             }
 
             dc.DrawEllipse(fill, isActiveDrag || isHover ? focusOutline : outline, editPoint, radius, radius);
+
+            if (IsInteractive && ReferenceEquals(band, SelectedBand))
+            {
+                dc.DrawEllipse(null, selectionPen, editPoint, radius + SelectionRingPadding, radius + SelectionRingPadding);
+            }
 
             if (isActiveDrag || isHover)
             {
@@ -466,6 +575,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             return;
         }
 
+        SelectedBand = band;
         _dragBand = band;
         _hoverBand = band;
         band.Enabled = true;
@@ -521,6 +631,72 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
         FinishDrag();
         e.Handled = true;
+    }
+
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        base.OnMouseWheel(e);
+        if (!IsInteractive || e.Delta == 0 || Bands is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var plot = GetPlotRect(new Rect(0, 0, ActualWidth, ActualHeight));
+        var gainScale = GetGainScale();
+        var band = FindNearestBand(e.GetPosition(this), plot, gainScale);
+        if (band is null)
+        {
+            return;
+        }
+
+        var factor = Math.Pow(QWheelFactor, e.Delta / 120.0);
+        band.Q = Math.Clamp(band.Q * factor, MinQ, MaxQ);
+        SelectedBand = band;
+        e.Handled = true;
+        InvalidateVisual();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (!IsInteractive || SelectedBand is not EqBand band)
+        {
+            return;
+        }
+
+        var shift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+        switch (e.Key)
+        {
+            case Key.Left:
+            case Key.Right:
+            {
+                var factor = shift ? FrequencyNudgeFactorCoarse : FrequencyNudgeFactor;
+                NudgeFrequency(band, e.Key == Key.Right ? factor : 1.0 / factor);
+                e.Handled = true;
+                break;
+            }
+
+            case Key.Up:
+            case Key.Down:
+            {
+                var step = shift ? GainNudgeStepFineDb : GainNudgeStepDb;
+                var delta = e.Key == Key.Up ? step : -step;
+                band.GainDb = Math.Clamp(band.GainDb + delta, MinGainDb, MaxGainDb);
+                e.Handled = true;
+                break;
+            }
+        }
+    }
+
+    private void NudgeFrequency(EqBand band, double factor)
+    {
+        var next = Math.Round(band.FrequencyHz * factor);
+        if ((int)next == band.FrequencyHz)
+        {
+            next = factor > 1.0 ? band.FrequencyHz + 1 : band.FrequencyHz - 1;
+        }
+
+        band.FrequencyHz = (int)Math.Clamp(next, MinFrequencyHz, MaxFrequencyHz);
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
@@ -585,8 +761,8 @@ public sealed class EqResponseGraphControl : FrameworkElement
             return;
         }
 
-        var frequency = (int)Math.Round(XToFrequency(point.X, plot));
-        var gain = Math.Round(YToGain(point.Y, plot, gainScale), 1);
+        var frequency = (int)Math.Clamp(Math.Round(XToFrequency(point.X, plot)), MinFrequencyHz, MaxFrequencyHz);
+        var gain = Math.Clamp(Math.Round(YToGain(point.Y, plot, gainScale), 1), MinGainDb, MaxGainDb);
         _dragBand.FrequencyHz = frequency;
         _dragBand.GainDb = gain;
     }
@@ -803,7 +979,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
     }
 
     private GraphGainScale GetGainScale()
-        => new(DisplayGraphMinGain, DisplayGraphMaxGain);
+        => new(MinGainDb, MaxGainDb);
 
     private static double GainToY(double gain, Rect plot, GraphGainScale gainScale)
         => plot.Top + (gainScale.Max - Math.Clamp(gain, gainScale.Min, gainScale.Max)) / (gainScale.Max - gainScale.Min) * plot.Height;
