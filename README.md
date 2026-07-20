@@ -5,7 +5,7 @@
 <h1 align="center">WolfEQ</h1>
 
 <p align="center">
-  <strong>WolfEQ 0.2.0 beta is here.</strong><br/>
+  <strong>WolfEQ 0.3.1 beta is the latest release.</strong><br/>
   A modern Windows PEQ workspace for FiiO K13 R2R and experimental FiiO / Snowsky device support.
 </p>
 
@@ -24,25 +24,25 @@
 
 WolfEQ is a desktop app for people who want a cleaner way to tune PEQ on supported FiiO and Snowsky devices. Instead of juggling device menus, preset files, and separate graph tools, WolfEQ brings the core workflow into one Windows app: choose a slot, shape the curve, preview the response, save, and keep your profiles organized.
 
-The **FiiO K13 R2R** is the main tested device. WolfEQ 0.2.0 beta also adds early experimental profiles for KA15, KA17, JA11, Snowsky Melody, and Snowsky Retro Nano.
+The **FiiO K13 R2R** is the main tested device. WolfEQ 0.3.1 beta also includes experimental profiles for KA15, KA17, JA11, Snowsky Melody, and Snowsky Retro Nano. Melody supports USER-slot writes without attempting unsupported automatic EQ readback.
 
 ---
 
 ## 🚀 Latest Beta
 
-Download the latest installer from [GitHub Releases](https://github.com/audioslayer/wolfeq/releases/latest):
+Download WolfEQ 0.3.1 beta from the [latest GitHub release](https://github.com/audioslayer/wolfeq/releases/latest):
 
-```text
-WolfEQ-Setup-<version>.exe
-```
+- [Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/latest/download/WolfEQ-Setup-0.3.1-beta.exe)
+- [Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/latest/download/WolfEQ-0.3.1-beta-win-x64.zip)
 
-WolfEQ 0.2.0 beta adds:
+WolfEQ 0.3.1 beta adds:
 
-- 🎧 Experimental device profiles for FiiO KA15, FiiO KA17, FiiO JA11, Snowsky Melody, and Snowsky Retro Nano.
-- 📈 A cleaner PEQ graph with hover readouts, better band handles, and a more standard response feel.
-- 🎛️ A redesigned tuning workspace with compact band rows and a right-side preset/profile panel.
-- 📚 A better library tab with online profile search, import/export tools, and cleaner device-slot names.
-- 💾 Improved K13 read-on-boot, slot switching, save confirmation, and post-save reload behavior.
+- A curve-first EQ workspace with a permanent device dock and focused editor.
+- Slide-over library and settings panels with clearer save, load, and write actions.
+- Guarded connect-time device loading that preserves unsaved editor changes.
+- Explicit device readback capabilities so unsupported reads do not disconnect otherwise writable devices.
+- Snowsky Melody USER 1-3 writes without unsupported automatic or manual EQ readback.
+- Regression tests for editor synchronization, unsaved-edit protection, and device capabilities.
 
 ---
 
@@ -66,7 +66,7 @@ WolfEQ 0.2.0 beta adds:
 | FiiO KA15 | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
 | FiiO KA17 | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
 | FiiO JA11 | ⚠️ Experimental | Device profile, 5-band PEQ layout, core filter support. Needs real-device testing. |
-| Snowsky Melody | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
+| Snowsky Melody | ⚠️ Experimental | 10-band PEQ and USER 1-3 writes. Automatic EQ readback and Load from slot are disabled because the device does not answer the required read command. Hardware confirmation for 0.3.1 is pending in [issue #2](https://github.com/audioslayer/wolfeq/issues/2). |
 | Snowsky Retro Nano | ⚠️ Experimental | Product-name matched profile, slot map, 10-band PEQ layout. Needs real-device testing. |
 
 For full Windows audio format support, set the K13 to **UAC2.0** mode.
