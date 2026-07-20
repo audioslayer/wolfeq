@@ -241,7 +241,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SaveToLibraryCommand = new RelayCommand(SaveToLibrary, () => SelectedPreset is not null || Bands.Count > 0);
         WriteToDeviceCommand = new AsyncRelayCommand(WriteEditorPresetToDeviceAsync, CanExecuteWriteToDevice);
         SwitchSlotCommand = new AsyncParameterRelayCommand(SwitchSlotAsync, _ => IsDeviceConnected && !_deviceBusy);
-        LoadFromSlotCommand = new AsyncRelayCommand(LoadFromSlotAsync, () => IsDeviceConnected && K13HardwareEqIoEnabled && !_deviceBusy);
+        LoadFromSlotCommand = new AsyncRelayCommand(
+            LoadFromSlotAsync,
+            () => IsDeviceConnected
+                  && K13HardwareEqIoEnabled
+                  && SelectedDeviceProfile.SupportsEqReadback
+                  && !_deviceBusy);
         LoadLibraryPresetIntoEditorCommand = new RelayCommand(LoadLibraryPresetIntoEditor, () => SelectedPreset is not null);
         WriteLibraryPresetToSlotCommand = new AsyncRelayCommand(WriteLibraryPresetToSlotAsync, () => SelectedPreset is not null && CanExecuteWriteToDevice());
         LoadOnlineProfileIntoEditorCommand = new AsyncRelayCommand(LoadOnlineProfileIntoEditorAsync, () => SelectedGitHubProfile is not null);
@@ -319,6 +324,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool SelectedDeviceSupportsBleInput => SelectedDeviceProfile.HasBleInput;
     public bool SelectedDeviceSupportsBleLighting => SelectedDeviceProfile.HasBleLighting;
     public bool SelectedDeviceSupportsBleDeviceControls => SelectedDeviceProfile.HasBleDeviceControls;
+    public string LoadFromSlotToolTip => SelectedDeviceProfile.SupportsEqReadback
+        ? "Read this slot's EQ into the editor"
+        : $"{SelectedDeviceProfile.DisplayName} does not support EQ readback; writing to USER slots remains available.";
     public bool IsProfileLibraryDirty
     {
         get => _isProfileLibraryDirty;
@@ -987,7 +995,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task RunGuardedConnectLoadAsync()
     {
-        if (!EditorSession.ShouldAutoLoadOnConnect)
+        if (!SelectedDeviceProfile.SupportsEqReadback)
+        {
+            Status = $"{SelectedDeviceProfile.DisplayName} is connected and ready for USER-slot writes; automatic EQ readback is not supported.";
+            AddLog("Skipped the connect-time slot load; this device profile does not support EQ readback. No HID GET packets were sent.");
+            return;
+        }
+
+        if (!EditorSession.CanAutoLoadOnConnect(SelectedDeviceProfile.SupportsEqReadback))
         {
             Status = "Kept your unsaved changes; device slot not loaded.";
             AddLog(Status);
@@ -2151,7 +2166,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                or "Ananda Oratory-Style Starter"
                or "Ananda Bass Fun - Safe";
 
-    private async Task<bool> TryReloadDeviceEqAfterSaveAsync(bool readBackAfterReconnect)
+    private async Task<bool> TryReloadDeviceEqAfterSaveAsync()
     {
         const int maxAttempts = 20;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
@@ -2174,14 +2189,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 }
 
                 SetConnectionState(true);
-                if (readBackAfterReconnect)
+                if (SelectedDeviceProfile.SupportsEqReadback && SelectedDeviceProfile.ReloadEqAfterSave)
                 {
                     AddLog($"Post-save reconnect detected {detection.MatchedProfile?.DisplayLabel ?? SelectedDeviceProfile.DisplayLabel}; reloading device EQ.");
                     await ReadAndApplyDeviceEqAsync();
                 }
                 else
                 {
-                    AddLog($"Post-save reconnect detected {detection.MatchedProfile?.DisplayLabel ?? SelectedDeviceProfile.DisplayLabel}; readback skipped for save-only profile.");
+                    var reason = SelectedDeviceProfile.SupportsEqReadback
+                        ? "post-save reload is disabled"
+                        : "the profile does not support EQ readback";
+                    AddLog($"Post-save reconnect detected {detection.MatchedProfile?.DisplayLabel ?? SelectedDeviceProfile.DisplayLabel}; readback skipped because {reason}.");
                 }
 
                 return true;
@@ -2318,7 +2336,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             AddLog($"Waiting for {slotDisplay} to settle after hardware write.");
-            var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync(SelectedDeviceProfile.ReloadEqAfterSave);
+            var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync();
             var editedDuringWrite = _editGeneration != editGenerationAtWrite;
 
             // Honest stamping: only claim "in sync" when the device settled and the
@@ -2410,6 +2428,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task LoadFromSlotAsync()
     {
+        if (!SelectedDeviceProfile.SupportsEqReadback)
+        {
+            Status = $"{SelectedDeviceProfile.DisplayName} is ready for USER-slot writes, but Load from slot is unavailable because EQ readback is not supported.";
+            AddLog("Blocked unsupported EQ readback. No HID GET packets were sent; device write support remains enabled.");
+            return;
+        }
+
         if (!K13HardwareEqIoEnabled)
         {
             Status = "Hardware EQ readback is disabled in this safety build.";
@@ -2722,8 +2747,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
+        OnPropertyChanged(nameof(LoadFromSlotToolTip));
         OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
         OnPropertyChanged(nameof(SupportsK13PresetTools));
+        LoadFromSlotCommand.RaiseCanExecuteChanged();
         RaiseDeviceControlsCanExecuteChanged();
     }
 
@@ -2843,7 +2870,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             AddLog($"Waiting for {slotDisplay} to settle after hardware write.");
-            var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync(SelectedDeviceProfile.ReloadEqAfterSave);
+            var reloadedHardware = await TryReloadDeviceEqAfterSaveAsync();
             var editedDuringWrite = _editGeneration != editGenerationAtWrite;
             if (isEditorContent)
             {

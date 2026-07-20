@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1-beta
+
+- Kept Snowsky Melody connected and writable by skipping unsupported automatic and manual EQ readback.
+- Added an explicit per-device EQ-readback capability while preserving normal readback behavior for other profiles.
+- Added regression coverage for Melody USER-slot writes, readback capability gating, and unsaved-edit protection.
+
 ## v0.2.0-beta
 
 - Added experimental device profiles for FiiO KA15, FiiO KA17, FiiO JA11, Snowsky Melody, and Snowsky Retro Nano.

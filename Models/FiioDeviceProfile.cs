@@ -23,6 +23,7 @@ public sealed record FiioDeviceProfile(
     bool HasBleDeviceControls = false,
     bool SupportsUsbPresetNames = false,
     bool SupportsLiveEqWrites = true,
+    bool SupportsEqReadback = true,
     bool ReloadEqAfterSave = true,
     byte SaveCommandId = 0x19,
     bool IsVerified = false,
@@ -217,6 +218,7 @@ public static class FiioDeviceProfiles
             new(0xF0, "Close EQ", false)
         ],
         DisabledPresetId: 0xF0,
+        SupportsEqReadback: false,
         ReloadEqAfterSave: false);
 
     public static readonly FiioDeviceProfile SnowskyRetroNano = new(

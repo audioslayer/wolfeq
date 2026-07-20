@@ -175,7 +175,8 @@
                     Content="Load from slot"
                     Command="{Binding LoadFromSlotCommand}"
                     Style="{StaticResource QuietButton}"
-                    ToolTip="Read this slot's EQ into the editor"
+                    ToolTip="{Binding LoadFromSlotToolTip}"
+                    ToolTipService.ShowOnDisabled="True"
                     VerticalAlignment="Center"
                     Margin="4,0,0,0"/>
 

@@ -41,6 +41,13 @@ public sealed class EditorSessionState
     /// </summary>
     public bool ShouldAutoLoadOnConnect => !_hasEdits;
 
+    /// <summary>
+    /// True when both the editor state and the selected device profile permit an
+    /// automatic connect-time EQ load.
+    /// </summary>
+    public bool CanAutoLoadOnConnect(bool supportsEqReadback)
+        => supportsEqReadback && ShouldAutoLoadOnConnect;
+
     /// <summary>Pure guard for device writes: all three conditions must hold.</summary>
     public bool CanWriteToDevice(bool isConnected, bool hardwareIoEnabled, bool hasWritableTarget)
         => isConnected && hardwareIoEnabled && hasWritableTarget;

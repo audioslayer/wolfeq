@@ -1,4 +1,5 @@
 using WolfEQ.ViewModels;
+using WolfEQ.Models;
 using Xunit;
 
 namespace WolfEQ.Tests;
@@ -166,6 +167,31 @@ public sealed class EditorSessionStateTests
         var session = ConnectedSession();
 
         Assert.True(session.ShouldAutoLoadOnConnect);
+    }
+
+    [Fact]
+    public void CanAutoLoadOnConnect_FalseWhenProfileDoesNotSupportReadback()
+    {
+        var session = ConnectedSession();
+
+        Assert.False(session.CanAutoLoadOnConnect(FiioDeviceProfiles.SnowskyMelody.SupportsEqReadback));
+    }
+
+    [Fact]
+    public void CanAutoLoadOnConnect_TrueForNormalReadbackProfileWhenClean()
+    {
+        var session = ConnectedSession();
+
+        Assert.True(session.CanAutoLoadOnConnect(FiioDeviceProfiles.K13R2R.SupportsEqReadback));
+    }
+
+    [Fact]
+    public void CanAutoLoadOnConnect_FalseForNormalProfileWithUnsavedEdits()
+    {
+        var session = ConnectedSession();
+        session.NotifyEdit();
+
+        Assert.False(session.CanAutoLoadOnConnect(FiioDeviceProfiles.K13R2R.SupportsEqReadback));
     }
 
     [Fact]
