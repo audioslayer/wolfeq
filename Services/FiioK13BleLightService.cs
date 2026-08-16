@@ -776,7 +776,7 @@ public sealed class FiioK13BleLightService
                 return null;
             }
 
-            var text = File.ReadAllText(AddressCachePath).Trim();
+            var text = BoundedTextReader.ReadAllText(AddressCachePath, 128, "Cached BLE address").Trim();
             return ulong.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var address)
                 ? address
                 : null;
@@ -792,7 +792,7 @@ public sealed class FiioK13BleLightService
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(AddressCachePath)!);
-            File.WriteAllText(AddressCachePath, address.ToString("X12"));
+            AtomicFileWriter.WriteAllText(AddressCachePath, address.ToString("X12"));
             transportLog.Add($"Cached K13 BLE address for future app launches: {address:X12}.");
         }
         catch (Exception ex)

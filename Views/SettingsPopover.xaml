@@ -6,9 +6,9 @@
              xmlns:local="clr-namespace:WolfEQ"
              xmlns:controls="clr-namespace:WolfEQ.Controls"
              mc:Ignorable="d"
-             d:DesignWidth="440"
+             d:DesignWidth="460"
              d:DesignHeight="820"
-             Width="440"
+             Width="460"
              Foreground="{StaticResource WolfTextBrush}">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -16,39 +16,71 @@
         <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource PanelBorder}">
+    <Border Style="{StaticResource OverlayPanelBorder}">
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Header: title + close -->
-            <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                <TextBlock Text="Settings"
-                           Style="{StaticResource SectionTitle}"
-                           DockPanel.Dock="Left"
-                           Margin="0"
-                           VerticalAlignment="Center"/>
+            <Grid Grid.Row="0" Margin="18,16,14,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="36"
+                        Height="36"
+                        Background="{StaticResource WolfAccentHoverBrush}"
+                        BorderBrush="#5500E676"
+                        BorderThickness="1"
+                        CornerRadius="9">
+                    <controls:PhosphorIcon IconName="Gear"
+                                           IconSize="18"
+                                           IconBrush="{DynamicResource WolfGreenBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="11,0,12,0" VerticalAlignment="Center">
+                    <TextBlock Text="Settings"
+                               FontSize="16"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Device, Windows audio, and app preferences"
+                               Style="{StaticResource DimText}"
+                               Margin="0,3,0,0"/>
+                </StackPanel>
                 <Button x:Name="CloseButton"
-                        DockPanel.Dock="Right"
-                        Content="✕"
-                        Style="{StaticResource QuietButton}"
-                        Padding="8,3"
-                        Margin="10,0,0,0"
+                        Grid.Column="2"
+                        Style="{StaticResource OverlayCloseButton}"
                         VerticalAlignment="Center"
                         HorizontalAlignment="Right"
                         ToolTip="Close settings"
-                        Click="CloseButton_Click"/>
-            </DockPanel>
+                        Click="CloseButton_Click">
+                    <Path Width="11"
+                          Height="11"
+                          Data="M 1,1 L 10,10 M 10,1 L 1,10"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                          StrokeThickness="1.6"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"/>
+                </Button>
+            </Grid>
 
-            <ScrollViewer Grid.Row="1"
+            <Border Grid.Row="1"
+                    Height="1"
+                    Margin="12,0"
+                    Background="{StaticResource WolfLineBrush}"/>
+
+            <ScrollViewer Grid.Row="2"
+                          Margin="10,10,6,10"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
-                <StackPanel>
+                <StackPanel Margin="2,0,4,0">
 
                     <!-- 1. Theme: accent color swatches -->
                     <Expander Header="Theme"
+                              IsExpanded="False"
                               Foreground="{StaticResource WolfMutedBrush}"
                               Margin="0,0,0,10">
                         <StackPanel Margin="0,10,0,0">
@@ -150,11 +182,157 @@
                                                Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
+
+                            <Border Margin="0,8,0,0"
+                                    Padding="12,10"
+                                    Background="{StaticResource WolfAccentHoverBrush}"
+                                    CornerRadius="9"
+                                    Visibility="{Binding IsK13R2RSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel>
+                                    <TextBlock Text="K13 R2R PEQ behavior"
+                                               Foreground="{DynamicResource WolfGreenBrush}"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="Ten global PEQ bands work across USB, optical, coaxial, and Bluetooth. With PEQ active, FiiO limits playback to PCM 192 kHz/24-bit and MQA processing is unavailable. Switching EQ between Off and active can briefly reconnect USB."
+                                               Style="{StaticResource DimText}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Expander>
 
-                    <!-- 3. Input: device input source -->
+                    <!-- 3. Windows Audio: compact advanced controls for the default output -->
+                    <Expander Header="Windows Audio"
+                              IsExpanded="False"
+                              Foreground="{StaticResource WolfMutedBrush}"
+                              Expanded="WindowsAudioExpander_Expanded"
+                              Margin="0,0,0,10">
+                        <StackPanel Margin="0,10,0,0">
+                            <Border Padding="13,12"
+                                    Background="#B912171B"
+                                    BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Default format"
+                                                       Style="{StaticResource TinyLabel}"/>
+                                            <TextBlock Text="{Binding WindowsAudioCurrentFormat}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,4,0,0"/>
+                                            <TextBlock Text="{Binding WindowsAudioFormatStatus}"
+                                                       Style="{StaticResource DimText}"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,4,12,0"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding RefreshWindowsAudioFormatsCommand}"
+                                                Style="{StaticResource QuietButton}"
+                                                Padding="10,7"
+                                                VerticalAlignment="Top"
+                                                ToolTip="Rescan the Windows default output">
+                                            <controls:PhosphorIcon IconName="ArrowClockwise"
+                                                                   IconSize="15"
+                                                                   IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                                        </Button>
+                                    </Grid>
+
+                                    <ItemsControl ItemsSource="{Binding WindowsAudioQuickFormats}"
+                                                  Margin="-4,12,-4,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="4"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Command="{Binding DataContext.ApplyWindowsAudioQuickFormatCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                        CommandParameter="{Binding}"
+                                                        IsEnabled="{Binding IsSupported}"
+                                                        Height="48"
+                                                        Margin="4,0"
+                                                        Padding="5"
+                                                        ToolTip="Apply this format to the Windows default output">
+                                                    <Button.Style>
+                                                        <Style TargetType="{x:Type Button}" BasedOn="{StaticResource QuietButton}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                    <Setter Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                    <StackPanel HorizontalAlignment="Center">
+                                                        <TextBlock Text="{Binding Label}"
+                                                                   FontSize="12"
+                                                                   FontWeight="SemiBold"
+                                                                   HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="CURRENT"
+                                                                   FontSize="8"
+                                                                   FontWeight="SemiBold"
+                                                                   Margin="0,3,0,0"
+                                                                   Foreground="{DynamicResource WolfGreenBrush}"
+                                                                   HorizontalAlignment="Center"
+                                                                   Visibility="{Binding IsCurrent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="13,12"
+                                    Margin="0,8,0,0"
+                                    Background="#B912171B"
+                                    BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="Spatial sound"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"/>
+                                        <TextBlock Text="Windows Sonic, Dolby Atmos, or DTS"
+                                                   Style="{StaticResource DimText}"
+                                                   Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Manage"
+                                            Command="{Binding OpenWindowsOutputSettingsCommand}"
+                                            Style="{StaticResource AccentButton}"
+                                            VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Padding="10,8"
+                                    Margin="0,8,0,0"
+                                    Background="{StaticResource WolfAccentHoverBrush}"
+                                    CornerRadius="8">
+                                <TextBlock Text="Applies to the Windows default output. Unsupported formats stay disabled."
+                                           Foreground="{StaticResource WolfMutedBrush}"
+                                           FontSize="10"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+                        </StackPanel>
+                    </Expander>
+
+                    <!-- 4. Input: device input source -->
                     <Expander Header="Input"
+                              IsExpanded="False"
                               Foreground="{StaticResource WolfMutedBrush}"
                               Margin="0,0,0,10"
                               IsEnabled="{Binding SelectedDeviceSupportsBleInput}">
@@ -194,141 +372,184 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- 4. Device Controls: volume, limit, balance, gain/DRE, slot name -->
+                    <!-- 5. Device Controls: volume, limit, balance, gain/DRE, slot name -->
                     <Expander Header="Device Controls"
+                              IsExpanded="False"
                               Foreground="{StaticResource WolfMutedBrush}"
                               Margin="0,0,0,10"
                               IsEnabled="{Binding SelectedDeviceSupportsBleDeviceControls}">
                         <StackPanel Margin="0,10,0,0">
-                            <DockPanel Margin="0,0,0,10" LastChildFill="False">
-                                <Button Content="Read"
-                                        Command="{Binding ReadDeviceControlsCommand}"
-                                        Style="{StaticResource QuietButton}"
-                                        DockPanel.Dock="Right"/>
-                            </DockPanel>
-
-                            <Grid>
+                            <Grid Margin="2,0,2,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Hardware controls" FontSize="13" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Changes are sent to the connected device"
+                                               Style="{StaticResource DimText}"
+                                               Margin="0,3,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Content="Refresh values"
+                                        Command="{Binding ReadDeviceControlsCommand}"
+                                        Style="{StaticResource QuietButton}"
+                                        VerticalAlignment="Center"/>
+                            </Grid>
 
-                                <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,6,12" Padding="12">
-                                    <StackPanel>
-                                        <DockPanel Margin="0,0,0,8">
-                                            <TextBlock Text="Volume" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
-                                            <TextBlock Text="{Binding DeviceVolume, StringFormat={}{0:0}/99}"
-                                                       Style="{StaticResource DimText}"
-                                                       HorizontalAlignment="Right"/>
-                                        </DockPanel>
-                                        <controls:StyledSlider Minimum="0"
+                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,8" Padding="14,12">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,6">
+                                        <StackPanel DockPanel.Dock="Left">
+                                            <TextBlock Text="Volume" FontSize="13" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Listening level" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding DeviceVolume, StringFormat={}{0:0}}"
+                                                   Foreground="{DynamicResource WolfGreenBrush}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="38"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="38"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0"
+                                                Command="{Binding VolumeDownCommand}"
+                                                Style="{StaticResource QuietButton}"
+                                                Width="34" Height="34" MinHeight="0" Padding="0" Margin="0"
+                                                ToolTip="Volume down">
+                                            <controls:PhosphorIcon IconName="Minus" IconSize="13" IconBrush="{StaticResource WolfMutedBrush}"/>
+                                        </Button>
+                                        <controls:StyledSlider Grid.Column="1"
+                                                               Margin="4,0"
+                                                               Minimum="0"
                                                                Maximum="99"
                                                                Value="{Binding DeviceVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                Step="1"
                                                                AccentColor="{DynamicResource WolfGreen}"
                                                                ShowLabel="False"/>
-                                        <WrapPanel Margin="0,10,0,0">
-                                            <Button Content="-"
-                                                    Command="{Binding VolumeDownCommand}"
-                                                    Style="{StaticResource QuietButton}"
-                                                    MinWidth="44"/>
-                                            <Button Content="+"
-                                                    Command="{Binding VolumeUpCommand}"
-                                                    Style="{StaticResource QuietButton}"
-                                                    MinWidth="44"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Column="1" Style="{StaticResource SourceTileBorder}" Margin="6,0,0,12" Padding="12">
-                                    <StackPanel>
-                                        <DockPanel Margin="0,0,0,8">
-                                            <TextBlock Text="Volume Limit" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
-                                            <TextBlock Text="{Binding DeviceVolumeLimit, StringFormat={}{0:0}/99}"
-                                                       Style="{StaticResource DimText}"
-                                                       HorizontalAlignment="Right"/>
-                                        </DockPanel>
-                                        <controls:StyledSlider Minimum="0"
-                                                               Maximum="99"
-                                                               Value="{Binding DeviceVolumeLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                               Step="1"
-                                                               AccentColor="{DynamicResource WolfGreen}"
-                                                               ShowLabel="False"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Row="1" Style="{StaticResource SourceTileBorder}" Margin="0,0,6,12" Padding="12">
-                                    <StackPanel>
-                                        <DockPanel Margin="0,0,0,8">
-                                            <TextBlock Text="Channel Balance" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
-                                            <TextBlock Text="{Binding DeviceChannelBalanceDisplay}"
-                                                       Style="{StaticResource DimText}"
-                                                       HorizontalAlignment="Right"/>
-                                        </DockPanel>
-                                        <controls:StyledSlider Minimum="-10"
-                                                               Maximum="10"
-                                                               Value="{Binding DeviceChannelBalance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                               Step="1"
-                                                               AccentColor="{DynamicResource WolfGreen}"
-                                                               ShowLabel="False"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource SourceTileBorder}" Margin="6,0,0,12" Padding="12">
-                                    <StackPanel>
-                                        <TextBlock Text="Gain / DRE" Style="{StaticResource TinyLabel}" Margin="0,0,0,10"/>
-                                        <WrapPanel>
-                                            <CheckBox Content="High Gain"
-                                                      IsChecked="{Binding DeviceHighGain, Mode=TwoWay}"
-                                                      Margin="0,0,18,8"/>
-                                            <CheckBox Content="DRE"
-                                                      IsChecked="{Binding DeviceDreEnabled, Mode=TwoWay}"
-                                                      Margin="0,0,18,8"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Row="2"
-                                        Grid.ColumnSpan="2"
-                                        Style="{StaticResource SourceTileBorder}"
-                                        Margin="0,0,0,12"
-                                        Padding="12">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                            <TextBlock Text="EQ Slot Name" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
-                                            <TextBox Text="{Binding DeviceProfileName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                     MaxLength="8"
-                                                     MinWidth="160"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1"
-                                                Content="Rename Slot"
-                                                Command="{Binding RenameUserSlotCommand}"
+                                        <Button Grid.Column="2"
+                                                Command="{Binding VolumeUpCommand}"
                                                 Style="{StaticResource QuietButton}"
-                                                VerticalAlignment="Bottom"/>
+                                                Width="34" Height="34" MinHeight="0" Padding="0" Margin="0"
+                                                ToolTip="Volume up">
+                                            <controls:PhosphorIcon IconName="Plus" IconSize="13" IconBrush="{StaticResource WolfMutedBrush}"/>
+                                        </Button>
                                     </Grid>
-                                </Border>
+                                </StackPanel>
+                            </Border>
 
-                                <TextBlock Grid.Row="3"
-                                           Grid.ColumnSpan="2"
-                                           Text="{Binding DeviceControlsStatus}"
-                                           Style="{StaticResource DimText}"
-                                           TextWrapping="Wrap"/>
-                            </Grid>
+                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,8" Padding="14,12">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,5">
+                                        <StackPanel DockPanel.Dock="Left">
+                                            <TextBlock Text="Volume limit" FontSize="13" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Maximum allowed output" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding DeviceVolumeLimit, StringFormat={}{0:0}/99}"
+                                                   Foreground="{DynamicResource WolfGreenBrush}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <controls:StyledSlider Minimum="0"
+                                                           Maximum="99"
+                                                           Value="{Binding DeviceVolumeLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                           Step="1"
+                                                           AccentColor="{DynamicResource WolfGreen}"
+                                                           ShowLabel="False"/>
+                                    <DockPanel Margin="10,-1,10,0">
+                                        <TextBlock Text="0" Style="{StaticResource TinyLabel}" DockPanel.Dock="Left"/>
+                                        <TextBlock Text="99" Style="{StaticResource TinyLabel}" HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,8" Padding="14,12">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,5" LastChildFill="False">
+                                        <StackPanel DockPanel.Dock="Left">
+                                            <TextBlock Text="Channel balance" FontSize="13" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Shift the stereo image left or right" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <Border Background="{StaticResource WolfAccentHoverBrush}"
+                                                BorderBrush="#5500E676"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8,4"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DeviceChannelBalanceDisplay}"
+                                                       Foreground="{DynamicResource WolfGreenBrush}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"/>
+                                        </Border>
+                                    </DockPanel>
+                                    <controls:StyledSlider Minimum="-10"
+                                                           Maximum="10"
+                                                           Value="{Binding DeviceChannelBalance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                           Step="1"
+                                                           CenterOrigin="True"
+                                                           AccentColor="{DynamicResource WolfGreen}"
+                                                           ShowLabel="False"/>
+                                    <Grid Margin="10,-1,10,0">
+                                        <TextBlock Text="L 10" Style="{StaticResource TinyLabel}" HorizontalAlignment="Left"/>
+                                        <TextBlock Text="CENTER" Style="{StaticResource TinyLabel}" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="R 10" Style="{StaticResource TinyLabel}" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,8" Padding="14,12">
+                                <StackPanel>
+                                    <TextBlock Text="Playback mode" FontSize="13" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Device-level gain and dynamic-range options"
+                                               Style="{StaticResource DimText}"
+                                               Margin="0,3,0,10"/>
+                                    <WrapPanel>
+                                        <CheckBox Content="High gain"
+                                                  IsChecked="{Binding DeviceHighGain, Mode=TwoWay}"
+                                                  Margin="0,0,22,0"/>
+                                        <CheckBox Content="Dynamic range enhancement"
+                                                  IsChecked="{Binding DeviceDreEnabled, Mode=TwoWay}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,10" Padding="14,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBlock Text="EQ slot name" FontSize="13" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Up to 8 characters" Style="{StaticResource DimText}" Margin="0,2,0,7"/>
+                                        <TextBox Text="{Binding DeviceProfileName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxLength="8"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Rename"
+                                            Command="{Binding RenameUserSlotCommand}"
+                                            Style="{StaticResource QuietButton}"
+                                            VerticalAlignment="Bottom"/>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Text="{Binding DeviceControlsStatus}"
+                                       Style="{StaticResource DimText}"
+                                       TextWrapping="Wrap"
+                                       Margin="2,0"/>
                         </StackPanel>
                     </Expander>
 
-                    <!-- 5. Profile Lights: top / knob LED color, mode, power, scenes -->
+                    <!-- 6. Profile Lights: top / knob LED color, mode, power, scenes -->
                     <Expander Header="Profile Lights"
+                              IsExpanded="False"
                               Foreground="{StaticResource WolfMutedBrush}"
                               Margin="0,0,0,10"
                               Visibility="{Binding SelectedDeviceSupportsBleLighting, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -574,8 +795,9 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- 6. About: version, updates, releases, support -->
+                    <!-- 7. About: version, updates, releases, support -->
                     <Expander Header="About"
+                              IsExpanded="False"
                               Foreground="{StaticResource WolfMutedBrush}">
                         <StackPanel Margin="0,10,0,0">
                             <DockPanel Margin="0,0,0,10" LastChildFill="False">

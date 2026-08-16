@@ -29,4 +29,53 @@ public sealed class FiioDeviceProfileTests
         Assert.True(FiioDeviceProfiles.Ja11.SupportsEqReadback);
         Assert.True(FiioDeviceProfiles.SnowskyRetroNano.SupportsEqReadback);
     }
+
+    [Theory]
+    [InlineData("FIIO BR15 R2R", "fiio-br15-r2r")]
+    [InlineData("FiiO QX13", "fiio-qx13")]
+    [InlineData("FIIO BTR17", "fiio-btr17")]
+    [InlineData("BTR13", "fiio-btr13")]
+    public void CommunityProfiles_MatchPublishedUsbProductNames(string productName, string expectedProfileId)
+    {
+        var profile = FiioDeviceProfiles.Match(null, productName, null);
+
+        Assert.NotNull(profile);
+        Assert.Equal(expectedProfileId, profile.Id);
+    }
+
+    [Fact]
+    public void CommunityProfiles_StartInGuardedSaveOnlyMode()
+    {
+        var profiles = new[]
+        {
+            FiioDeviceProfiles.Br15R2R,
+            FiioDeviceProfiles.Qx13,
+            FiioDeviceProfiles.Btr17,
+            FiioDeviceProfiles.Btr13
+        };
+
+        Assert.All(profiles, profile =>
+        {
+            Assert.False(profile.IsVerified);
+            Assert.False(profile.SupportsLiveEqWrites);
+            Assert.False(profile.SupportsEqReadback);
+            Assert.False(profile.ReloadEqAfterSave);
+        });
+    }
+
+    [Fact]
+    public void Btr17_UsesV2SaveCommandAndTenUserSlots()
+    {
+        Assert.Equal(0x21, FiioDeviceProfiles.Btr17.SaveCommandId);
+        Assert.Equal(
+            Enumerable.Range(0xA0, 10),
+            FiioDeviceProfiles.Btr17.WritableSlots.Select(slot => (int)slot.Id));
+    }
+
+    [Fact]
+    public void Br15R2R_ExcludesUnsupportedBandPassFilter()
+    {
+        Assert.False(FiioDeviceProfiles.Br15R2R.SupportsFilter(EqFilterType.BandPass));
+        Assert.True(FiioDeviceProfiles.Br15R2R.SupportsFilter(EqFilterType.AllPass));
+    }
 }

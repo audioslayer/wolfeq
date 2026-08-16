@@ -32,6 +32,15 @@ public partial class SettingsPopover : UserControl
     private void CloseButton_Click(object sender, RoutedEventArgs e)
         => CloseRequested?.Invoke(this, EventArgs.Empty);
 
+    private void WindowsAudioExpander_Expanded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel &&
+            viewModel.RefreshWindowsAudioFormatsCommand.CanExecute(null))
+        {
+            viewModel.RefreshWindowsAudioFormatsCommand.Execute(null);
+        }
+    }
+
     private void AccentColorSwatch_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel &&

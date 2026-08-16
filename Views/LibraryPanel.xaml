@@ -6,9 +6,9 @@
              xmlns:controls="clr-namespace:WolfEQ.Controls"
              xmlns:models="clr-namespace:WolfEQ.Models"
              mc:Ignorable="d"
-             d:DesignWidth="420"
+             d:DesignWidth="460"
              d:DesignHeight="820"
-             Width="420"
+             Width="460"
              Foreground="{StaticResource WolfTextBrush}">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -55,35 +55,41 @@
 
         <!-- My Library / Online source chip (mutually exclusive, chip-styled radios). -->
         <Style x:Key="SourceChip" TargetType="{x:Type RadioButton}">
-            <Setter Property="Background" Value="{StaticResource WolfShellBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
             <Setter Property="Padding" Value="14,5"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="44"/>
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RadioButton}">
-                        <Border x:Name="Chrome"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Chrome"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="7"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <Border x:Name="ActiveRail"
+                                    Width="3"
+                                    Margin="3,9"
+                                    HorizontalAlignment="Left"
+                                    Background="{DynamicResource WolfGreenBrush}"
+                                    CornerRadius="2"
+                                    Visibility="Collapsed"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
                                 <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
                             </Trigger>
                             <!-- Checked wins over hover; declared last. -->
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfGreenBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF172126"/>
+                                <Setter TargetName="ActiveRail" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -91,15 +97,15 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Foreground" Value="{StaticResource WolfGreenContrastBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource PanelBorder}">
-        <Grid>
+    <Border Style="{StaticResource OverlayPanelBorder}">
+        <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -109,39 +115,97 @@
             </Grid.RowDefinitions>
 
             <!-- 1. Header: title, preset count, close -->
-            <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                <TextBlock Text="Library"
-                           Style="{StaticResource SectionTitle}"
-                           DockPanel.Dock="Left"
-                           Margin="0"
-                           VerticalAlignment="Center"/>
+            <Grid Grid.Row="0" Margin="2,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="36"
+                        Height="36"
+                        Background="{StaticResource WolfAccentHoverBrush}"
+                        BorderBrush="#5500E676"
+                        BorderThickness="1"
+                        CornerRadius="9">
+                    <controls:PhosphorIcon IconName="Folder"
+                                           IconSize="18"
+                                           IconBrush="{DynamicResource WolfGreenBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="11,0,12,0" VerticalAlignment="Center">
+                    <TextBlock Text="Preset library"
+                               FontSize="16"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding FilteredPresetCount, StringFormat={}{0} presets ready to load}"
+                               Style="{StaticResource DimText}"
+                               Margin="0,3,0,0"/>
+                </StackPanel>
                 <Button x:Name="CloseButton"
-                        DockPanel.Dock="Right"
-                        Content="✕"
-                        Style="{StaticResource QuietButton}"
-                        Padding="8,3"
-                        Margin="10,0,0,0"
+                        Grid.Column="2"
+                        Style="{StaticResource OverlayCloseButton}"
                         VerticalAlignment="Center"
                         ToolTip="Close the library"
-                        Click="CloseButton_Click"/>
-                <TextBlock Text="{Binding FilteredPresetCount, StringFormat={}{0} presets}"
-                           Style="{StaticResource DimText}"
-                           HorizontalAlignment="Right"
-                           VerticalAlignment="Center"/>
-            </DockPanel>
+                        Click="CloseButton_Click">
+                    <Path Width="11"
+                          Height="11"
+                          Data="M 1,1 L 10,10 M 10,1 L 1,10"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                          StrokeThickness="1.6"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"/>
+                </Button>
+            </Grid>
 
             <!-- 2. Source toggle -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Border Grid.Row="1"
+                    Margin="0,0,0,12"
+                    Padding="3"
+                    Background="{StaticResource WolfShellBrush}"
+                    BorderBrush="{StaticResource WolfLineBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                 <RadioButton x:Name="MyLibrarySourceChip"
-                             Content="My Library"
                              Style="{StaticResource SourceChip}"
                              GroupName="LibrarySource"
-                             IsChecked="True"/>
+                             IsChecked="True"
+                             Margin="0,0,2,0">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:PhosphorIcon IconName="Folder"
+                                               IconSize="16"
+                                               IconBrush="{DynamicResource WolfGreenBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"/>
+                        <StackPanel>
+                            <TextBlock Text="My Library" FontWeight="SemiBold"/>
+                            <TextBlock Text="Saved profiles" Style="{StaticResource TinyLabel}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </RadioButton>
                 <RadioButton x:Name="OnlineSourceChip"
-                             Content="Online"
+                             Grid.Column="1"
                              Style="{StaticResource SourceChip}"
-                             GroupName="LibrarySource"/>
-            </StackPanel>
+                             GroupName="LibrarySource"
+                             Margin="2,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:PhosphorIcon IconName="Cloud"
+                                               IconSize="16"
+                                               IconBrush="{DynamicResource WolfCyanBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"/>
+                        <StackPanel>
+                            <TextBlock Text="Discover Online" FontWeight="SemiBold"/>
+                            <TextBlock Text="AutoEQ + OPRA" Style="{StaticResource TinyLabel}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </RadioButton>
+            </Grid>
+            </Border>
 
             <!-- 3. Search (one box per source; the inactive one is collapsed) -->
             <Grid Grid.Row="2"
@@ -150,21 +214,48 @@
                 <TextBox Text="{Binding ProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
                          ToolTip="Filter saved presets"/>
             </Grid>
-            <Grid Grid.Row="2"
-                  Margin="0,0,0,10"
+            <Border Grid.Row="2"
+                    Margin="0,0,0,10"
+                    Padding="12"
+                    Background="#FF13242A"
+                    BorderBrush="#6606B6D4"
+                    BorderThickness="1"
+                    CornerRadius="10"
                   Visibility="{Binding IsChecked, ElementName=OnlineSourceChip, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
-                         Margin="0,0,8,0"
-                         ToolTip="Search AutoEQ and OPRA headphone presets"/>
-                <Button Grid.Column="1"
-                        Content="Search"
-                        Command="{Binding SearchGitHubProfilesCommand}"
-                        Style="{StaticResource FiioButton}"/>
-            </Grid>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Border Width="30" Height="30" Background="#2210CBEA" CornerRadius="7" Margin="0,0,9,0">
+                            <controls:PhosphorIcon IconName="MagnifyingGlass"
+                                                   IconSize="15"
+                                                   IconBrush="{DynamicResource WolfCyanBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Find your headphones" FontSize="13" FontWeight="SemiBold"/>
+                            <TextBlock Text="Search community measurements and tunings"
+                                       Style="{StaticResource DimText}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="OnlineSearchBox"
+                                 Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,8,0"
+                                 KeyDown="OnlineSearchBox_KeyDown"
+                                 AutomationProperties.Name="Search online headphone profiles"
+                                 ToolTip="Search AutoEQ and OPRA headphone presets"/>
+                        <Button Grid.Column="1"
+                                Content="Search"
+                                Command="{Binding SearchGitHubProfilesCommand}"
+                                Style="{StaticResource FiioButton}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
             <!-- 4. My Library source -->
             <Grid Grid.Row="3"
@@ -224,35 +315,72 @@
                          ItemsSource="{Binding GitHubProfiles}"
                          SelectedItem="{Binding SelectedGitHubProfile}"
                          ItemTemplate="{StaticResource OnlineProfileListItemTemplate}"
-                         MinHeight="120"/>
+                         MinHeight="150"/>
 
                 <TextBlock Grid.Row="1"
                            Text="{Binding GitHubProfileStatus}"
                            Style="{StaticResource DimText}"
                            TextTrimming="CharacterEllipsis"
-                           Margin="0,8,0,6"/>
+                           Margin="2,8,0,8"/>
 
-                <controls:EqResponseGraphControl Grid.Row="2"
-                                                 Bands="{Binding GitHubPreviewPreset.Bands}"
-                                                 PreampDb="{Binding GitHubPreviewPreset.PreampDb, TargetNullValue=0}"
-                                                 IsInteractive="False"
-                                                 Height="140"
-                                                 MinHeight="0"/>
+                <Border Grid.Row="2"
+                        Background="{StaticResource WolfPanel2Brush}"
+                        BorderBrush="{StaticResource WolfLineSoftBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Margin="12,9,12,8">
+                            <TextBlock Text="CURVE PREVIEW"
+                                       Style="{StaticResource TinyLabel}"
+                                       FontWeight="SemiBold"
+                                       DockPanel.Dock="Left"/>
+                            <TextBlock Text="{Binding GitHubPreviewPreset.PreampDb, StringFormat=Preamp {0:+0.0;-0.0;0.0} dB, TargetNullValue=Select a profile}"
+                                       Style="{StaticResource TinyLabel}"
+                                       HorizontalAlignment="Right"/>
+                        </DockPanel>
+                        <controls:EqResponseGraphControl Grid.Row="1"
+                                                         Bands="{Binding GitHubPreviewPreset.Bands}"
+                                                         PreampDb="{Binding GitHubPreviewPreset.PreampDb, TargetNullValue=0}"
+                                                         IsInteractive="False"
+                                                         MinGainDb="-12"
+                                                         MaxGainDb="12"
+                                                         Height="170"
+                                                         MinHeight="0"/>
+                    </Grid>
+                </Border>
 
-                <UniformGrid Grid.Row="3" Columns="3" Margin="0,10,0,0">
-                    <Button Content="Download"
-                            Command="{Binding ImportGitHubProfileCommand}"
-                            Style="{StaticResource QuietButton}"
-                            ToolTip="Save this profile to My Library"/>
-                    <Button Content="Load into editor"
-                            Command="{Binding LoadOnlineProfileIntoEditorCommand}"
-                            Style="{StaticResource QuietButton}"
-                            ToolTip="Save this profile to My Library and open it in the editor"/>
-                    <Button Content="Write to slot"
-                            Command="{Binding WriteOnlineProfileToSlotCommand}"
-                            Style="{StaticResource AccentButton}"
-                            ToolTip="Save this profile to My Library and write it to the device's target slot"/>
-                </UniformGrid>
+                <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                    <TextBlock Text="Profiles are saved to My Library before they are opened or written."
+                               Style="{StaticResource DimText}"
+                               Margin="2,0,0,7"/>
+                    <Button Command="{Binding ImportGitHubProfileCommand}"
+                            Style="{StaticResource FiioButton}"
+                            Margin="0,0,0,6"
+                            ToolTip="Download this profile without replacing the current editor curve">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <controls:PhosphorIcon IconName="Plus"
+                                                   IconSize="14"
+                                                   IconBrush="{DynamicResource WolfGreenBrush}"
+                                                   Margin="0,0,7,0"/>
+                            <TextBlock Text="Save to My Library" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <UniformGrid Columns="2">
+                        <Button Content="Open in editor"
+                                Command="{Binding LoadOnlineProfileIntoEditorCommand}"
+                                Style="{StaticResource QuietButton}"
+                                ToolTip="Save this profile and open it in the editor"/>
+                        <Button Content="Write to current slot"
+                                Command="{Binding WriteOnlineProfileToSlotCommand}"
+                                Style="{StaticResource AccentButton}"
+                                ToolTip="Save this profile and write it to the selected device slot"/>
+                    </UniformGrid>
+                </StackPanel>
             </Grid>
 
             <!-- 6. Single import/export cluster (R18) -->

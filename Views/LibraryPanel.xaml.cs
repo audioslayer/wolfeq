@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using WolfEQ.ViewModels;
 
 namespace WolfEQ.Views;
 
@@ -25,4 +27,18 @@ public partial class LibraryPanel : UserControl
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
         => CloseRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnlineSearchBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (viewModel.SearchGitHubProfilesCommand.CanExecute(null))
+        {
+            viewModel.SearchGitHubProfilesCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
 }

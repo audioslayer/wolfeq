@@ -22,13 +22,15 @@ public sealed class LocalPresetLibraryService
             return [];
         }
 
-        var json = File.ReadAllText(LibraryPath);
+        var json = BoundedTextReader.ReadAllText(
+            LibraryPath,
+            BoundedTextReader.LibraryMaxBytes,
+            "Local preset library");
         return WolfEqPresetJsonCodec.ImportLibrary(json, "WolfEQ local profiles");
     }
 
     public void Save(IEnumerable<EqPreset> presets)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(LibraryPath)!);
-        File.WriteAllText(LibraryPath, WolfEqPresetJsonCodec.ExportLibrary(presets));
+        AtomicFileWriter.WriteAllText(LibraryPath, WolfEqPresetJsonCodec.ExportLibrary(presets));
     }
 }

@@ -56,20 +56,79 @@
                            RenderOptions.BitmapScalingMode="HighQuality"
                            VerticalAlignment="Center"
                            Margin="0,0,8,0"/>
-                    <TextBlock VerticalAlignment="Center">
-                        <Run Text="WOLF"
-                             FontFamily="Segoe UI Black"
-                             FontSize="16"
-                             FontWeight="Black"
-                             Foreground="{DynamicResource WolfCyanBrush}"/>
-                        <Run Text=" " FontSize="4"/>
-                        <Run Text="EQ"
-                             FontFamily="Segoe UI Black"
-                             FontSize="16"
-                             FontWeight="Black"
-                             Foreground="{DynamicResource WolfCyanBrush}"/>
+                    <TextBlock FontFamily="Segoe UI"
+                               FontSize="17"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center">
+                        <Run Text="Wolf" Foreground="{StaticResource WolfTextBrush}"/><Run Text="EQ" Foreground="{DynamicResource WolfCyanBrush}"/>
                     </TextBlock>
+                    <Border Width="1"
+                            Height="20"
+                            Margin="14,0,7,0"
+                            Background="{StaticResource WolfLineSoftBrush}"/>
+                    <Button x:Name="UndoHeaderButton"
+                            Click="UndoHeaderButton_Click"
+                            IsEnabled="{Binding CanUndo}"
+                            Style="{StaticResource HeaderHistoryButton}"
+                            ToolTip="Undo last EQ edit (Ctrl+Z)"
+                            AutomationProperties.Name="Undo last EQ edit">
+                        <Viewbox Width="15" Height="15">
+                            <Canvas Width="16" Height="16">
+                                <Path Data="M 6.5,3 L 2.5,7 L 6.5,11 M 3,7 H 9.5 C 12.2,7 14,8.7 14,11.5"
+                                      Fill="Transparent"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                      StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
+                    <Button x:Name="RedoHeaderButton"
+                            Click="RedoHeaderButton_Click"
+                            IsEnabled="{Binding CanRedo}"
+                            Style="{StaticResource HeaderHistoryButton}"
+                            Margin="2,0,0,0"
+                            ToolTip="Redo last EQ edit (Ctrl+Y)"
+                            AutomationProperties.Name="Redo last EQ edit">
+                        <Viewbox Width="15" Height="15">
+                            <Canvas Width="16" Height="16">
+                                <Path Data="M 9.5,3 L 13.5,7 L 9.5,11 M 13,7 H 6.5 C 3.8,7 2,8.7 2,11.5"
+                                      Fill="Transparent"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                      StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
                 </StackPanel>
+
+                <Border Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        MaxWidth="520"
+                        Margin="24,0"
+                        Padding="10,5"
+                        Background="#B912171B"
+                        BorderBrush="{StaticResource WolfLineSoftBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        ToolTip="{Binding Status}">
+                    <DockPanel LastChildFill="True">
+                        <Ellipse Width="6"
+                                 Height="6"
+                                 Margin="0,0,8,0"
+                                 VerticalAlignment="Center"
+                                 Fill="{DynamicResource WolfCyanBrush}"/>
+                        <TextBlock Text="{Binding Status}"
+                                   Foreground="{StaticResource WolfMutedBrush}"
+                                   FontSize="11"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Border>
 
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal"
@@ -100,30 +159,46 @@
                                FontSize="10"
                                VerticalAlignment="Center"
                                Margin="0,0,16,0"/>
-                    <Button x:Name="LibraryHeaderButton"
-                            Style="{StaticResource QuietButton}"
-                            Click="LibraryHeaderButton_Click"
-                            Margin="0,0,6,0"
-                            ToolTip="Open the preset library">
+                    <Border Background="{StaticResource WolfShellBrush}"
+                            BorderBrush="{StaticResource WolfLineBrush}"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Padding="2"
+                            Margin="0,0,12,0">
+                    <StackPanel Orientation="Horizontal">
+                    <ToggleButton x:Name="LibraryHeaderButton"
+                                  Style="{StaticResource HeaderNavToggle}"
+                                  Click="LibraryHeaderButton_Click"
+                                  Margin="0"
+                                  ToolTip="Open the preset library (Ctrl+L)">
                         <StackPanel Orientation="Horizontal">
                             <controls:PhosphorIcon IconName="Folder"
                                                    IconSize="15"
-                                                   IconBrush="{StaticResource WolfMutedBrush}"
+                                                   IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}"
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,7,0"/>
-                            <TextBlock Text="Library" VerticalAlignment="Center"/>
+                            <TextBlock Text="Library"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}"
+                                       VerticalAlignment="Center"/>
                         </StackPanel>
-                    </Button>
-                    <Button x:Name="SettingsHeaderButton"
-                            Style="{StaticResource QuietButton}"
-                            Click="SettingsHeaderButton_Click"
-                            Margin="0,0,14,0"
-                            ToolTip="Settings">
+                    </ToggleButton>
+                    <Border Width="1"
+                            Height="20"
+                            Margin="2,0"
+                            Background="{StaticResource WolfLineBrush}"
+                            VerticalAlignment="Center"/>
+                    <ToggleButton x:Name="SettingsHeaderButton"
+                                  Style="{StaticResource HeaderNavToggle}"
+                                  Click="SettingsHeaderButton_Click"
+                                  Margin="0"
+                                  ToolTip="Settings (Ctrl+,)">
                         <controls:PhosphorIcon IconName="Gear"
                                                IconSize="16"
-                                               IconBrush="{StaticResource WolfMutedBrush}"
+                                               IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}"
                                                VerticalAlignment="Center"/>
-                    </Button>
+                    </ToggleButton>
+                    </StackPanel>
+                    </Border>
                     <Button Style="{StaticResource MacWindowMinimizeButton}"
                             Click="MinimizeWindow_Click"
                             Margin="0,0,2,0"
@@ -180,22 +255,23 @@
               Panel.ZIndex="100"
               Visibility="Collapsed">
             <Border x:Name="OverlayDimmer"
-                    Background="#99000000"
+                    Background="#B3000000"
+                    Opacity="0"
                     MouseLeftButtonDown="OverlayDimmer_MouseLeftButtonDown"/>
             <views:LibraryPanel x:Name="LibraryHost"
                                 HorizontalAlignment="Right"
-                                Margin="0,12,12,12"
+                                Margin="0"
                                 Visibility="Collapsed">
                 <views:LibraryPanel.RenderTransform>
-                    <TranslateTransform X="452"/>
+                    <TranslateTransform X="492"/>
                 </views:LibraryPanel.RenderTransform>
             </views:LibraryPanel>
             <views:SettingsPopover x:Name="SettingsHost"
                                    HorizontalAlignment="Right"
-                                   Margin="0,12,12,12"
+                                   Margin="0"
                                    Visibility="Collapsed">
                 <views:SettingsPopover.RenderTransform>
-                    <TranslateTransform X="472"/>
+                    <TranslateTransform X="492"/>
                 </views:SettingsPopover.RenderTransform>
             </views:SettingsPopover>
         </Grid>

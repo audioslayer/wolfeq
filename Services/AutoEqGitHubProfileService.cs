@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using WolfEQ.Models;
@@ -18,16 +19,20 @@ public sealed partial class AutoEqGitHubProfileService
     private const string ContentsApiRoot = "https://api.github.com/repos/jaakkopasanen/AutoEq/contents/results/";
     private const string OpraDatabaseUrl = "https://raw.githubusercontent.com/opra-project/OPRA/main/dist/database_v1.jsonl";
     private const string OpraGitHubUrl = "https://github.com/opra-project/OPRA";
+    private const int MaximumProfileBytes = 2 * 1024 * 1024;
+    private const int MaximumApiBytes = 2 * 1024 * 1024;
+    private const int MaximumIndexBytes = 50 * 1024 * 1024;
     private static readonly HttpClient Http = CreateHttpClient();
     private IReadOnlyList<AutoEqProfileIndexEntry>? _cachedIndex;
     private IReadOnlyList<AutoEqProfileIndexEntry>? _cachedOpraIndex;
+    private IReadOnlyList<AutoEqProfileIndexEntry>? _cachedCombinedIndex;
 
     public async Task<IReadOnlyList<AutoEqProfileIndexEntry>> SearchAsync(
         string query,
         int limit = 80,
         CancellationToken cancellationToken = default)
     {
-        var index = (await GetIndexAsync(cancellationToken).ConfigureAwait(false))
+        var index = _cachedCombinedIndex ??= (await GetIndexAsync(cancellationToken).ConfigureAwait(false))
             .Concat(await GetOpraIndexAsync(cancellationToken).ConfigureAwait(false))
             .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(entry => entry.Provider, StringComparer.OrdinalIgnoreCase)
@@ -63,7 +68,11 @@ public sealed partial class AutoEqGitHubProfileService
         }
 
         var downloadUrl = await FindParametricEqDownloadUrlAsync(entry, cancellationToken).ConfigureAwait(false);
-        var text = await Http.GetStringAsync(downloadUrl, cancellationToken).ConfigureAwait(false);
+        var text = await GetLimitedStringAsync(
+            downloadUrl,
+            MaximumProfileBytes,
+            "Online EQ profile",
+            cancellationToken).ConfigureAwait(false);
         var importedName = BuildImportedProfileName(entry, "AutoEq");
         var parsed = EqualizerApoPresetCodec.Parse(text, importedName);
 
@@ -103,7 +112,11 @@ public sealed partial class AutoEqGitHubProfileService
             return _cachedIndex;
         }
 
-        var markdown = await Http.GetStringAsync(ResultsIndexUrl, cancellationToken).ConfigureAwait(false);
+        var markdown = await GetLimitedStringAsync(
+            ResultsIndexUrl,
+            MaximumIndexBytes,
+            "AutoEq index",
+            cancellationToken).ConfigureAwait(false);
         _cachedIndex = ParseIndex(markdown);
         return _cachedIndex;
     }
@@ -115,7 +128,11 @@ public sealed partial class AutoEqGitHubProfileService
             return _cachedOpraIndex;
         }
 
-        var jsonl = await Http.GetStringAsync(OpraDatabaseUrl, cancellationToken).ConfigureAwait(false);
+        var jsonl = await GetLimitedStringAsync(
+            OpraDatabaseUrl,
+            MaximumIndexBytes,
+            "OPRA index",
+            cancellationToken).ConfigureAwait(false);
         _cachedOpraIndex = ParseOpraIndex(jsonl);
         return _cachedOpraIndex;
     }
@@ -270,7 +287,11 @@ public sealed partial class AutoEqGitHubProfileService
         CancellationToken cancellationToken)
     {
         var apiUrl = $"{ContentsApiRoot}{entry.EncodedRelativePath}?ref={Branch}";
-        var json = await Http.GetStringAsync(apiUrl, cancellationToken).ConfigureAwait(false);
+        var json = await GetLimitedStringAsync(
+            apiUrl,
+            MaximumApiBytes,
+            "GitHub contents response",
+            cancellationToken).ConfigureAwait(false);
         var files = JsonSerializer.Deserialize<List<GitHubContentDto>>(json, JsonOptions())
             ?? throw new FormatException("Online contents response could not be parsed.");
 
@@ -284,7 +305,15 @@ public sealed partial class AutoEqGitHubProfileService
             throw new FileNotFoundException($"No ParametricEQ.txt file was found in AutoEq path {entry.ShortPath}.");
         }
 
-        return parametric.DownloadUrl!;
+        if (!Uri.TryCreate(parametric.DownloadUrl, UriKind.Absolute, out var downloadUri)
+            || downloadUri.Scheme != Uri.UriSchemeHttps
+            || !string.Equals(downloadUri.Host, "raw.githubusercontent.com", StringComparison.OrdinalIgnoreCase)
+            || !downloadUri.AbsolutePath.StartsWith($"/{Owner}/{Repo}/", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("AutoEq returned an untrusted profile download URL.");
+        }
+
+        return downloadUri.AbsoluteUri;
     }
 
     private static EqBand CloneBand(EqBand band) => new()
@@ -303,6 +332,43 @@ public sealed partial class AutoEqGitHubProfileService
         client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("WolfEQ", "1.0"));
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         return client;
+    }
+
+    private static async Task<string> GetLimitedStringAsync(
+        string url,
+        int maximumBytes,
+        string contentLabel,
+        CancellationToken cancellationToken)
+    {
+        using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        if (response.RequestMessage?.RequestUri is not { Scheme: "https" } finalUri
+            || finalUri.Host is not ("api.github.com" or "raw.githubusercontent.com"))
+        {
+            throw new InvalidOperationException($"{contentLabel} redirected to an untrusted host.");
+        }
+
+        if (response.Content.Headers.ContentLength is long length && length > maximumBytes)
+        {
+            throw new InvalidOperationException($"{contentLabel} exceeded the configured safety limit.");
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var memory = new MemoryStream();
+        var buffer = new byte[16384];
+        int read;
+        while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        {
+            if (memory.Length + read > maximumBytes)
+            {
+                throw new InvalidOperationException($"{contentLabel} exceeded the configured safety limit.");
+            }
+
+            memory.Write(buffer, 0, read);
+        }
+
+        return Encoding.UTF8.GetString(memory.GetBuffer(), 0, checked((int)memory.Length));
     }
 
     private static JsonSerializerOptions JsonOptions() => new()

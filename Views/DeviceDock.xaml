@@ -87,6 +87,38 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="SlotScrollButton" TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.25"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Border Style="{StaticResource PanelBorder}"
@@ -129,6 +161,21 @@
                            FontWeight="SemiBold"
                            VerticalAlignment="Center"
                            Margin="0,0,10,0"/>
+                <StackPanel Orientation="Horizontal"
+                            Margin="0,0,10,0"
+                            VerticalAlignment="Center"
+                            ToolTip="K13 R2R PEQ: 10 global bands across inputs. FiiO limits PEQ playback to 192 kHz/24-bit, disables MQA processing, and may briefly reconnect USB when switching EQ between Off and active."
+                            Visibility="{Binding IsK13R2RSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Rectangle Width="1"
+                               Height="14"
+                               Fill="{StaticResource WolfLineSoftBrush}"
+                               Margin="0,0,9,0"/>
+                    <TextBlock Text="10-band PEQ"
+                               Foreground="{StaticResource WolfDimBrush}"
+                               FontSize="10"
+                               FontWeight="Medium"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
                 <Button Content="Detect"
                         Command="{Binding ConnectCommand}"
                         Style="{StaticResource DetectButton}"
@@ -142,14 +189,27 @@
                        Margin="12,2"/>
 
             <!-- 2. Slot chips (scrolls horizontally when a profile exposes many slots) -->
-            <ScrollViewer Grid.Column="2"
-                          x:Name="SlotChipScroller"
-                          HorizontalScrollBarVisibility="Hidden"
-                          VerticalScrollBarVisibility="Disabled"
-                          MaxWidth="480"
-                          VerticalAlignment="Center"
-                          PreviewMouseWheel="SlotChipScroller_PreviewMouseWheel">
-                <ItemsControl ItemsSource="{Binding DeviceUserPresets}">
+            <Grid Grid.Column="2" MaxWidth="480" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="SlotScrollLeftButton"
+                        Grid.Column="0"
+                        Content="‹"
+                        Style="{StaticResource SlotScrollButton}"
+                        Click="SlotScrollLeftButton_Click"
+                        ToolTip="Show earlier USER slots"/>
+                <ScrollViewer Grid.Column="1"
+                              x:Name="SlotChipScroller"
+                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled"
+                              MaxWidth="436"
+                              VerticalAlignment="Center"
+                              ScrollChanged="SlotChipScroller_ScrollChanged"
+                              PreviewMouseWheel="SlotChipScroller_PreviewMouseWheel">
+                <ItemsControl x:Name="SlotItems" ItemsSource="{Binding DeviceUserPresets}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal"/>
@@ -160,7 +220,7 @@
                             <Button Style="{StaticResource SlotChipButton}"
                                     Command="{Binding DataContext.SwitchSlotCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                     CommandParameter="{Binding}"
-                                    ToolTip="Make this the device's active EQ slot">
+                                    ToolTip="Switch the device and load this slot into the EQ graph">
                                 <TextBlock FontSize="12" VerticalAlignment="Center">
                                     <Run Text="{Binding Slot, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" · "/><Run Text="{Binding DeviceName, Mode=OneWay}"/>
                                 </TextBlock>
@@ -168,7 +228,14 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </ScrollViewer>
+                </ScrollViewer>
+                <Button x:Name="SlotScrollRightButton"
+                        Grid.Column="2"
+                        Content="›"
+                        Style="{StaticResource SlotScrollButton}"
+                        Click="SlotScrollRightButton_Click"
+                        ToolTip="Show later USER slots"/>
+            </Grid>
 
             <!-- 3. Load from slot -->
             <Button Grid.Column="3"

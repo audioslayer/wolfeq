@@ -420,7 +420,7 @@ public sealed class FiioK13DeviceService
         }
 
         var requestedPreamp = Math.Clamp(
-            Math.Round(preset.PreampDb, 1),
+            Math.Round(double.IsFinite(preset.PreampDb) ? preset.PreampDb : 0, 1),
             profile.MinGainDb,
             profile.MaxGainDb);
         var transportLog = new List<string>
@@ -699,7 +699,7 @@ public sealed class FiioK13DeviceService
         CancellationToken cancellationToken = default)
     {
         var profile = SelectedProfile;
-        if (gainDb < profile.MinGainDb || gainDb > profile.MaxGainDb)
+        if (!double.IsFinite(gainDb) || gainDb < profile.MinGainDb || gainDb > profile.MaxGainDb)
         {
             throw new ArgumentOutOfRangeException(nameof(gainDb), $"Global gain must be between {profile.MinGainDb:F1} and {profile.MaxGainDb:+0.0;-0.0;0.0} dB.");
         }
@@ -1006,8 +1006,14 @@ public sealed class FiioK13DeviceService
         => band with
         {
             FrequencyHz = Math.Clamp(band.FrequencyHz, 20, 20000),
-            GainDb = Math.Clamp(Math.Round(band.GainDb, 1), SelectedProfile.MinGainDb, SelectedProfile.MaxGainDb),
-            Q = Math.Clamp(Math.Round(band.Q, 2), SelectedProfile.MinQ, SelectedProfile.MaxQ),
+            GainDb = Math.Clamp(
+                Math.Round(double.IsFinite(band.GainDb) ? band.GainDb : 0, 1),
+                SelectedProfile.MinGainDb,
+                SelectedProfile.MaxGainDb),
+            Q = Math.Clamp(
+                Math.Round(double.IsFinite(band.Q) ? band.Q : 1, 2),
+                SelectedProfile.MinQ,
+                SelectedProfile.MaxQ),
             FilterType = SelectedProfile.SupportsFilter((EqFilterType)band.FilterType)
                 ? band.FilterType
                 : (byte)EqFilterType.Peak
@@ -1310,7 +1316,9 @@ public sealed class FiioK13DeviceService
         => candidates
             .Where(candidate =>
                 IsSupportedHidDevice(candidate) &&
-                (profile.ProductId is null || candidate.ProductId == profile.ProductId) &&
+                (profile.ProductId is ushort expectedProductId
+                    ? candidate.ProductId == expectedProductId
+                    : FiioDeviceProfiles.ProductNameMatches(profile, candidate.Product)) &&
                 (profile.HidInterfaceNumber is null || candidate.InterfaceNumber == profile.HidInterfaceNumber) &&
                 candidate.InputReportLength > 0 &&
                 candidate.OutputReportLength > 0)
@@ -1778,7 +1786,8 @@ public sealed class FiioK13DeviceService
         CancellationToken cancellationToken)
     {
         var drained = 0;
-        while (true)
+        const int maximumReportsToDrain = 32;
+        while (drained < maximumReportsToDrain)
         {
             var rawReport = await ReadReportWithTimeoutAsync(
                 stream,
@@ -1797,6 +1806,11 @@ public sealed class FiioK13DeviceService
         if (drained > 0)
         {
             transportLog.Add($"Drained {drained} stale HID report(s).");
+        }
+
+        if (drained == maximumReportsToDrain)
+        {
+            transportLog.Add("Stopped draining stale HID reports at the safety limit.");
         }
     }
 
@@ -1864,6 +1878,11 @@ public sealed class FiioK13DeviceService
 
     private static byte[] BuildGetPacket(byte command, byte[] data)
     {
+        if (data.Length > byte.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(data), "HID command payloads cannot exceed 255 bytes.");
+        }
+
         var packet = new byte[8 + data.Length];
         packet[0] = GetHead;
         packet[1] = GetStart;
@@ -1877,6 +1896,11 @@ public sealed class FiioK13DeviceService
 
     private static byte[] BuildSetPacket(byte command, byte[] data)
     {
+        if (data.Length > byte.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(data), "HID command payloads cannot exceed 255 bytes.");
+        }
+
         var packet = new byte[8 + data.Length];
         packet[0] = SetHead;
         packet[1] = SetStart;

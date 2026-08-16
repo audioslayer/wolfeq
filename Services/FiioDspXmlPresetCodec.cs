@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
+using System.Xml;
 using System.Xml.Linq;
 using WolfEQ.Models;
 
@@ -16,7 +18,16 @@ public static class FiioDspXmlPresetCodec
             throw new ArgumentException("FiiO XML is empty.", nameof(xml));
         }
 
-        var document = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+        BoundedTextReader.EnsureTextWithinLimit(xml, BoundedTextReader.PresetMaxBytes, "FiiO XML preset");
+        using var textReader = new StringReader(xml);
+        using var xmlReader = XmlReader.Create(textReader, new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            MaxCharactersInDocument = BoundedTextReader.PresetMaxBytes,
+            MaxCharactersFromEntities = 0
+        });
+        var document = XDocument.Load(xmlReader, LoadOptions.PreserveWhitespace);
         var root = document.Root ?? throw new FormatException("FiiO XML did not contain a root element.");
         if (!string.Equals(root.Name.LocalName, "FiiO_DSP", StringComparison.OrdinalIgnoreCase))
         {
@@ -139,7 +150,7 @@ public static class FiioDspXmlPresetCodec
             : defaultValue;
 
     private static double ParseDouble(string? value, double defaultValue)
-        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && double.IsFinite(parsed)
             ? parsed
             : defaultValue;
 

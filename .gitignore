@@ -4,6 +4,7 @@ obj/
 .vscode/
 dist/
 publish/
+publish-release/
 installer/output/
 installer/version.iss
 MEMORY.md

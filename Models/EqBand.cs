@@ -38,13 +38,13 @@ public sealed class EqBand : INotifyPropertyChanged
     public double GainDb
     {
         get => _gainDb;
-        set => SetField(ref _gainDb, Math.Clamp(Math.Round(value, 1), -24.0, 12.0));
+        set => SetField(ref _gainDb, double.IsFinite(value) ? Math.Clamp(Math.Round(value, 1), -24.0, 12.0) : 0);
     }
 
     public double Q
     {
         get => _q;
-        set => SetField(ref _q, Math.Clamp(Math.Round(value, 2), 0.10, 10.0));
+        set => SetField(ref _q, double.IsFinite(value) ? Math.Clamp(Math.Round(value, 2), 0.10, 10.0) : 1);
     }
 
     public EqFilterType FilterType

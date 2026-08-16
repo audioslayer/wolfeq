@@ -24,7 +24,10 @@ public sealed class SlotLightingProfileService
             return new Dictionary<int, SlotLightingProfileData>();
         }
 
-        var json = File.ReadAllText(StoragePath);
+        var json = BoundedTextReader.ReadAllText(
+            StoragePath,
+            BoundedTextReader.SettingsMaxBytes,
+            "Slot lighting settings");
         var profiles = JsonSerializer.Deserialize<List<SlotLightingProfileData>>(json) ?? [];
         return profiles
             .Where(profile => profile.Slot is >= 1 and <= 10)
@@ -34,8 +37,9 @@ public sealed class SlotLightingProfileService
 
     public void Save(IEnumerable<SlotLightingProfileData> profiles)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(StoragePath)!);
-        File.WriteAllText(StoragePath, JsonSerializer.Serialize(profiles.OrderBy(profile => profile.Slot), JsonOptions));
+        AtomicFileWriter.WriteAllText(
+            StoragePath,
+            JsonSerializer.Serialize(profiles.OrderBy(profile => profile.Slot), JsonOptions));
     }
 }
 

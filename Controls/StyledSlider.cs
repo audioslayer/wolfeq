@@ -11,9 +11,9 @@ namespace WolfEQ.Controls;
 /// </summary>
 public sealed class StyledSlider : FrameworkElement
 {
-    private const double TrackHeight = 3.0;
-    private const double ThumbRadius = 6.0;
-    private const double TrackMargin = 8.0;
+    private const double TrackHeight = 5.0;
+    private const double ThumbRadius = 7.5;
+    private const double TrackMargin = 10.0;
 
     private static readonly Typeface Typeface = new("Bahnschrift");
     private bool _dragging;
@@ -38,6 +38,10 @@ public sealed class StyledSlider : FrameworkElement
 
     public static readonly DependencyProperty ShowLabelProperty =
         DependencyProperty.Register(nameof(ShowLabel), typeof(bool), typeof(StyledSlider),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty CenterOriginProperty =
+        DependencyProperty.Register(nameof(CenterOrigin), typeof(bool), typeof(StyledSlider),
             new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty OrientationProperty =
@@ -74,6 +78,13 @@ public sealed class StyledSlider : FrameworkElement
         set => SetValue(ShowLabelProperty, value);
     }
 
+    /// <summary>Draws the filled range outward from the midpoint, useful for balance controls.</summary>
+    public bool CenterOrigin
+    {
+        get => (bool)GetValue(CenterOriginProperty);
+        set => SetValue(CenterOriginProperty, value);
+    }
+
     public Orientation Orientation
     {
         get => (Orientation)GetValue(OrientationProperty);
@@ -89,7 +100,13 @@ public sealed class StyledSlider : FrameworkElement
     private double TrackLeft => TrackMargin;
     private double TrackRight => Math.Max(TrackMargin, ActualWidth - TrackMargin);
     private double TrackWidth => Math.Max(1, TrackRight - TrackLeft);
-    private double TrackY => 14.0;
+    private double TrackY => ShowLabel ? 14.0 : ActualHeight / 2;
+
+    public StyledSlider()
+    {
+        Focusable = true;
+        Cursor = Cursors.Hand;
+    }
 
     protected override void OnRender(DrawingContext dc)
     {
@@ -115,19 +132,27 @@ public sealed class StyledSlider : FrameworkElement
         dc.DrawRoundedRectangle(GetTrackBrush(), null,
             new Rect(TrackLeft, trackTop, TrackWidth, TrackHeight), 1.5, 1.5);
 
-        if (valueX > TrackLeft)
+        var fillStart = CenterOrigin ? ValueToX((Minimum + Maximum) / 2) : TrackLeft;
+        var fillLeft = Math.Min(fillStart, valueX);
+        var fillWidth = Math.Abs(valueX - fillStart);
+        if (fillWidth > 0.5)
         {
             dc.DrawRoundedRectangle(accentBrush, null,
-                new Rect(TrackLeft, trackTop, valueX - TrackLeft, TrackHeight), 1.5, 1.5);
+                new Rect(fillLeft, trackTop, fillWidth, TrackHeight), TrackHeight / 2, TrackHeight / 2);
         }
 
-        var thumbPen = new Pen(GetThumbBorderBrush(), 1.5);
-        thumbPen.Freeze();
-        dc.DrawEllipse(accentBrush, thumbPen, new Point(valueX, cy), ThumbRadius, ThumbRadius);
+        if (IsMouseOver || _dragging || IsKeyboardFocused)
+        {
+            var halo = new SolidColorBrush(Color.FromArgb(0x28, AccentColor.R, AccentColor.G, AccentColor.B));
+            halo.Freeze();
+            dc.DrawEllipse(halo, null, new Point(valueX, cy), ThumbRadius + 4, ThumbRadius + 4);
+        }
 
-        var whiteDot = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF));
-        whiteDot.Freeze();
-        dc.DrawEllipse(whiteDot, null, new Point(valueX, cy), 2, 2);
+        var thumbPen = new Pen(accentBrush, 2);
+        thumbPen.Freeze();
+        dc.DrawEllipse(GetThumbFillBrush(), thumbPen, new Point(valueX, cy), ThumbRadius, ThumbRadius);
+
+        dc.DrawEllipse(accentBrush, null, new Point(valueX, cy), 2.2, 2.2);
 
         if (ShowLabel)
         {
@@ -163,13 +188,11 @@ public sealed class StyledSlider : FrameworkElement
                 new Rect(cx - TrackHeight / 2, valueY, TrackHeight, trackBottom - valueY), 1.5, 1.5);
         }
 
-        var thumbPen = new Pen(GetThumbBorderBrush(), 1.5);
+        var thumbPen = new Pen(accentBrush, 2);
         thumbPen.Freeze();
-        dc.DrawEllipse(accentBrush, thumbPen, new Point(cx, valueY), ThumbRadius, ThumbRadius);
+        dc.DrawEllipse(GetThumbFillBrush(), thumbPen, new Point(cx, valueY), ThumbRadius, ThumbRadius);
 
-        var whiteDot = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF));
-        whiteDot.Freeze();
-        dc.DrawEllipse(whiteDot, null, new Point(cx, valueY), 2, 2);
+        dc.DrawEllipse(accentBrush, null, new Point(cx, valueY), 2.2, 2.2);
 
         if (ShowLabel)
         {
@@ -222,6 +245,46 @@ public sealed class StyledSlider : FrameworkElement
         _dragging = false;
     }
 
+    protected override void OnMouseEnter(MouseEventArgs e)
+    {
+        base.OnMouseEnter(e);
+        InvalidateVisual();
+    }
+
+    protected override void OnMouseLeave(MouseEventArgs e)
+    {
+        base.OnMouseLeave(e);
+        InvalidateVisual();
+    }
+
+    protected override void OnGotKeyboardFocus(KeyboardFocusChangedEventArgs e)
+    {
+        base.OnGotKeyboardFocus(e);
+        InvalidateVisual();
+    }
+
+    protected override void OnLostKeyboardFocus(KeyboardFocusChangedEventArgs e)
+    {
+        base.OnLostKeyboardFocus(e);
+        InvalidateVisual();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        var handled = true;
+        Value = e.Key switch
+        {
+            Key.Left or Key.Down => SnapValue(Value - Step),
+            Key.Right or Key.Up => SnapValue(Value + Step),
+            Key.Home => Minimum,
+            Key.End => Maximum,
+            _ => Value
+        };
+        handled = e.Key is Key.Left or Key.Down or Key.Right or Key.Up or Key.Home or Key.End;
+        e.Handled = handled;
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         if (Orientation == Orientation.Vertical)
@@ -231,7 +294,7 @@ public sealed class StyledSlider : FrameworkElement
                 double.IsInfinity(availableSize.Height) ? 180 : availableSize.Height);
         }
 
-        return new Size(double.IsInfinity(availableSize.Width) ? 120 : availableSize.Width, ShowLabel ? 38 : 28);
+        return new Size(double.IsInfinity(availableSize.Width) ? 120 : availableSize.Width, ShowLabel ? 40 : 34);
     }
 
     private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -293,8 +356,8 @@ public sealed class StyledSlider : FrameworkElement
     }
 
     private static Brush GetTrackBrush()
-        => (Brush)Application.Current.FindResource("WolfPanel2Brush");
+        => (Brush)Application.Current.FindResource("WolfLineSoftBrush");
 
-    private static Brush GetThumbBorderBrush()
-        => (Brush)Application.Current.FindResource("WolfBgBrush");
+    private static Brush GetThumbFillBrush()
+        => (Brush)Application.Current.FindResource("WolfShellBrush");
 }

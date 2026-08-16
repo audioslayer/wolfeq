@@ -10,6 +10,7 @@ public static partial class EqualizerApoPresetCodec
 {
     public static EqPreset Parse(string text, string name = "Imported Equalizer APO preset")
     {
+        BoundedTextReader.EnsureTextWithinLimit(text, BoundedTextReader.PresetMaxBytes, "Equalizer APO preset");
         var preampDb = 0.0;
         var bands = new List<EqBand>();
 

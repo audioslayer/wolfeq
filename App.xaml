@@ -93,8 +93,16 @@
             <Setter Property="Background" Value="{StaticResource WolfPanelBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource WolfLineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="16"/>
+        </Style>
+
+        <Style x:Key="OverlayPanelBorder" TargetType="Border">
+            <Setter Property="Background" Value="#FC181A1C"/>
+            <Setter Property="BorderBrush" Value="{StaticResource WolfLineBrush}"/>
+            <Setter Property="BorderThickness" Value="1,0,0,0"/>
+            <Setter Property="CornerRadius" Value="12,0,0,12"/>
+            <Setter Property="Padding" Value="0"/>
         </Style>
 
         <Style x:Key="InsetBorder" TargetType="Border">
@@ -147,7 +155,7 @@
             <Setter Property="Background" Value="{StaticResource WolfPanel2Brush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="10"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
@@ -168,7 +176,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
+                                CornerRadius="7"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
@@ -286,6 +294,123 @@
             <Setter Property="MinHeight" Value="28"/>
         </Style>
 
+        <Style x:Key="OverlayCloseButton" TargetType="Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="{StaticResource WolfPanel2Brush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfCyanDimBrush}"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HeaderNavToggle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Grid>
+                            <Border x:Name="Chrome"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="7"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border x:Name="ActiveRail"
+                                    Height="2"
+                                    Margin="10,0,10,2"
+                                    Background="{DynamicResource WolfGreenBrush}"
+                                    CornerRadius="1"
+                                    VerticalAlignment="Bottom"
+                                    Visibility="Collapsed"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfPanel2Brush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                                <Setter TargetName="ActiveRail" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HeaderHistoryButton" TargetType="Button">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfPanel2Brush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.28"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="MacWindowChromeButton" TargetType="Button">
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="48"/>
@@ -352,6 +477,34 @@
             <Setter Property="Padding" Value="9,6"/>
             <Setter Property="MinHeight" Value="32"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource WolfCyanDimBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#FF4A4A4A"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF202427"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.42"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="BandValueTextBox" TargetType="{x:Type TextBox}">
@@ -369,19 +522,17 @@
 
         <ControlTemplate x:Key="DarkComboToggle" TargetType="{x:Type ToggleButton}">
             <Border x:Name="Border"
-                    CornerRadius="6"
+                    CornerRadius="7"
                     Background="{StaticResource WolfPanel2Brush}"
                     BorderBrush="{StaticResource WolfLineSoftBrush}"
-                    BorderThickness="1.5"
+                    BorderThickness="1"
                     Padding="0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
                         <ColumnDefinition Width="32"/>
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="1"
-                            BorderBrush="{StaticResource WolfLineBrush}"
-                            BorderThickness="1,0,0,0">
+                    <Border Grid.Column="1">
                         <Path x:Name="Arrow"
                               Data="M 0,0 L 5,5 L 10,0"
                               Stroke="{StaticResource WolfTextBrush}"
@@ -395,7 +546,7 @@
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource WolfGreenBrush}"/>
-                    <Setter TargetName="Border" Property="Background" Value="{StaticResource WolfPanelBrush}"/>
+                    <Setter TargetName="Border" Property="Background" Value="#FF202427"/>
                     <Setter TargetName="Arrow" Property="Stroke" Value="{StaticResource WolfGreenBrush}"/>
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
@@ -409,7 +560,7 @@
             <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
             <Setter Property="Background" Value="{StaticResource WolfPanel2Brush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="MinHeight" Value="34"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
@@ -428,7 +579,7 @@
                                               Content="{TemplateBinding SelectionBoxItem}"
                                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                               ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
-                                              Margin="10,6,28,6"
+                                               Margin="11,6,32,6"
                                               VerticalAlignment="Center"
                                               HorizontalAlignment="Left"/>
                             <Popup x:Name="Popup"
@@ -437,18 +588,19 @@
                                    AllowsTransparency="True"
                                    Focusable="False"
                                    StaysOpen="False"
-                                   PopupAnimation="Slide">
+                                   PopupAnimation="Fade">
                                 <Border x:Name="DropDownBorder"
                                         MinWidth="{TemplateBinding ActualWidth}"
                                         MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                                        CornerRadius="6"
-                                        Background="{StaticResource WolfShellBrush}"
+                                        CornerRadius="10"
+                                        Background="#FC181A1C"
                                         BorderBrush="{StaticResource WolfLineSoftBrush}"
                                         BorderThickness="1"
-                                        Margin="0,2,0,0"
+                                        Margin="0,6,0,0"
+                                        Padding="4"
                                         Effect="{StaticResource WolfComboShadow}"
                                         SnapsToDevicePixels="True">
-                                    <ScrollViewer Margin="2,4,2,4" SnapsToDevicePixels="True">
+                                    <ScrollViewer SnapsToDevicePixels="True">
                                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
                                     </ScrollViewer>
                                 </Border>
@@ -464,18 +616,28 @@
         <Style TargetType="{x:Type ComboBoxItem}">
             <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Padding" Value="11,8"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ComboBoxItem}">
-                        <Border x:Name="Bd"
-                                CornerRadius="4"
-                                Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}"
-                                Margin="2,1">
-                            <ContentPresenter VerticalAlignment="Center"/>
-                        </Border>
+                        <Grid Margin="1">
+                            <Border x:Name="Bd"
+                                    CornerRadius="7"
+                                    Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </Border>
+                            <Border x:Name="SelectedRail"
+                                    Width="2"
+                                    Height="16"
+                                    Margin="3,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource WolfGreenBrush}"
+                                    CornerRadius="1"
+                                    Visibility="Collapsed"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource WolfLineBrush}"/>
@@ -486,6 +648,7 @@
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                                <Setter TargetName="SelectedRail" Property="Visibility" Value="Visible"/>
                                 <Setter Property="Foreground" Value="{StaticResource WolfGreenBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -509,6 +672,81 @@
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Box"
+                                    Width="16"
+                                    Height="16"
+                                    Background="{StaticResource WolfPanel2Brush}"
+                                    BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="Check"
+                                      Width="10"
+                                      Height="8"
+                                      Data="M 1,4 L 4,7 L 9,1"
+                                      Stroke="{StaticResource WolfGreenContrastBrush}"
+                                      StrokeThickness="1.8"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1"
+                                              Margin="7,0,0,0"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.38"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ToolTip}">
+            <Setter Property="Background" Value="#FC181A1C"/>
+            <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToolTip}">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="ListBox">
@@ -517,6 +755,35 @@
             <Setter Property="BorderBrush" Value="{StaticResource WolfLineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="4"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBox}">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="9"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer Focusable="False"
+                                          CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
+                                          HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}"
+                                          VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}">
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.42"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="{x:Type ListBoxItem}">
@@ -532,8 +799,8 @@
                                 Background="Transparent"
                                 BorderBrush="Transparent"
                                 BorderThickness="1"
-                                CornerRadius="5"
-                                Padding="4">
+                                CornerRadius="7"
+                                Padding="5">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         </Border>
@@ -555,61 +822,83 @@
 
         <Style TargetType="{x:Type Expander}">
             <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Expander}">
-                        <StackPanel>
-                            <ToggleButton x:Name="HeaderSite"
-                                          IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
-                                          Background="Transparent"
-                                          BorderBrush="Transparent"
-                                          Foreground="{TemplateBinding Foreground}"
-                                          Padding="0"
-                                          Margin="0"
-                                          HorizontalContentAlignment="Left">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
-                                        <Border x:Name="HeaderChrome"
-                                                Background="Transparent"
-                                                BorderBrush="Transparent"
-                                                BorderThickness="1"
-                                                CornerRadius="5"
-                                                Padding="4,3">
-                                            <DockPanel>
-                                                <Path x:Name="Arrow"
-                                                      Data="M 0,0 L 4,4 L 8,0"
-                                                      Stroke="{TemplateBinding Foreground}"
-                                                      StrokeThickness="1.6"
-                                                      Fill="Transparent"
-                                                      Width="8"
-                                                      Height="6"
-                                                      Stretch="Uniform"
-                                                      Margin="0,0,7,0"
-                                                      VerticalAlignment="Center"/>
-                                                <ContentPresenter VerticalAlignment="Center"/>
-                                            </DockPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="HeaderChrome" Property="Background" Value="{StaticResource WolfPanelBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
-                                            </Trigger>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="Arrow" Property="Data" Value="M 0,0 L 4,4 L 8,0"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                                <ContentPresenter ContentSource="Header"/>
-                            </ToggleButton>
-                            <ContentPresenter x:Name="ExpandSite"
-                                              Visibility="Collapsed"
-                                              ContentSource="Content"/>
-                        </StackPanel>
+                        <Border x:Name="Frame"
+                                Background="{StaticResource WolfShellBrush}"
+                                BorderBrush="{StaticResource WolfLineBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                            <StackPanel>
+                                <ToggleButton x:Name="HeaderSite"
+                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                              Foreground="{TemplateBinding Foreground}"
+                                              Background="Transparent"
+                                              BorderBrush="Transparent"
+                                              Padding="12,10"
+                                              HorizontalContentAlignment="Stretch">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                            <Border x:Name="HeaderChrome"
+                                                    Background="{TemplateBinding Background}"
+                                                    CornerRadius="9"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ContentPresenter VerticalAlignment="Center"/>
+                                                    <Path x:Name="Arrow"
+                                                          Grid.Column="1"
+                                                          Data="M 1,1 L 5,5 L 1,9"
+                                                          Stroke="{TemplateBinding Foreground}"
+                                                          StrokeThickness="1.6"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          Width="6"
+                                                          Height="10"
+                                                          Stretch="Uniform"
+                                                          Margin="12,0,2,0"
+                                                          VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="HeaderChrome" Property="Background" Value="{StaticResource WolfPanel2Brush}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="HeaderChrome" Property="Background" Value="#FF172126"/>
+                                                    <Setter TargetName="Arrow" Property="Data" Value="M 1,2 L 5,6 L 9,2"/>
+                                                    <Setter TargetName="Arrow" Property="Width" Value="10"/>
+                                                    <Setter TargetName="Arrow" Property="Height" Value="6"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <ContentPresenter ContentSource="Header"/>
+                                </ToggleButton>
+                                <Border x:Name="ExpandSite"
+                                        Visibility="Collapsed"
+                                        BorderBrush="{StaticResource WolfLineBrush}"
+                                        BorderThickness="0,1,0,0"
+                                        Padding="12,2,12,12">
+                                    <ContentPresenter ContentSource="Content"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsExpanded" Value="True">
                                 <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="Frame" Property="BorderBrush" Value="#FF3E484C"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Frame" Property="Opacity" Value="0.38"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

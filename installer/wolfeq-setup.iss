@@ -6,6 +6,9 @@
 #define MyAppPublisher "Tyson Wolf"
 #define MyAppExeName "WolfEQ.exe"
 #define MyAppURL "https://github.com/audioslayer/wolfeq"
+#ifndef MyPublishDir
+  #define MyPublishDir "..\publish"
+#endif
 
 [Setup]
 AppId={{30D7E125-FB13-4DC2-BF5F-7CA360FA4D1C}
@@ -36,7 +39,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\Assets\icon\wolfeq.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

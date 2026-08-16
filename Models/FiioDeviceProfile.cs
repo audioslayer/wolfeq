@@ -38,7 +38,12 @@ public sealed record FiioDeviceProfile(
     {
         get
         {
-            var filters = SupportedFilterTypes.Count == 7 ? "all filters" : "core filters";
+            var filters = SupportedFilterTypes.Count switch
+            {
+                7 => "all filters",
+                3 => "core filters",
+                _ => $"{SupportedFilterTypes.Count} filter types"
+            };
             var verify = IsVerified ? "verified" : "experimental";
             return $"{BandCount} bands, {MinGainDb:+0;-0;0} to {MaxGainDb:+0;-0;0} dB, {filters}, report {ReportId}, {verify}";
         }
@@ -72,6 +77,16 @@ public static class FiioDeviceProfiles
         EqFilterType.Peak,
         EqFilterType.LowShelf,
         EqFilterType.HighShelf
+    };
+
+    private static readonly IReadOnlySet<EqFilterType> AllFiltersExceptBandPass = new HashSet<EqFilterType>
+    {
+        EqFilterType.Peak,
+        EqFilterType.LowShelf,
+        EqFilterType.HighShelf,
+        EqFilterType.LowPass,
+        EqFilterType.HighPass,
+        EqFilterType.AllPass
     };
 
     public static readonly FiioDeviceProfile K13R2R = new(
@@ -116,6 +131,160 @@ public static class FiioDeviceProfiles
         HasBleDeviceControls: true,
         SupportsUsbPresetNames: true,
         IsVerified: true);
+
+    // Community configurations below are adapted from Pragmatic Audio's 0BSD-licensed
+    // DevicePEQ project and cross-checked against FiiO's published PEQ documentation.
+    // WolfEQ keeps automatic readback and live writes disabled until each Windows HID
+    // endpoint is physically verified; guarded USER-slot saves remain available.
+    public static readonly FiioDeviceProfile Br15R2R = new(
+        Id: "fiio-br15-r2r",
+        DisplayName: "FiiO BR15 R2R",
+        ProductId: null,
+        ReportId: 0x07,
+        BandCount: 10,
+        MinGainDb: -24.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: AllFiltersExceptBandPass,
+        Slots:
+        [
+            new(0xF0, "BYPASS", false),
+            new(0x00, "Jazz", false),
+            new(0x01, "Pop", false),
+            new(0x02, "Rock", false),
+            new(0x03, "Dance", false),
+            new(0x04, "R&B", false),
+            new(0x05, "Classic", false),
+            new(0x06, "HipHop", false),
+            new(0x08, "Retro", false),
+            new(0x09, "sDamp-1", false),
+            new(0x0A, "sDamp-2", false),
+            new(0xA0, "USER 1", true),
+            new(0xA1, "USER 2", true),
+            new(0xA2, "USER 3", true),
+            new(0xA3, "USER 4", true),
+            new(0xA4, "USER 5", true),
+            new(0xA5, "USER 6", true),
+            new(0xA6, "USER 7", true),
+            new(0xA7, "USER 8", true),
+            new(0xA8, "USER 9", true),
+            new(0xA9, "USER 10", true)
+        ],
+        DisabledPresetId: 0xF0,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        ProductNameAliases: ["FIIO BR15 R2R", "BR15 R2R"]);
+
+    public static readonly FiioDeviceProfile Qx13 = new(
+        Id: "fiio-qx13",
+        DisplayName: "FiiO QX13",
+        ProductId: null,
+        ReportId: 0x07,
+        BandCount: 10,
+        MinGainDb: -24.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: AllFilters,
+        Slots:
+        [
+            new(0xF0, "BYPASS", false),
+            new(0x00, "Jazz", false),
+            new(0x01, "Pop", false),
+            new(0x02, "Rock", false),
+            new(0x03, "Dance", false),
+            new(0x04, "R&B", false),
+            new(0x05, "Classic", false),
+            new(0x06, "HipHop", false),
+            new(0x08, "Retro", false),
+            new(0xA0, "USER 1", true),
+            new(0xA1, "USER 2", true),
+            new(0xA2, "USER 3", true),
+            new(0xA3, "USER 4", true),
+            new(0xA4, "USER 5", true),
+            new(0xA5, "USER 6", true),
+            new(0xA6, "USER 7", true),
+            new(0xA7, "USER 8", true),
+            new(0xA8, "USER 9", true),
+            new(0xA9, "USER 10", true)
+        ],
+        DisabledPresetId: 0xF0,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        ProductNameAliases: ["FIIO QX13", "QX13"]);
+
+    public static readonly FiioDeviceProfile Btr17 = new(
+        Id: "fiio-btr17",
+        DisplayName: "FiiO BTR17",
+        ProductId: null,
+        ReportId: 0x07,
+        BandCount: 10,
+        MinGainDb: -24.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: CoreFilters,
+        Slots:
+        [
+            new(0xF0, "BYPASS", false),
+            new(0x00, "Jazz", false),
+            new(0x01, "Pop", false),
+            new(0x02, "Rock", false),
+            new(0x03, "Dance", false),
+            new(0x04, "R&B", false),
+            new(0x05, "Classic", false),
+            new(0x06, "HipHop", false),
+            new(0xA0, "USER 1", true),
+            new(0xA1, "USER 2", true),
+            new(0xA2, "USER 3", true),
+            new(0xA3, "USER 4", true),
+            new(0xA4, "USER 5", true),
+            new(0xA5, "USER 6", true),
+            new(0xA6, "USER 7", true),
+            new(0xA7, "USER 8", true),
+            new(0xA8, "USER 9", true),
+            new(0xA9, "USER 10", true)
+        ],
+        DisabledPresetId: 0xF0,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        SaveCommandId: 0x21,
+        ProductNameAliases: ["FIIO BTR17", "BTR17"]);
+
+    public static readonly FiioDeviceProfile Btr13 = new(
+        Id: "fiio-btr13",
+        DisplayName: "FiiO BTR13",
+        ProductId: null,
+        ReportId: 0x07,
+        BandCount: 10,
+        MinGainDb: -12.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: AllFilters,
+        Slots:
+        [
+            new(0x00, "Jazz", false),
+            new(0x01, "Pop", false),
+            new(0x02, "Rock", false),
+            new(0x03, "Dance", false),
+            new(0x04, "R&B", false),
+            new(0x05, "Classic", false),
+            new(0x06, "HipHop", false),
+            new(0x07, "USER 1", true),
+            new(0x08, "USER 2", true),
+            new(0x09, "USER 3", true),
+            new(0x0B, "Close EQ", false)
+        ],
+        DisabledPresetId: 0x0B,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        ProductNameAliases: ["FIIO BTR13", "BTR13"]);
 
     public static readonly FiioDeviceProfile Ka15 = new(
         Id: "fiio-ka15",
@@ -265,6 +434,10 @@ public static class FiioDeviceProfiles
     public static IReadOnlyList<FiioDeviceProfile> All { get; } =
     [
         K13R2R,
+        Br15R2R,
+        Qx13,
+        Btr17,
+        Btr13,
         Ka15,
         Ka17,
         Ja11,

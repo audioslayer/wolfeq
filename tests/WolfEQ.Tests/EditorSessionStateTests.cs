@@ -141,6 +141,22 @@ public sealed class EditorSessionStateTests
         Assert.Equal(SlotA, session.TargetSlotId);
     }
 
+    [Fact]
+    public void SlotSwitchFollowedByReadback_TracksAndSyncsTheNewSlot()
+    {
+        var session = ConnectedSession();
+        session.NotifyLoadedFromSlot(SlotA);
+
+        session.NotifySlotSwitched(SlotB);
+        Assert.Equal(DeviceSyncState.Modified, session.DeviceSyncState);
+
+        session.NotifyLoadedFromSlot(SlotB);
+
+        Assert.Equal(DeviceSyncState.InSync, session.DeviceSyncState);
+        Assert.Equal(SlotB, session.TargetSlotId);
+        Assert.False(session.WouldReplaceUnsavedEdits);
+    }
+
     // --- CanWriteToDevice truth table ---
 
     [Theory]

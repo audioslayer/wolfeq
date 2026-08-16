@@ -26,6 +26,11 @@ public partial class DeviceDock : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        Loaded += (_, _) =>
+        {
+            UpdateSlotScrollButtons();
+            BringSelectedSlotIntoView();
+        };
         RefreshDeviceState();
     }
 
@@ -73,6 +78,13 @@ public partial class DeviceDock : UserControl
                 or nameof(MainViewModel.EditorSyncStatusText))
         {
             RefreshDeviceState();
+        }
+
+        if (string.IsNullOrEmpty(e.PropertyName)
+            || e.PropertyName is nameof(MainViewModel.SelectedDeviceUserPreset)
+                or nameof(MainViewModel.SelectedDeviceProfile))
+        {
+            BringSelectedSlotIntoView();
         }
     }
 
@@ -169,6 +181,41 @@ public partial class DeviceDock : UserControl
             scroller.ScrollToHorizontalOffset(scroller.HorizontalOffset - e.Delta);
             e.Handled = true;
         }
+    }
+
+    private void SlotScrollLeftButton_Click(object sender, RoutedEventArgs e)
+        => SlotChipScroller.ScrollToHorizontalOffset(Math.Max(0, SlotChipScroller.HorizontalOffset - 220));
+
+    private void SlotScrollRightButton_Click(object sender, RoutedEventArgs e)
+        => SlotChipScroller.ScrollToHorizontalOffset(
+            Math.Min(SlotChipScroller.ScrollableWidth, SlotChipScroller.HorizontalOffset + 220));
+
+    private void SlotChipScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        => UpdateSlotScrollButtons();
+
+    private void UpdateSlotScrollButtons()
+    {
+        SlotScrollLeftButton.IsEnabled = SlotChipScroller.HorizontalOffset > 0.5;
+        SlotScrollRightButton.IsEnabled = SlotChipScroller.HorizontalOffset < SlotChipScroller.ScrollableWidth - 0.5;
+    }
+
+    private void BringSelectedSlotIntoView()
+    {
+        if (!IsLoaded || _viewModel?.SelectedDeviceUserPreset is null)
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (SlotItems.ItemContainerGenerator.ContainerFromItem(_viewModel.SelectedDeviceUserPreset)
+                is FrameworkElement container)
+            {
+                container.BringIntoView();
+            }
+
+            UpdateSlotScrollButtons();
+        }));
     }
 
     private Brush BrushResource(string key, Brush fallback)

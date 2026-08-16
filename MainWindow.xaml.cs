@@ -69,6 +69,39 @@ public partial class MainWindow : Window
         {
             CloseOverlayPanel();
             e.Handled = true;
+            return;
+        }
+
+        if (Keyboard.Modifiers != ModifierKeys.Control)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.L:
+                ToggleOverlayPanel(LibraryHost);
+                e.Handled = true;
+                break;
+            case Key.OemComma:
+                ToggleOverlayPanel(SettingsHost);
+                e.Handled = true;
+                break;
+            case Key.S when DataContext is MainViewModel viewModel
+                            && viewModel.SaveToLibraryCommand.CanExecute(null):
+                viewModel.SaveToLibraryCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Z when DataContext is MainViewModel undoViewModel
+                            && undoViewModel.UndoCommand.CanExecute(null):
+                undoViewModel.UndoCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Y when DataContext is MainViewModel redoViewModel
+                            && redoViewModel.RedoCommand.CanExecute(null):
+                redoViewModel.RedoCommand.Execute(null);
+                e.Handled = true;
+                break;
         }
     }
 
@@ -86,8 +119,18 @@ public partial class MainWindow : Window
             HideOverlayPanel(_openOverlayPanel, animated: false);
         }
 
+        var overlayWasCollapsed = OverlayLayer.Visibility != Visibility.Visible;
         _openOverlayPanel = panel;
+        LibraryHeaderButton.IsChecked = ReferenceEquals(panel, LibraryHost);
+        SettingsHeaderButton.IsChecked = ReferenceEquals(panel, SettingsHost);
         OverlayLayer.Visibility = Visibility.Visible;
+        if (overlayWasCollapsed)
+        {
+            OverlayDimmer.BeginAnimation(OpacityProperty, null);
+            OverlayDimmer.Opacity = 0;
+        }
+
+        AnimateOverlayDimmer(1);
         panel.Visibility = Visibility.Visible;
         AnimatePanel(panel, toX: 0, onCompleted: null);
     }
@@ -101,6 +144,9 @@ public partial class MainWindow : Window
 
         var panel = _openOverlayPanel;
         _openOverlayPanel = null;
+        LibraryHeaderButton.IsChecked = false;
+        SettingsHeaderButton.IsChecked = false;
+        AnimateOverlayDimmer(0);
         HideOverlayPanel(panel, animated: true);
     }
 
@@ -137,6 +183,8 @@ public partial class MainWindow : Window
         if (_openOverlayPanel is null)
         {
             OverlayLayer.Visibility = Visibility.Collapsed;
+            OverlayDimmer.BeginAnimation(OpacityProperty, null);
+            OverlayDimmer.Opacity = 0;
         }
     }
 
@@ -160,6 +208,15 @@ public partial class MainWindow : Window
         transform.BeginAnimation(TranslateTransform.XProperty, animation);
     }
 
+    private void AnimateOverlayDimmer(double toOpacity)
+    {
+        var animation = new DoubleAnimation(toOpacity, PanelSlideDuration)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        OverlayDimmer.BeginAnimation(OpacityProperty, animation);
+    }
+
     private static double GetOffscreenX(FrameworkElement panel)
     {
         var width = panel.ActualWidth > 0 ? panel.ActualWidth : panel.Width;
@@ -167,6 +224,26 @@ public partial class MainWindow : Window
     }
 
     // --- Window chrome ---
+
+    private void UndoHeaderButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && viewModel.UndoCommand.CanExecute(null))
+        {
+            viewModel.UndoCommand.Execute(null);
+        }
+
+        e.Handled = true;
+    }
+
+    private void RedoHeaderButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel && viewModel.RedoCommand.CanExecute(null))
+        {
+            viewModel.RedoCommand.Execute(null);
+        }
+
+        e.Handled = true;
+    }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {

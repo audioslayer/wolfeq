@@ -10,7 +10,10 @@ cd /d "%~dp0"
 
 set "APP_NAME=WolfEQ"
 set "PROJECT_FILE=WolfEQ.csproj"
-set "APP_EXE=%~dp0bin\Debug\net8.0-windows10.0.19041.0\WolfEQ.exe"
+set "BUILD_ROOT=%LOCALAPPDATA%\WolfEQ\deploy-build"
+set "BUILD_OBJ=%BUILD_ROOT%\obj"
+set "BUILD_BIN=%BUILD_ROOT%\bin"
+set "APP_EXE=%BUILD_BIN%\Debug\net8.0-windows10.0.19041.0\WolfEQ.exe"
 
 echo [1/5] Checking optional Git sync...
 if exist ".git" (
@@ -35,16 +38,23 @@ taskkill /f /im "%APP_NAME%.exe" 2>nul
 timeout /t 2 /nobreak >nul
 
 echo.
-echo [3/5] Cleaning stale WPF temp build files...
-for %%D in ("obj\Debug\net8.0-windows" "obj\Release\net8.0-windows") do (
-    if exist %%~D (
-        del /q "%%~D\WolfEQ_*_wpftmp.*" 2>nul
-    )
+echo [3/5] Cleaning generated WPF build files...
+rem WPF stores absolute source paths in obj. A checkout opened through both a
+rem mapped drive and a UNC path can otherwise retain references to missing .g.cs files.
+rem Build intermediates stay local so WPF generation is not racing over the network share.
+if exist "%BUILD_OBJ%\" rmdir /s /q "%BUILD_OBJ%"
+if exist "%~dp0obj\" rmdir /s /q "%~dp0obj" 2>nul
+if exist "%BUILD_OBJ%\" (
+    echo ERROR: Could not reset the local WPF build cache:
+    echo        %BUILD_OBJ%
+    echo        Close any dotnet build processes, then try again.
+    pause
+    exit /b 1
 )
 
 echo.
 echo [4/5] Building...
-dotnet build "%PROJECT_FILE%" -c Debug --no-incremental
+dotnet build "%PROJECT_FILE%" -c Debug --no-incremental -m:1 -p:UseSharedCompilation=false "-p:BaseIntermediateOutputPath=%BUILD_OBJ%/" "-p:BaseOutputPath=%BUILD_BIN%/"
 if errorlevel 1 (
     echo ERROR: Build failed. Check errors above.
     pause

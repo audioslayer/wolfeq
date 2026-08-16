@@ -1,44 +1,94 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using WolfEQ.Models;
 
 namespace WolfEQ.Views;
 
 /// <summary>
-/// Primary EQ editing surface: interactive response graph, selected-band strip,
-/// band chips, the app's single preamp control, Headroom Guardian summary, and
-/// the Tools menu. Expects the application's MainViewModel as DataContext.
-/// Band selection lives on the graph's <c>SelectedBand</c> dependency property.
+/// Primary graph-native EQ editing surface. Band selection lives on the graph's
+/// <c>SelectedBand</c> dependency property and the precision editor follows the
+/// selected node. Expects the application's MainViewModel as DataContext.
 /// </summary>
 public partial class EditorWorkspace : UserControl
 {
+    private bool _bandEditorPositionUpdatePending;
+
     public EditorWorkspace()
     {
         InitializeComponent();
+        Graph.SelectedBandAnchorChanged += (_, _) => RequestBandEditorPositionUpdate();
+        Graph.SizeChanged += (_, _) => RequestBandEditorPositionUpdate();
+        BandEditorCapsule.SizeChanged += (_, _) => RequestBandEditorPositionUpdate();
+        Loaded += (_, _) => RequestBandEditorPositionUpdate();
     }
 
-    private void BandChip_Click(object sender, RoutedEventArgs e)
+    private void RequestBandEditorPositionUpdate()
     {
-        if (sender is FrameworkElement { DataContext: EqBand band })
+        if (!IsLoaded || _bandEditorPositionUpdatePending)
         {
-            Graph.SelectedBand = band;
-            Graph.Focus();
+            return;
         }
+
+        _bandEditorPositionUpdatePending = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+        {
+            _bandEditorPositionUpdatePending = false;
+            UpdateBandEditorPosition();
+        }));
     }
 
-    private void ToolsButton_Click(object sender, RoutedEventArgs e)
+    private void UpdateBandEditorPosition()
     {
-        if (sender is Button button && button.ContextMenu is ContextMenu menu)
+        if (!Graph.TryGetSelectedBandAnchor(out var anchor) ||
+            BandEditorCanvas.ActualWidth <= 1 ||
+            BandEditorCanvas.ActualHeight <= 1)
         {
-            menu.PlacementTarget = button;
-            menu.Placement = PlacementMode.Bottom;
-            menu.IsOpen = true;
+            return;
         }
+
+        var capsuleWidth = BandEditorCapsule.ActualWidth > 1 ? BandEditorCapsule.ActualWidth : BandEditorCapsule.Width;
+        var capsuleHeight = BandEditorCapsule.ActualHeight > 1 ? BandEditorCapsule.ActualHeight : BandEditorCapsule.Height;
+        const double edgePadding = 12;
+        const double nodeClearance = 34;
+
+        var maxLeft = Math.Max(edgePadding, BandEditorCanvas.ActualWidth - capsuleWidth - edgePadding);
+        var left = Math.Clamp(anchor.X - capsuleWidth / 2, edgePadding, maxLeft);
+        var belowTop = anchor.Y + nodeClearance;
+        var placeBelow = belowTop + capsuleHeight <= BandEditorCanvas.ActualHeight - edgePadding;
+        var top = placeBelow
+            ? belowTop
+            : Math.Max(edgePadding, anchor.Y - nodeClearance - capsuleHeight);
+
+        Canvas.SetLeft(BandEditorCapsule, left);
+        Canvas.SetTop(BandEditorCapsule, top);
+
+        var stemTop = placeBelow ? anchor.Y + 15 : top + capsuleHeight;
+        var stemBottom = placeBelow ? top : anchor.Y - 15;
+        Canvas.SetLeft(CapsuleStem, anchor.X - CapsuleStem.Width / 2);
+        Canvas.SetTop(CapsuleStem, Math.Min(stemTop, stemBottom));
+        CapsuleStem.Height = Math.Max(0, Math.Abs(stemBottom - stemTop));
+    }
+
+    private void DismissBandEditor_Click(object sender, RoutedEventArgs e)
+    {
+        Graph.SelectedBand = null;
+        Graph.Focus();
+        e.Handled = true;
+    }
+
+    private void ToolMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ToolsPopup.IsOpen = false;
+    }
+
+    private void ToolsPopup_Closed(object? sender, EventArgs e)
+    {
+        ToolsButton.IsChecked = false;
     }
 
     private void StripValueBox_KeyDown(object sender, KeyEventArgs e)

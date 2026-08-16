@@ -6,6 +6,8 @@ namespace WolfEQ.Services;
 
 public sealed class AppLogService
 {
+    private const long MaximumLogBytes = 5L * 1024 * 1024;
+    private const int MaximumMessageCharacters = 4000;
     private readonly object _syncRoot = new();
 
     public AppLogService()
@@ -16,6 +18,7 @@ public sealed class AppLogService
         Directory.CreateDirectory(logDirectory);
 
         LogFilePath = Path.Combine(logDirectory, "wolfeq.log");
+        RotateLogIfNeeded();
 
         WriteSeparator();
         WriteLine("WolfEQ session started");
@@ -28,7 +31,15 @@ public sealed class AppLogService
 
     public void WriteLine(string message)
     {
-        var line = $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] {message}";
+        var safeMessage = (message ?? string.Empty)
+            .Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal);
+        if (safeMessage.Length > MaximumMessageCharacters)
+        {
+            safeMessage = safeMessage[..MaximumMessageCharacters] + "... [truncated]";
+        }
+
+        var line = $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] {safeMessage}";
 
         try
         {
@@ -55,6 +66,25 @@ public sealed class AppLogService
         catch (Exception ex)
         {
             Debug.WriteLine($"WolfEQ file logging failed: {ex.Message}");
+        }
+    }
+
+    private void RotateLogIfNeeded()
+    {
+        try
+        {
+            var log = new FileInfo(LogFilePath);
+            if (!log.Exists || log.Length <= MaximumLogBytes)
+            {
+                return;
+            }
+
+            var previousPath = Path.Combine(log.DirectoryName!, "wolfeq.previous.log");
+            File.Move(LogFilePath, previousPath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine($"WolfEQ log rotation failed: {ex.Message}");
         }
     }
 

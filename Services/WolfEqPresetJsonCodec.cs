@@ -40,12 +40,18 @@ public static class WolfEqPresetJsonCodec
             throw new ArgumentException("WolfEQ library JSON is empty.", nameof(json));
         }
 
+        BoundedTextReader.EnsureTextWithinLimit(json, BoundedTextReader.LibraryMaxBytes, "WolfEQ library");
         var library = JsonSerializer.Deserialize<LibraryDto>(json, Options)
             ?? throw new FormatException("WolfEQ library JSON could not be parsed.");
 
         if (library.Presets.Count == 0)
         {
             throw new FormatException("WolfEQ library JSON did not contain any presets.");
+        }
+
+        if (library.Presets.Count > 5000)
+        {
+            throw new FormatException("WolfEQ library contains more than the supported 5000 presets.");
         }
 
         return library.Presets
@@ -60,6 +66,7 @@ public static class WolfEqPresetJsonCodec
             throw new ArgumentException("WolfEQ preset JSON is empty.", nameof(json));
         }
 
+        BoundedTextReader.EnsureTextWithinLimit(json, BoundedTextReader.PresetMaxBytes, "WolfEQ preset");
         var dto = JsonSerializer.Deserialize<PresetDto>(json, Options)
             ?? throw new FormatException("WolfEQ preset JSON could not be parsed.");
 
