@@ -15,7 +15,15 @@ public sealed class SlotLightingProfileService
             "slot-lighting.json");
     }
 
-    public string StoragePath { get; }
+    public string StoragePath { get; private set; }
+
+    public void SetDevice(string? devicePath)
+    {
+        var key = string.IsNullOrEmpty(devicePath) ? "unassigned" : Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(devicePath.ToUpperInvariant())))[..24];
+        StoragePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "WolfEQ", $"slot-lighting-{key}.json");
+    }
 
     public IReadOnlyDictionary<int, SlotLightingProfileData> Load()
     {

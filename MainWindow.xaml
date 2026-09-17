@@ -17,8 +17,7 @@
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WolfBgBrush}"
-        Foreground="{StaticResource WolfTextBrush}"
-        Loaded="MainWindow_Loaded">
+        Foreground="{StaticResource WolfTextBrush}">
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="0"
                             ResizeBorderThickness="6"

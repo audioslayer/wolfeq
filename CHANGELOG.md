@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.0-beta
+
+- Added explicit USB and Bluetooth device selection, a reversible identify-light action, and a saved connection in Settings > Devices.
+- Removed automatic Bluetooth target selection and fallback; legacy cached addresses require explicit selection.
+- Scoped lighting colors to the USB device and added optional lighting application after confirmed USER-slot switches.
+- Added --slot, --device, --list-devices, and --help automation with single-instance command forwarding and unsaved-edit protection.
+- Added Settings > Integrations with a USER-slot command generator, clipboard copy, Windows shortcut export, and Stream Deck setup instructions.
+- Added automation results and exit codes, including a distinct result when EQ succeeds but lighting fails.
+- Redesigned Settings with a unified Device section, Connections / Controls tabs, compact themed action buttons, and section icons.
+- Moved automatic slot lighting into Profile Lights and tucked model compatibility and Stream Deck setup details into expandable sections.
+
 ## v0.4.0-beta
 
 - Replaced the persistent band-chip grid with a graph-native EQ editing workflow.

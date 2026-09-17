@@ -33,14 +33,6 @@ public partial class MainWindow : Window
         PreviewKeyDown += MainWindow_PreviewKeyDown;
     }
 
-    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel viewModel)
-        {
-            await viewModel.AutoConnectAndReadDeviceAsync();
-        }
-    }
-
     // --- Overlay panels (Library / Settings right slide-overs) ---
 
     private void LibraryHeaderButton_Click(object sender, RoutedEventArgs e)

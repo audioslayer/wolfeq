@@ -19,7 +19,7 @@ using WolfEQ.Services;
 
 namespace WolfEQ.ViewModels;
 
-public sealed class MainViewModel : INotifyPropertyChanged
+public sealed partial class MainViewModel : INotifyPropertyChanged
 {
     private static readonly bool K13HardwareEqIoEnabled = true;
     private readonly FiioK13DeviceService _deviceService = new();
@@ -174,6 +174,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _selectedKnobLedColorOption = LedColorOptions.First(option => option.Value == 0x03);
         _selectedTopLedModeOption = LedModeOptions[0];
         _selectedKnobLedModeOption = LedModeOptions[0];
+        InitializeIntegrations();
         LoadSlotLightingProfiles();
         Bands = _selectedPreset.Bands;
         WatchBands(Bands);
@@ -419,6 +420,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (SetField(ref _deviceBusy, value))
             {
+                OnPropertyChanged(nameof(IntegrationControlsEnabled));
                 WriteToDeviceCommand.RaiseCanExecuteChanged();
                 SwitchSlotCommand.RaiseCanExecuteChanged();
                 LoadFromSlotCommand.RaiseCanExecuteChanged();
@@ -975,9 +977,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         try
         {
             var result = await _deviceService.DetectUsbAsync();
+            RememberDetectedDevice(result);
             Status = result.IsDetected || !string.IsNullOrWhiteSpace(result.ScanError)
                 ? result.StatusMessage
-                : "No supported device found. Check the USB connection and click Detect.";
+                : _binding.UsbPath is not null
+                    ? "Saved USB device unavailable. Reconnect it or select a device in Settings > Device > Connections."
+                    : "No unique USB device selected. Choose one in Settings > Device > Connections.";
             AddLog(result.StatusMessage);
 
             if (result.MatchedProfile is not null)
@@ -2510,8 +2515,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private bool _lastSlotSwitchConfirmed;
+    private bool _lastSlotLightingSucceeded = true;
+
     private async Task SwitchSlotAsync(object? parameter)
     {
+        if (IsDeviceBusy || _integrationBusy) { Status = "Device busy; try again when the current operation finishes."; return; }
+        _lastSlotSwitchConfirmed = false;
+        _lastSlotLightingSucceeded = true;
         var option = ResolveSlotOption(parameter);
         if (option is null)
         {
@@ -2553,6 +2564,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 return;
             }
 
+            _lastSlotSwitchConfirmed = true;
             _confirmedDevicePresetId = result.AfterPresetId;
             SelectDeviceUserPresetOption(result.AfterPresetId);
 
@@ -2579,6 +2591,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 EditorSession.NotifySlotSwitched(result.AfterPresetId);
                 Status = $"Switched to {option.DisplayName}. This device does not support EQ readback, so the editor was kept.";
                 AddLog(Status);
+            }
+            if (AutoSlotLighting && SelectedDeviceSupportsBleLighting)
+            {
+                var eqStatus = Status;
+                await ApplySelectedSlotLightingAsync();
+                Status = $"{eqStatus} {Status}";
             }
         }
         catch (OperationCanceledException)
@@ -2928,6 +2946,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(DeviceProfileCapabilityText));
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleInput));
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
+        OnPropertyChanged(nameof(IntegrationSlots));
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
         OnPropertyChanged(nameof(LoadFromSlotToolTip));
         OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
@@ -4875,6 +4894,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task ApplySelectedSlotLightingAsync()
     {
+        _lastSlotLightingSucceeded = false;
         var profile = GetSlotLightingProfile(SelectedDeviceUserPreset.Slot);
         LoadSelectedSlotLightingProfileIntoUi();
         Status = $"Applying {SelectedDeviceUserPreset.DisplayName} lighting cue...";
@@ -4891,6 +4911,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 profile.KnobOn);
             ApplyLightSnapshot(snapshot);
             LogBleSnapshot(snapshot);
+            _lastSlotLightingSucceeded = true;
             Status = $"{SelectedDeviceUserPreset.DisplayName} lighting cue applied.";
             AddLog(Status);
         }

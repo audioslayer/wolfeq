@@ -12,17 +12,6 @@ public sealed class FiioK13BleLightService
     private static readonly Guid ServiceUuid = Guid.Parse("00001100-04a5-1000-1000-40ed981a04a5");
     private static readonly Guid WriteUuid = Guid.Parse("00001101-04a5-1000-1000-40ed981a04a5");
     private static readonly Guid NotifyUuid = Guid.Parse("00001102-04a5-1000-1000-40ed981a04a5");
-    private static readonly string[] SupportedAdvertisementNameFragments =
-    [
-        "K13",
-        "FIIO",
-        "SNOWSKY",
-        "JadeAudio"
-    ];
-    private static readonly string AddressCachePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "WolfEQ",
-        "k13-ble-address.txt");
     private static readonly BleVolumeCommand[] VolumeCommands =
     [
         new("device-settings reference", 0x02, 0x01, 0x01),
@@ -33,11 +22,10 @@ public sealed class FiioK13BleLightService
     private static readonly BleDeviceSettingCommand ChannelBalanceCommand = new("channel balance", 0x02, 0x06, 0x01);
     private static readonly BleDeviceSettingCommand? DreCommand = null;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
-    private ulong? _cachedAddress;
 
     public FiioK13BleLightService()
     {
-        _cachedAddress = LoadCachedAddress();
+        // Legacy cached addresses are deliberately not trusted.
     }
 
     public async Task<K13BleLightSnapshot> ReadLightsAsync(CancellationToken cancellationToken = default)
@@ -736,69 +724,53 @@ public sealed class FiioK13BleLightService
         }
     }
 
+    // Only an explicit user selection can authorize a BLE target. Legacy discovery caches are ignored.
+    public ulong? SelectedAddress { get; set; }
+    public bool IsBusy => _operationLock.CurrentCount == 0;
+
+    public async Task<IReadOnlyList<BleDeviceChoice>> DiscoverAsync(CancellationToken cancellationToken = default)
+    {
+        var found = new ConcurrentDictionary<ulong, BleDeviceChoice>();
+        var watcher = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
+        watcher.Received += (_, args) =>
+        {
+            var name = args.Advertisement.LocalName ?? string.Empty;
+            if (name.Contains("K13", StringComparison.OrdinalIgnoreCase))
+                found[args.BluetoothAddress] = new(args.BluetoothAddress, name, args.RawSignalStrengthInDBm);
+        };
+        try
+        {
+            watcher.Start();
+            await Task.Delay(TimeSpan.FromSeconds(8), cancellationToken);
+        }
+        finally { watcher.Stop(); }
+        return found.Values.OrderBy(d => d.Name).ThenBy(d => d.Address).ToArray();
+    }
+
+    public async Task IdentifyAsync(CancellationToken cancellationToken = default)
+    {
+        var address = SelectedAddress ?? throw new InvalidOperationException("Select a Bluetooth device first.");
+        // Capture the target so restoration cannot move to a newly selected device.
+        var target = new FiioK13BleLightService { SelectedAddress = address };
+        var before = await target.ReadLightsAsync(cancellationToken);
+        try
+        {
+            await target.SetBothLightsAsync(0x07, 0x00, true, cancellationToken);
+            await Task.Delay(1200, cancellationToken);
+        }
+        finally
+        {
+            await target.SetSplitLightsAsync(before.Top.Color, before.Top.Mode, before.Top.On,
+                before.Knob.Color, before.Knob.Mode, before.Knob.On, CancellationToken.None);
+        }
+    }
+
     private async Task<BleSession> ConnectAsync(List<string> transportLog, CancellationToken cancellationToken)
     {
-        if (_cachedAddress is ulong cachedAddress)
-        {
-            transportLog.Add($"Trying cached K13 BLE address {cachedAddress:X12} before scanning.");
-            var cachedSession = await TryCreateSessionAsync(cachedAddress, transportLog, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (cachedSession is not null)
-            {
-                return cachedSession;
-            }
-
-            transportLog.Add("Cached K13 BLE address did not open cleanly; falling back to advertisement scan.");
-            _cachedAddress = null;
-        }
-
-        var address = await FindK13AddressAsync(transportLog, cancellationToken).ConfigureAwait(false);
-        _cachedAddress = address;
-        SaveCachedAddress(address, transportLog);
-
-        var session = await TryCreateSessionAsync(address, transportLog, cancellationToken).ConfigureAwait(false);
-        if (session is null)
-        {
-            _cachedAddress = null;
-            throw new InvalidOperationException("K13 BLE device was found, but the light service could not be opened.");
-        }
-
-        return session;
-    }
-
-    private static ulong? LoadCachedAddress()
-    {
-        try
-        {
-            if (!File.Exists(AddressCachePath))
-            {
-                return null;
-            }
-
-            var text = BoundedTextReader.ReadAllText(AddressCachePath, 128, "Cached BLE address").Trim();
-            return ulong.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var address)
-                ? address
-                : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static void SaveCachedAddress(ulong address, List<string> transportLog)
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(AddressCachePath)!);
-            AtomicFileWriter.WriteAllText(AddressCachePath, address.ToString("X12"));
-            transportLog.Add($"Cached K13 BLE address for future app launches: {address:X12}.");
-        }
-        catch (Exception ex)
-        {
-            transportLog.Add($"Could not save K13 BLE address cache: {ex.Message}");
-        }
+        var address = SelectedAddress ?? throw new InvalidOperationException(
+            "Choose and save your K13 Bluetooth device in Settings > Device > Connections. Previous automatic selections must be confirmed.");
+        return await TryCreateSessionAsync(address, transportLog, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("The selected Bluetooth device is unavailable. No other device was contacted.");
     }
 
     private static async Task<BleSession?> TryCreateSessionAsync(
@@ -913,99 +885,6 @@ public sealed class FiioK13BleLightService
         }
 
         return null;
-    }
-
-    private static async Task<ulong> FindK13AddressAsync(List<string> transportLog, CancellationToken cancellationToken)
-    {
-        var completion = new TaskCompletionSource<ulong>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var observed = new ConcurrentDictionary<string, BleAdvertisementSample>();
-        var watcher = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
-
-        watcher.Received += (_, args) =>
-        {
-            var name = args.Advertisement.LocalName ?? string.Empty;
-            var hasService = args.Advertisement.ServiceUuids.Contains(ServiceUuid);
-            TrackAdvertisementSample(observed, name, args.RawSignalStrengthInDBm, hasService);
-            var isSupportedDevice = IsSupportedAdvertisement(name, hasService);
-
-            if (!isSupportedDevice)
-            {
-                return;
-            }
-
-            transportLog.Add(
-                $"BLE advertisement match: {args.BluetoothAddress:X12}, name='{name}', rssi={args.RawSignalStrengthInDBm}, service={hasService}.");
-            completion.TrySetResult(args.BluetoothAddress);
-        };
-
-        using var stopRegistration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
-
-        watcher.Start();
-        transportLog.Add("Scanning for supported FiiO/SNOWSKY BLE advertisement...");
-
-        try
-        {
-            var finished = await Task.WhenAny(completion.Task, Task.Delay(TimeSpan.FromSeconds(12), cancellationToken))
-                .ConfigureAwait(false);
-
-            if (finished != completion.Task)
-            {
-                AppendAdvertisementSummary(transportLog, observed.Values);
-                throw new TimeoutException("Supported FiiO/SNOWSKY BLE advertisement was not found within 12 seconds.");
-            }
-
-            return await completion.Task.ConfigureAwait(false);
-        }
-        finally
-        {
-            watcher.Stop();
-        }
-    }
-
-    private static bool IsSupportedAdvertisement(string name, bool hasService)
-        => hasService || SupportedAdvertisementNameFragments.Any(fragment =>
-            name.Contains(fragment, StringComparison.OrdinalIgnoreCase));
-
-    private static void TrackAdvertisementSample(
-        ConcurrentDictionary<string, BleAdvertisementSample> observed,
-        string name,
-        short rssi,
-        bool hasService)
-    {
-        var displayName = string.IsNullOrWhiteSpace(name) ? "<unnamed>" : name.Trim();
-        var key = hasService ? $"{displayName}|service" : displayName;
-
-        if (observed.Count >= 64 && !observed.ContainsKey(key))
-        {
-            return;
-        }
-
-        observed.AddOrUpdate(
-            key,
-            _ => new BleAdvertisementSample(displayName, rssi, hasService, 1),
-            (_, current) => current with
-            {
-                Count = current.Count + 1,
-                HasService = current.HasService || hasService,
-                Rssi = Math.Max(current.Rssi, rssi)
-            });
-    }
-
-    private static void AppendAdvertisementSummary(
-        List<string> transportLog,
-        IEnumerable<BleAdvertisementSample> observed)
-    {
-        var samples = observed
-            .OrderByDescending(sample => sample.HasService)
-            .ThenByDescending(sample => sample.Rssi)
-            .Take(8)
-            .Select(sample =>
-                $"{sample.Name} rssi={sample.Rssi}{(sample.HasService ? " expected-service" : string.Empty)} x{sample.Count}")
-            .ToList();
-
-        transportLog.Add(samples.Count == 0
-            ? "No BLE advertisements were observed by Windows during the 12-second scan."
-            : $"BLE advertisements observed during scan: {string.Join("; ", samples)}.");
     }
 
     private static async Task<K13BleLightSnapshot> ReadSnapshotAsync(
@@ -1490,7 +1369,6 @@ public sealed class FiioK13BleLightService
 
     private sealed record BleDeviceSettingCommand(string Name, byte Category, byte Command, byte Target);
 
-    private sealed record BleAdvertisementSample(string Name, short Rssi, bool HasService, int Count);
 
     private sealed record K13BleVolumeReadback(byte Level, BleVolumeCommand Command);
 
@@ -1633,4 +1511,11 @@ public sealed record K13BleLightState(byte Zone, bool On, byte Mode, byte Color)
 
     public override string ToString()
         => $"{ZoneName}: {(On ? "On" : "Off")}, {ModeName}, {ColorName}";
+}
+
+public sealed record BleDeviceChoice(ulong Address, string Name, short Signal)
+{
+    public string DisplayName => $"{Name}  \u00b7  {Address & 0xFFFFFF:X6}";
+    public string Details => $"Bluetooth address: {Address:X12}" + (Signal == 0 ? "" : $" / Signal: {Signal} dBm");
+    public override string ToString() => DisplayName;
 }

@@ -30,6 +30,25 @@ public sealed class FiioK13DeviceService
 
     public bool IsConnected { get; private set; }
 
+    public string? SelectedDevicePath { get; set; }
+
+    public static IReadOnlyList<HidDeviceCandidate> GetSelectableDevices(IReadOnlyList<HidDeviceCandidate> candidates)
+        => candidates.GroupBy(c => c.DevicePath, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First()).Where(c =>
+            {
+                var profile = FiioDeviceProfiles.Match(c.ProductId, c.Product, c.InterfaceNumber);
+                return profile is not null && SelectReadbackCandidate(new[] { c }, profile) is not null;
+            }).ToArray();
+
+    private IReadOnlyList<HidDeviceCandidate> RestrictToSelectedDevice(IReadOnlyList<HidDeviceCandidate> candidates)
+    {
+        if (!string.IsNullOrEmpty(SelectedDevicePath))
+            return candidates.Where(c => string.Equals(c.DevicePath, SelectedDevicePath, StringComparison.OrdinalIgnoreCase)).ToArray();
+        var available = GetSelectableDevices(candidates);
+        // Ambiguous discovery must never choose a different physical unit by enumeration order.
+        return available.Count == 1 ? available : Array.Empty<HidDeviceCandidate>();
+    }
+
     public Task<HidDetectionResult> DetectUsbAsync(CancellationToken cancellationToken = default)
         => Task.Run(() => DetectUsb(cancellationToken), cancellationToken);
 
@@ -1099,6 +1118,7 @@ public sealed class FiioK13DeviceService
         if (matchedProfile is not null)
         {
             SelectedProfile = matchedProfile;
+            SelectedDevicePath ??= matchedCandidate?.DevicePath;
         }
 
         var result = new HidDetectionResult(scannedDeviceCount, candidates, matchedProfile, matchedCandidate);
@@ -1280,6 +1300,7 @@ public sealed class FiioK13DeviceService
 
     private (FiioDeviceProfile? Profile, HidDeviceCandidate? Candidate) MatchProfile(IReadOnlyList<HidDeviceCandidate> candidates)
     {
+        candidates = RestrictToSelectedDevice(candidates);
         foreach (var candidate in candidates)
         {
             var profile = FiioDeviceProfiles.Match(
@@ -1308,7 +1329,7 @@ public sealed class FiioK13DeviceService
     }
 
     private HidDeviceCandidate? SelectReadbackCandidate(IReadOnlyList<HidDeviceCandidate> candidates)
-        => SelectReadbackCandidate(candidates, SelectedProfile);
+        => SelectReadbackCandidate(RestrictToSelectedDevice(candidates), SelectedProfile);
 
     private static HidDeviceCandidate? SelectReadbackCandidate(
         IReadOnlyList<HidDeviceCandidate> candidates,
