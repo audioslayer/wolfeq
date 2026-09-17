@@ -72,6 +72,7 @@ public sealed class IntegrationSettingsTests
                 controlsEncoder.Frames.Add(BitmapFrame.Create(controlsBitmap));
                 using var controlsOutput = File.Create(Path.Combine(AppContext.BaseDirectory, "device-controls-settings.png"));
                 controlsEncoder.Save(controlsOutput);
+                VerifyTrayFlyout(model);
                 app.Shutdown();
             }
             catch (Exception ex) { failure = ex; }
@@ -80,6 +81,56 @@ public sealed class IntegrationSettingsTests
         thread.Start();
         Assert.True(thread.Join(TimeSpan.FromSeconds(20)), "Settings render timed out.");
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static void VerifyTrayFlyout(MainViewModel model)
+    {
+        var opened = false;
+        var settingsOpened = false;
+        var quit = false;
+        var flyout = new TrayFlyout(model, () => opened = true, () => settingsOpened = true, () => quit = true);
+        var content = (FrameworkElement)flyout.Content;
+        // Render the complete surface independently of an unshown Window's native
+        // client-area clip. Keep the same data and local control resources.
+        flyout.Content = null;
+        content.DataContext = flyout.DataContext;
+        content.Resources = flyout.Resources;
+        System.Windows.Documents.TextElement.SetFontFamily(content, flyout.FontFamily);
+        System.Windows.Documents.TextElement.SetForeground(content, flyout.Foreground);
+        content.Measure(new Size(368, 1200));
+        content.Arrange(new Rect(0, 0, 368, content.DesiredSize.Height));
+        content.UpdateLayout();
+        var buttons = Descendants(content).OfType<Button>().ToArray();
+        var slots = buttons.Where(b => b.Tag is int).ToArray();
+        Assert.Equal(model.DeviceUserPresets.Count, slots.Length);
+        model.EditorSession.NotifyEdit();
+        Assert.All(slots, b => Assert.False(b.IsEnabled));
+        model.EditorSession.NotifySavedToLibrary();
+        Assert.All(slots, b => Assert.True(b.IsEnabled));
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), t => t.Text == model.AppVersionText);
+        Assert.Contains(Descendants(content).OfType<CheckBox>(), c => Equals(c.Content, "Close to tray"));
+        Assert.Contains(Descendants(content).OfType<CheckBox>(), c => Equals(c.Content, "Minimize to tray"));
+
+        // State notifications can invalidate the ScrollViewer measure after the
+        // first arrange. Finish layout before capturing its complete surface.
+        content.Measure(new Size(368, 1200));
+        content.Arrange(new Rect(0, 0, 368, content.DesiredSize.Height));
+        content.UpdateLayout();
+        var bitmap = new RenderTargetBitmap(368, (int)Math.Ceiling(content.DesiredSize.Height), 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(content);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var output = File.Create(Path.Combine(AppContext.BaseDirectory, "tray-flyout.png"))) encoder.Save(output);
+
+        buttons.Single(b => Equals(b.Content, "Open editor")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        buttons.Single(b => Equals(b.Content, "Settings")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        buttons.Single(b => Equals(b.Content, "Quit")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.True(opened);
+        Assert.True(settingsOpened);
+        Assert.True(quit);
+        flyout.Close();
+        // Alt+F4 dismisses the reusable popup; final disposal must remain possible.
+        flyout.DisposeFlyout();
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)

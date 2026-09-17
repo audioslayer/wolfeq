@@ -5,7 +5,7 @@
 <h1 align="center">WolfEQ</h1>
 
 <p align="center">
-  <strong>WolfEQ 0.5.0 beta is the current development version.</strong><br/>
+  <strong>WolfEQ 0.6.0 beta is the current release.</strong><br/>
   A modern Windows PEQ workspace for FiiO K13 R2R and guarded experimental FiiO / Snowsky device support.
 </p>
 
@@ -17,6 +17,16 @@
   <img src="https://img.shields.io/badge/devices-experimental-orange" alt="Experimental device profiles" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
 </p>
+
+## System tray (0.6 beta)
+
+WolfEQ now includes a Windows system tray companion for switching the USER profiles already saved on your connected DAC. Click or right-click its tray icon to see device status and choose a USER slot. Double-click the icon or choose **Open editor** to return to the full editor. If Windows hides the icon, find it under the taskbar's hidden-icons arrow.
+
+The tray panel has saved **Close to tray** and **Minimize to tray** preferences. Close to tray is enabled by default, so the window's close button keeps WolfEQ running in the tray. Minimize to tray is initially disabled, so minimizing keeps the normal taskbar button until you enable it. Choose **Quit** in the tray panel to exit WolfEQ completely.
+
+Tray switches use the same device safeguards and optional profile lighting as the editor. Save or discard unsaved edits before switching. Switching a USER slot selects EQ already stored on the DAC; use the editor to write a library preset to a slot.
+
+Download the installer or portable build from the latest release below.
 
 ## Stream Deck and device selection (0.5 beta)
 
@@ -47,18 +57,24 @@ EQ uses USB; lights and supported device controls use Bluetooth. Saved connectio
 
 WolfEQ is a desktop app for people who want a cleaner way to tune PEQ on supported FiiO and Snowsky devices. Instead of juggling device menus, preset files, and separate graph tools, WolfEQ brings the complete workflow into one Windows app: discover or import a profile, load it into the editor, shape and compare the curve, then write it to a compatible USER slot.
 
-The **FiiO K13 R2R** is the main WolfEQ-verified device. WolfEQ 0.5.0 beta also includes experimental profiles for BR15 R2R, QX13, BTR17, BTR13, KA15, KA17, JA11, Snowsky Melody, and Snowsky Retro Nano. Newly added community profiles start in guarded save-only mode without automatic readback or live writes until their Windows HID endpoints are verified on physical hardware.
+The **FiiO K13 R2R** is the main WolfEQ-verified device. WolfEQ 0.6.0 beta also includes experimental profiles for BR15 R2R, QX13, BTR17, BTR13, KA15, KA17, JA11, Snowsky Melody, and Snowsky Retro Nano. Newly added community profiles start in guarded save-only mode without automatic readback or live writes until their Windows HID endpoints are verified on physical hardware.
 
 ---
 
 ## 🚀 Latest Beta
 
-Download the latest published beta, WolfEQ 0.5.0, from the [latest GitHub release](https://github.com/audioslayer/wolfeq/releases/latest):
+Download the latest published beta, WolfEQ 0.6.0, from the [latest GitHub release](https://github.com/audioslayer/wolfeq/releases/latest):
 
-- [Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.5.0-beta/WolfEQ-Setup-0.5.0-beta.exe)
-- [Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.5.0-beta/WolfEQ-0.5.0-beta-win-x64.zip)
+- [Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.6.0-beta/WolfEQ-Setup-0.6.0-beta.exe)
+- [Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.6.0-beta/WolfEQ-0.6.0-beta-win-x64.zip)
 
-WolfEQ 0.5.0 beta adds:
+WolfEQ 0.6.0 beta adds:
+
+- A modern system tray panel with quick USER-profile switching, confirmed active-slot indicators, and device status.
+- Saved close-to-tray and minimize-to-tray preferences, quick editor/settings access, and guarded Quit.
+- Unsaved-edit protection and optional saved lighting when switching profiles from the tray.
+
+Features carried forward from 0.5.0 beta:
 
 - Explicit USB and Bluetooth device selection, an Identify action, and no automatic fallback to another unit.
 - Per-device lighting settings that optionally follow confirmed USER-slot changes.

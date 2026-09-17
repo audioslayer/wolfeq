@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using WolfEQ.ViewModels;
+using WolfEQ.Services;
 
 namespace WolfEQ;
 
@@ -31,6 +32,25 @@ public partial class MainWindow : Window
         LibraryHost.CloseRequested += (_, _) => CloseOverlayPanel();
         SettingsHost.CloseRequested += (_, _) => CloseOverlayPanel();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+        Closing += (_, e) =>
+        {
+            if (Application.Current is not App app || app.IsExiting) return;
+            e.Cancel = true;
+            if (TrayPreferences.Current.CloseToTray && app.CanHideToTray) app.HideEditor();
+            else Dispatcher.BeginInvoke(new Action(app.RequestQuit));
+        };
+        StateChanged += (_, _) =>
+        {
+            if (Application.Current is not App app || app.IsExiting) return;
+            if (WindowState == WindowState.Minimized && TrayPreferences.Current.MinimizeToTray && app.CanHideToTray)
+                app.HideEditor();
+            else app.RememberWindowState();
+        };
+    }
+
+    public void OpenSettings()
+    {
+        if (!ReferenceEquals(_openOverlayPanel, SettingsHost)) ToggleOverlayPanel(SettingsHost);
     }
 
     // --- Overlay panels (Library / Settings right slide-overs) ---

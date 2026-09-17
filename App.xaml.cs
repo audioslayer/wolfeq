@@ -10,11 +10,14 @@ public partial class App : Application
     private AutomationHost? _automation;
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private MainViewModel? _viewModel;
+    private TrayIconService? _tray;
+    internal bool IsExiting { get; private set; }
+    internal bool CanHideToTray => _tray?.IsAvailable == true;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        AppUpdateService.OnShutdownRequested = () => Dispatcher.Invoke(Shutdown);
+        AppUpdateService.OnShutdownRequested = () => Dispatcher.Invoke(() => { IsExiting = true; Shutdown(); });
         try
         {
             if (e.Args.Length > 0) AttachConsole(unchecked((uint)-1));
@@ -32,8 +35,10 @@ public partial class App : Application
             _ = _automation.RunAsync(HandleRequestAsync);
             if (e.Args.Length == 0)
             {
-                ShutdownMode = ShutdownMode.OnMainWindowClose;
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 window.Show();
+                try { _tray = new TrayIconService(window, _viewModel, RequestQuit); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Tray initialization failed: {ex.Message}"); }
                 await _viewModel.AutoConnectAndReadDeviceAsync();
                 _ready.TrySetResult();
             }
@@ -56,7 +61,7 @@ public partial class App : Application
             try
             {
                 var request = AutomationRequest.Parse(args);
-                if (args.Length == 0) { MainWindow.Show(); MainWindow.Activate(); }
+                if (args.Length == 0) RestoreEditor();
                 return await _viewModel!.ExecuteAutomationAsync(request);
             }
             catch (ArgumentException ex) { return new AutomationResult(2, ex.Message); }
@@ -67,11 +72,54 @@ public partial class App : Application
     private void Finish(AutomationResult result)
     {
         AutomationHost.Report(result);
+        IsExiting = true;
         Shutdown(result.ExitCode);
+    }
+
+    internal void HideEditor() => _tray?.HideEditor();
+    internal void RememberWindowState() => _tray?.RememberWindowState();
+
+    internal void RestoreEditor()
+    {
+        if (_tray is not null) _tray.RestoreEditor();
+        else
+        {
+            MainWindow.Show();
+            if (MainWindow.WindowState == WindowState.Minimized) MainWindow.WindowState = WindowState.Normal;
+            MainWindow.Activate();
+        }
+    }
+
+    internal void RequestQuit()
+    {
+        if (IsExiting) return;
+        if (_viewModel is not null && !_viewModel.IntegrationControlsEnabled)
+        {
+            RestoreEditor();
+            MessageBox.Show(MainWindow, "Wait for the current device operation to finish before quitting.",
+                "WolfEQ is busy", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (_viewModel?.HasUnsavedTrayEdits == true)
+        {
+            RestoreEditor();
+            if (MessageBox.Show(MainWindow, "You have unsaved changes. Quit WolfEQ and discard them?",
+                    "Quit WolfEQ", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
+                return;
+        }
+        IsExiting = true;
+        Shutdown();
+    }
+
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        IsExiting = true;
+        base.OnSessionEnding(e);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _tray?.Dispose();
         _automation?.Dispose();
         base.OnExit(e);
     }

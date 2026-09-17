@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.0-beta
+
+- Added a Windows system tray companion with a modern quick-switch panel for saved device USER slots.
+- Added configurable close-to-tray and minimize-to-tray behavior, with editor restore and explicit exit actions.
+- Kept tray slot switching on the guarded device-switch path, including unsaved-edit protection and optional per-slot lighting.
+
 ## v0.5.0-beta
 
 - Added explicit USB and Bluetooth device selection, a reversible identify-light action, and a saved connection in Settings > Devices.
