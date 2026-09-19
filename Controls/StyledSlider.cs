@@ -150,13 +150,13 @@ public sealed class StyledSlider : FrameworkElement
 
         var thumbPen = new Pen(accentBrush, 2);
         thumbPen.Freeze();
-        dc.DrawEllipse(GetThumbFillBrush(), thumbPen, new Point(valueX, cy), ThumbRadius, ThumbRadius);
+        dc.DrawRoundedRectangle(accentBrush, null, new Rect(valueX - 7, cy - 11, 14, 22), 4, 4);
 
-        dc.DrawEllipse(accentBrush, null, new Point(valueX, cy), 2.2, 2.2);
+
 
         if (ShowLabel)
         {
-            var textBrush = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+            var textBrush = new SolidColorBrush((Color)Application.Current.FindResource("WolfMuted"));
             textBrush.Freeze();
             var text = new FormattedText($"{Value.ToString(LabelFormat, CultureInfo.InvariantCulture)}{Suffix}",
                 CultureInfo.InvariantCulture,
@@ -196,7 +196,7 @@ public sealed class StyledSlider : FrameworkElement
 
         if (ShowLabel)
         {
-            var textBrush = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+            var textBrush = new SolidColorBrush((Color)Application.Current.FindResource("WolfMuted"));
             textBrush.Freeze();
             var text = new FormattedText($"{Value.ToString(LabelFormat, CultureInfo.InvariantCulture)}{Suffix}",
                 CultureInfo.InvariantCulture,

@@ -5,9 +5,9 @@ namespace WolfEQ.Services;
 
 public sealed class LocalPresetLibraryService
 {
-    public LocalPresetLibraryService()
+    public LocalPresetLibraryService(string? libraryPath = null)
     {
-        LibraryPath = Path.Combine(
+        LibraryPath = libraryPath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "WolfEQ",
             "profiles.json");

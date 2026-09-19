@@ -22,6 +22,8 @@ public sealed class IntegrationSettingsTests
                 var app = new App();
                 app.InitializeComponent();
                 var model = new MainViewModel { IntegrationSlot = 3 };
+                Assert.Equal("AmpUp Green", model.SelectedAccentColorOption.Name);
+                Assert.Equal((Color)ColorConverter.ConvertFromString("#00E676"), ((SolidColorBrush)app.FindResource("WolfGreenBrush")).Color);
                 var view = new SettingsPopover { DataContext = model, Height = 1000 };
                 view.Measure(new Size(460, 1000));
                 view.Arrange(new Rect(0, 0, 460, 1000));
@@ -73,6 +75,8 @@ public sealed class IntegrationSettingsTests
                 using var controlsOutput = File.Create(Path.Combine(AppContext.BaseDirectory, "device-controls-settings.png"));
                 controlsEncoder.Save(controlsOutput);
                 VerifyTrayFlyout(model);
+                BandControlsViewChecks.Verify(model);
+                StudioViewChecks.Verify(model);
                 app.Shutdown();
             }
             catch (Exception ex) { failure = ex; }

@@ -7,7 +7,7 @@
              mc:Ignorable="d"
              d:DesignWidth="1280"
              d:DesignHeight="56"
-             Foreground="{StaticResource WolfTextBrush}">
+             Foreground="{DynamicResource WolfTextBrush}">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
@@ -23,107 +23,27 @@
             </Style.Triggers>
         </Style>
 
-        <!-- One hardware slot chip; the chip matching SelectedDeviceUserPreset renders accent-filled. -->
-        <Style x:Key="SlotChipButton" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="{StaticResource WolfShellBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="Chrome"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.45"/>
-                                <Setter Property="Cursor" Value="Arrow"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfCyanDimBrush}"/>
-                            </Trigger>
-                            <!-- Active slot; declared last so it wins over hover. -->
-                            <DataTrigger Value="True">
-                                <DataTrigger.Binding>
-                                    <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
-                                        <Binding/>
-                                        <Binding Path="DataContext.SelectedDeviceUserPreset"
-                                                 RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
-                                    </MultiBinding>
-                                </DataTrigger.Binding>
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfGreenBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
-                            </DataTrigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+        <Style x:Key="SlotMenuItem" TargetType="Button" BasedOn="{StaticResource QuietButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="12,9"/>
             <Style.Triggers>
-                <DataTrigger Value="True">
-                    <DataTrigger.Binding>
-                        <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
-                            <Binding/>
-                            <Binding Path="DataContext.SelectedDeviceUserPreset"
-                                     RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
-                        </MultiBinding>
-                    </DataTrigger.Binding>
-                    <Setter Property="Foreground" Value="{StaticResource WolfGreenContrastBrush}"/>
+                <DataTrigger Value="True"><DataTrigger.Binding>
+                    <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                        <Binding/>
+                        <Binding Path="DataContext.SelectedDeviceUserPreset" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                    </MultiBinding>
+                </DataTrigger.Binding>
+                    <Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-
-        <Style x:Key="SlotScrollButton" TargetType="{x:Type Button}">
-            <Setter Property="Width" Value="22"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
-            <Setter Property="FontSize" Value="18"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.25"/>
-                                <Setter Property="Cursor" Value="Arrow"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
     <Border Style="{StaticResource PanelBorder}"
-            Padding="12,8"
-            MinHeight="56">
+            Padding="0" Background="Transparent" BorderThickness="0"
+            MinHeight="58">
         <Grid VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -135,178 +55,127 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 1. Connection cluster -->
-            <StackPanel Grid.Column="0"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                <Ellipse Width="8"
-                         Height="8"
-                         Margin="0,0,8,0"
-                         VerticalAlignment="Center">
-                    <Ellipse.Style>
-                        <Style TargetType="{x:Type Ellipse}">
-                            <Setter Property="Fill" Value="{StaticResource WolfDimBrush}"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
-                                    <Setter Property="Fill" Value="{DynamicResource WolfGreenBrush}"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Ellipse.Style>
-                </Ellipse>
-                <TextBlock Text="{Binding SelectedDeviceProfile.DisplayLabel}"
-                           ToolTip="{Binding ConnectionText}"
-                           Foreground="{StaticResource WolfMutedBrush}"
-                           FontSize="12"
-                           FontWeight="SemiBold"
-                           VerticalAlignment="Center"
-                           Margin="0,0,10,0"/>
-                <StackPanel Orientation="Horizontal"
-                            Margin="0,0,10,0"
-                            VerticalAlignment="Center"
-                            ToolTip="K13 R2R PEQ: 10 global bands across inputs. FiiO limits PEQ playback to 192 kHz/24-bit, disables MQA processing, and may briefly reconnect USB when switching EQ between Off and active."
-                            Visibility="{Binding IsK13R2RSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Rectangle Width="1"
-                               Height="14"
-                               Fill="{StaticResource WolfLineSoftBrush}"
-                               Margin="0,0,9,0"/>
-                    <TextBlock Text="10-band PEQ"
-                               Foreground="{StaticResource WolfDimBrush}"
-                               FontSize="10"
-                               FontWeight="Medium"
-                               VerticalAlignment="Center"/>
+            <Button Grid.Column="0" Click="DeviceSettings_Click" Height="54" Padding="16,6" Margin="0" BorderBrush="{DynamicResource WolfLineBrush}" ToolTip="Choose or connect your device in Settings">
+                <StackPanel Orientation="Horizontal">
+                    <Image x:Name="DeviceProductImage" Source="{Binding SelectedDeviceProfile.ProductImagePath}" Width="48" Height="38" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,14,0" VerticalAlignment="Center" AutomationProperties.Name="{Binding SelectedDeviceProfile.DisplayName}"/>
+                    <Ellipse x:Name="SyncStateDot" Width="9" Height="9" Fill="{DynamicResource WolfDimBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding SelectedDeviceProfile.DisplayLabel}" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="{Binding ConnectionText}" FontSize="12" Foreground="{DynamicResource WolfGreenBrush}" Margin="0,2,0,0"/></StackPanel>
+                    <Path Data="M0,0 L5,5 L10,0" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" Margin="22,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
-                <Button Content="Detect"
-                        Command="{Binding ConnectCommand}"
-                        Style="{StaticResource DetectButton}"
-                        ToolTip="Scan for a connected device"
-                        VerticalAlignment="Center"/>
-            </StackPanel>
+            </Button>
 
             <Rectangle Grid.Column="1"
                        Width="1"
-                       Fill="{StaticResource WolfLineSoftBrush}"
+                       Fill="{DynamicResource WolfLineSoftBrush}"
                        Margin="12,2"/>
 
-            <!-- 2. Slot chips (scrolls horizontally when a profile exposes many slots) -->
-            <Grid Grid.Column="2" MaxWidth="480" VerticalAlignment="Center">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Button x:Name="SlotScrollLeftButton"
-                        Grid.Column="0"
-                        Content="‹"
-                        Style="{StaticResource SlotScrollButton}"
-                        Click="SlotScrollLeftButton_Click"
-                        ToolTip="Show earlier USER slots"/>
-                <ScrollViewer Grid.Column="1"
-                              x:Name="SlotChipScroller"
-                              HorizontalScrollBarVisibility="Hidden"
-                              VerticalScrollBarVisibility="Disabled"
-                              MaxWidth="436"
-                              VerticalAlignment="Center"
-                              ScrollChanged="SlotChipScroller_ScrollChanged"
-                              PreviewMouseWheel="SlotChipScroller_PreviewMouseWheel">
-                <ItemsControl x:Name="SlotItems" ItemsSource="{Binding DeviceUserPresets}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Style="{StaticResource SlotChipButton}"
-                                    Command="{Binding DataContext.SwitchSlotCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
-                                    CommandParameter="{Binding}"
-                                    ToolTip="Switch the device and load this slot into the EQ graph">
-                                <TextBlock FontSize="12" VerticalAlignment="Center">
-                                    <Run Text="{Binding Slot, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" · "/><Run Text="{Binding DeviceName, Mode=OneWay}"/>
-                                </TextBlock>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                </ScrollViewer>
-                <Button x:Name="SlotScrollRightButton"
-                        Grid.Column="2"
-                        Content="›"
-                        Style="{StaticResource SlotScrollButton}"
-                        Click="SlotScrollRightButton_Click"
-                        ToolTip="Show later USER slots"/>
+            <!-- Menu entries invoke the existing guarded switch command. Selection
+                 stays bound to the confirmed slot, including after cancellation. -->
+            <Grid Grid.Column="2" VerticalAlignment="Center">
+                <ToggleButton x:Name="SlotMenuButton" Style="{StaticResource StudioMenuToggle}"
+                              IsChecked="{Binding IsOpen, ElementName=SlotPopup, Mode=TwoWay}"
+                              MinWidth="150" Height="54" Background="{DynamicResource WolfPanel2Brush}" AutomationProperties.Name="Choose USER slot" ToolTip="Switch saved device profile">
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel Width="120" Margin="0,0,12,0" ToolTip="{Binding SelectedDeviceUserPreset.LocalEqSubtitle}">
+                            <TextBlock Text="{Binding SelectedDeviceUserPreset.SlotLabel, FallbackValue=Choose slot, TargetNullValue=Choose slot}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding SelectedDeviceUserPreset.LocalEqSubtitle}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <Path Data="M 0,0 L 4,4 L 8,0" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </ToggleButton>
+                <Popup x:Name="SlotPopup" PlacementTarget="{Binding ElementName=SlotMenuButton}" Placement="Bottom"
+                       StaysOpen="False" AllowsTransparency="True" VerticalOffset="6" Closed="SlotPopup_Closed"
+                       DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <Border Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}"
+                            BorderThickness="1" CornerRadius="6" Padding="6" Width="240">
+                        <StackPanel>
+                            <TextBlock Text="SAVED DEVICE PROFILES" Style="{StaticResource TinyLabel}" Margin="12,8,12,6"/>
+                            <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="SlotItems" ItemsSource="{Binding DeviceUserPresets}">
+                                    <ItemsControl.ItemTemplate><DataTemplate>
+                                        <Button Style="{StaticResource SlotMenuItem}" Click="SlotMenuItem_Click"
+                                                Command="{Binding DataContext.SwitchSlotCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <StackPanel ToolTip="{Binding LocalEqSubtitle}">
+                                                <TextBlock Text="{Binding SlotLabel}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding LocalEqSubtitle}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+                </Popup>
             </Grid>
 
-            <!-- 3. Load from slot -->
-            <Button Grid.Column="3"
-                    Content="Load from slot"
-                    Command="{Binding LoadFromSlotCommand}"
-                    Style="{StaticResource QuietButton}"
-                    ToolTip="{Binding LoadFromSlotToolTip}"
-                    ToolTipService.ShowOnDisabled="True"
-                    VerticalAlignment="Center"
-                    Margin="4,0,0,0"/>
-
-            <!-- 4. Sync indicator (dot fill and text color set from code-behind on EditorSession.Changed) -->
-            <StackPanel Grid.Column="4"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Margin="16,0">
-                <Ellipse x:Name="SyncStateDot"
-                         Width="8"
-                         Height="8"
-                         Fill="{StaticResource WolfDimBrush}"
-                         Margin="0,0,7,0"
-                         VerticalAlignment="Center"/>
-                <TextBlock x:Name="SyncStateText"
-                           Text="{Binding EditorSyncStatusText}"
-                           Foreground="{StaticResource WolfMutedBrush}"
-                           FontSize="12"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"/>
-            </StackPanel>
-
+            <TextBlock Grid.Column="3" Text="{Binding Bands.Count, StringFormat={}{0}-band PEQ}" Foreground="{DynamicResource WolfMutedBrush}" Margin="22,0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="SyncStateText" Grid.Column="4" Text="{Binding EditorSyncStatusText}" Visibility="Collapsed"/>
             <!-- 5. Live-sync toggle (only for profiles that support live EQ writes) -->
             <StackPanel Grid.Column="5"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="0,0,12,0"
-                        ToolTip="Push edits to the device as you make them"
                         Visibility="{Binding SelectedDeviceProfile.SupportsLiveEqWrites, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <ToggleButton Style="{StaticResource BandPowerToggle}"
                               IsChecked="{Binding LiveDeviceEqSyncEnabled, Mode=TwoWay}"
+                              AutomationProperties.Name="Live sync"
                               VerticalAlignment="Center"
                               Margin="0,0,7,0"/>
-                <TextBlock Text="Live sync"
-                           Foreground="{StaticResource WolfMutedBrush}"
+                <TextBlock Text="Live sync" FontWeight="SemiBold"
+                           Foreground="{DynamicResource WolfMutedBrush}"
                            FontSize="12"
                            VerticalAlignment="Center"/>
+                <Button x:Name="LiveSyncHelp" Style="{StaticResource QuietButton}"
+                        Width="24" Height="24" MinWidth="0" MinHeight="0" Padding="0" Margin="4,0,0,0"
+                        VerticalAlignment="Center" AutomationProperties.Name="About Live sync"
+                        Click="LiveSyncHelp_Click" ToolTipService.InitialShowDelay="200" ToolTipService.ShowDuration="20000">
+                    <Button.ToolTip>
+                        <ToolTip MaxWidth="300">
+                            <StackPanel>
+                                <TextBlock Text="Live sync" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBlock Text="When on, EQ and preamp changes are sent to your connected device as you adjust them, so you can hear the result right away. When off, edits stay in the editor until you choose Write to save them to the selected USER slot. Requires a connected device that supports live EQ updates." TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </ToolTip>
+                    </Button.ToolTip>
+                    <Grid Width="15" Height="15">
+                        <Ellipse Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1"/>
+                        <TextBlock Text="?" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </Button>
             </StackPanel>
 
-            <!-- 6. Actions: disabled-reason line + Save to Library + Write -->
+            <!-- 6. Save to Library + Write; connection guidance stays in the Write tooltip. -->
             <StackPanel Grid.Column="6"
                         Orientation="Horizontal"
                         VerticalAlignment="Center">
-                <TextBlock x:Name="WriteDisabledReasonText"
-                           Style="{StaticResource DimText}"
-                           MaxWidth="180"
-                           TextAlignment="Right"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0"
-                           Visibility="Collapsed"/>
-                <Button Content="Save to Library"
-                        Command="{Binding SaveToLibraryCommand}"
+                <Button x:Name="SaveLibraryButton"
+                        Click="SaveLibraryButton_Click"
                         Style="{StaticResource QuietButton}"
-                        ToolTip="Keep the editor's EQ in My Library"
-                        VerticalAlignment="Center"/>
-                <Button Command="{Binding WriteToDeviceCommand}"
-                        Style="{StaticResource SavePresetButton}"
+                        ToolTip="Name and save this EQ to My Library"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal"><Path Data="M1,0 H13 V20 L7,15 L1,20 Z" Stroke="{DynamicResource WolfTextBrush}" StrokeThickness="1.5" Width="14" Height="20" Margin="0,0,12,0"/><TextBlock Text="Save to Library" FontSize="14" VerticalAlignment="Center"/></StackPanel>
+                </Button>
+                <Popup x:Name="SaveLibraryPopup" PlacementTarget="{Binding ElementName=SaveLibraryButton}" Placement="Bottom" VerticalOffset="8" StaysOpen="False" AllowsTransparency="True" Opened="SaveLibraryPopup_Opened" Closed="SaveLibraryPopup_Closed">
+                    <Border Width="340" Padding="18" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" PreviewKeyDown="SaveLibraryPopup_KeyDown">
+                        <StackPanel>
+                            <TextBlock Text="Save to Library" FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock Text="Keep this name to update the preset, or enter a new name to save a copy." TextWrapping="Wrap" Foreground="{DynamicResource WolfMutedBrush}" Margin="0,8,0,14"/>
+                            <Label Content="Preset name" Target="{Binding ElementName=LibraryPresetName}" Padding="0,0,0,5"/>
+                            <TextBox x:Name="LibraryPresetName" AutomationProperties.Name="Preset name"/>
+                            <TextBlock x:Name="LibrarySaveError" Foreground="{DynamicResource WolfWarningBrush}" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                                <Button Content="Cancel" Style="{StaticResource QuietButton}" Click="CancelLibrarySave_Click"/>
+                                <Button Content="Save" Style="{StaticResource SavePresetButton}" Click="ConfirmLibrarySave_Click" MinWidth="80"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+                <Button x:Name="WriteToDeviceButton" Command="{Binding WriteToDeviceCommand}"
+                        ToolTipService.ShowOnDisabled="True"
+                        Style="{StaticResource SavePresetButton}" Height="54" MinWidth="190"
                         ToolTip="Write the editor's EQ to the device slot"
                         VerticalAlignment="Center">
-                    <TextBlock>
-                        <Run Text="Write to "/><Run Text="{Binding SelectedDeviceUserPreset.DeviceName, Mode=OneWay, FallbackValue=device, TargetNullValue=device}"/>
-                    </TextBlock>
+                    <StackPanel Orientation="Horizontal"><Path Data="M9,0 V12 M4,7 L9,12 L14,7 M1,13 V18 H17 V13" Stroke="{DynamicResource WolfGreenContrastBrush}" StrokeThickness="1.7" Width="18" Height="20" Margin="0,0,12,0"/><TextBlock Foreground="{DynamicResource WolfGreenContrastBrush}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"><Run Text="Write to "/><Run Text="{Binding SelectedDeviceUserPreset.DeviceName, Mode=OneWay, FallbackValue=device, TargetNullValue=device}"/></TextBlock></StackPanel>
                 </Button>
             </StackPanel>
         </Grid>

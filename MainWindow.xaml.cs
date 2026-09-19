@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Windows;
-using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -29,6 +28,10 @@ public partial class MainWindow : Window
         };
         DataContext = viewModel;
 
+        viewModel.OnlineProfileOpenedInEditor += (_, _) =>
+        {
+            if (ReferenceEquals(_openOverlayPanel, LibraryHost)) CloseOverlayPanel();
+        };
         LibraryHost.CloseRequested += (_, _) => CloseOverlayPanel();
         SettingsHost.CloseRequested += (_, _) => CloseOverlayPanel();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
@@ -101,7 +104,7 @@ public partial class MainWindow : Window
                 break;
             case Key.S when DataContext is MainViewModel viewModel
                             && viewModel.SaveToLibraryCommand.CanExecute(null):
-                viewModel.SaveToLibraryCommand.Execute(null);
+                DeviceToolbar.OpenLibrarySave();
                 e.Handled = true;
                 break;
             case Key.Z when DataContext is MainViewModel undoViewModel
@@ -257,35 +260,6 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.OriginalSource is DependencyObject source &&
-            FindVisualAncestor<ButtonBase>(source) is not null)
-        {
-            return;
-        }
-
-        if (e.ClickCount == 2)
-        {
-            ToggleWindowState();
-            return;
-        }
-
-        if (e.LeftButton != MouseButtonState.Pressed)
-        {
-            return;
-        }
-
-        try
-        {
-            DragMove();
-        }
-        catch (InvalidOperationException)
-        {
-            // DragMove can throw if the pointer state changes during the click.
-        }
-    }
-
     private void MinimizeWindow_Click(object sender, RoutedEventArgs e)
     {
         WindowState = WindowState.Minimized;
@@ -308,22 +282,7 @@ public partial class MainWindow : Window
             : WindowState.Maximized;
     }
 
-    private static T? FindVisualAncestor<T>(DependencyObject source)
-        where T : DependencyObject
-    {
-        var current = source;
-        while (current != null)
-        {
-            if (current is T match)
-            {
-                return match;
-            }
 
-            current = VisualTreeHelper.GetParent(current);
-        }
-
-        return null;
-    }
 }
 
 public sealed class ReferenceEqualsMultiConverter : IMultiValueConverter

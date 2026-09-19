@@ -1,5 +1,78 @@
 # Changelog
 
+## v0.7.0-beta
+
+A redesigned interface, colorful live spectrum bars, more ways to edit your bands, and less friction when saving or switching presets. This update brings together the details you've been asking for.
+
+### 🎚️ More room for your EQ
+
+- A wider graph with a dedicated selected-band inspector beneath it.
+- **Faders and Table** views with frequency, gain, Q, filter shape, and bypass controls.
+- Band controls start collapsed. Expand them and **drag the divider to resize live**, giving either the graph or controls more space.
+- A compact USER-slot picker, device product images, familiar window controls, and a larger transparent green waveform icon.
+- Clearer selected-band highlights, soft hover/focus glows, and fewer redundant borders and instructions.
+
+### 🎶 See your music move
+
+- **Colorful spectrum bars** behind the EQ curve, with luminous tips and smooth decay.
+- Spectrum defaults on and remembers your toggle choice.
+- Monitors the default Windows multimedia output and follows output-device changes.
+- Stops capture and animation when disabled, hidden, minimized, inactive, or scrolled out of view.
+- Separate spectrum/EQ drawing layers, cached bar brushes, precomputed FFT data, and background device checks reduce repeated work and UI interruptions.
+
+*The spectrum is a playback visualization, not an additional EQ or a measurement of the DAC's analog output. Its relative level scale is separate from the EQ gain axis.*
+
+### 🎨 Light, dark, and a little color
+
+- Saved **Light / Dark** background mode in Settings → Appearance.
+- Green is the default accent, alongside solid colors and **Aurora, Sunset, Neon, and Ocean** multicolor palettes.
+- Icons, controls, menus, graph accents, and previews follow the theme. Light mode adjusts accent contrast for readability.
+
+### 📚 A library that flows
+
+- Slim search with **+ New**, and duplicate/delete/write actions grouped beside the selected preset.
+- A small naming popup before **Save to Library**.
+- Browsing presets no longer replaces your current editor content.
+- **Open in editor** closes the sidebar after a successful load, including Discover Online.
+- **Curve / Table** tabs in online previews.
+- Locally saved profile names beneath USER slots in the picker, toolbar, and tray quick profiles.
+- A useful empty-search state, with actions hidden when no presets match.
+
+### ⌨️ Stream Deck, without the guesswork
+
+- A **Windows ScriptDeck setup** flyout under Settings → Integrations.
+- Direct Marketplace link, USER-slot selector, and one-click PowerShell copying.
+- Scripts include your app location and saved USB device, with spaces and special characters quoted correctly.
+- Instructions for **On Press** and optional saved lighting cues. Shortcut export remains available.
+
+### 🛠️ Finishing touches
+
+- **Edit / Compare / Device / Share** tools tabs keep a consistent panel height and use clearer icons and labels.
+- Live sync has a compact question-mark explanation; reconnect uses a refresh icon.
+- Updated app, taskbar, installer, and tray artwork.
+- Direct **Discord app-channel** access from Settings → About.
+
+### 🚀 Downloads
+
+| Asset | Use it for |
+|---|---|
+| **WolfEQ-Setup-0.7.0-beta.exe** | Install on Windows 10/11 x64. |
+| **WolfEQ-0.7.0-beta-win-x64.zip** | Portable use: extract everything and launch WolfEQ.exe. |
+| **SHA256SUMS.txt** | Verify the downloaded installer and ZIP. |
+
+Both builds include the .NET runtime. Existing presets and settings remain in your WolfEQ user-data folder. A saved Spectrum-off preference stays off. Slot names are stored locally on your PC, not in device firmware. Re-copy Stream Deck scripts if the executable location or saved USB connection changes.
+
+### ✅ Validation and beta scope
+
+**94 automated tests pass**, including EQ behavior, preset guards, PowerShell argument handling, spectrum analysis, and rendered UI checks. Live Windows playback capture and repeated capture start/stop were checked during development.
+
+K13 R2R remains the primary verified device. Other listed FiiO/Snowsky profiles remain experimental; this release does not expand hardware-verification claims. Physical DAC switching, Stream Deck hardware, and every monitor/DPI combination have not all been re-tested for this release.
+
+---
+
+💚 **Thanks for the feedback that shaped this update.** Share your setup in the [WolfEQ Discord channel](https://discord.com/channels/1467241109657751737/1503967391581995069) or [report an issue](https://github.com/audioslayer/wolfeq/issues).
+
+
 ## v0.6.0-beta
 
 - Added a Windows system tray companion with a modern quick-switch panel for saved device USER slots.

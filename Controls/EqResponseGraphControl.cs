@@ -10,6 +10,16 @@ namespace WolfEQ.Controls;
 
 public sealed class EqResponseGraphControl : FrameworkElement
 {
+    public static readonly DependencyProperty AccentColorProperty = DependencyProperty.Register(
+        "AccentColor", typeof(Color), typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(Color.FromRgb(0, 230, 118), FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty SelectionColorProperty = DependencyProperty.Register(
+        "SelectionColor", typeof(Color), typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(Color.FromRgb(0, 230, 118), FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty SurfaceColorProperty = DependencyProperty.Register(
+        "SurfaceColor", typeof(Color), typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(Colors.Black, FrameworkPropertyMetadataOptions.AffectsRender));
+    private static Color ThemeColor(string key) => (Color)Application.Current.FindResource(key);
     private const double DotRadius = 9.0;
     private const double DotHitRadius = 16.0;
     private const double DisplayGraphMinGain = -18.0;
@@ -197,8 +207,23 @@ public sealed class EqResponseGraphControl : FrameworkElement
         set => SetValue(MaxGainDbProperty, value);
     }
 
+    private readonly DrawingVisual _spectrumVisual = new();
+    private readonly DrawingVisual _eqVisual = new();
+    protected override int VisualChildrenCount => 2;
+    protected override Visual GetVisualChild(int index) => index switch
+    {
+        0 => _spectrumVisual,
+        1 => _eqVisual,
+        _ => throw new ArgumentOutOfRangeException(nameof(index))
+    };
+
     public EqResponseGraphControl()
     {
+        AddVisualChild(_spectrumVisual);
+        AddVisualChild(_eqVisual);
+        SetResourceReference(AccentColorProperty, "WolfGreen");
+        SetResourceReference(SelectionColorProperty, "WolfCyan");
+        SetResourceReference(SurfaceColorProperty, "WolfPanel");
         MinHeight = 250;
         Focusable = true;
         Cursor = Cursors.Hand;
@@ -361,26 +386,100 @@ public sealed class EqResponseGraphControl : FrameworkElement
             return;
         }
 
-        var background = new LinearGradientBrush(
-            Color.FromRgb(0x07, 0x11, 0x18),
-            Color.FromRgb(0x10, 0x25, 0x33),
-            42);
-        dc.DrawRoundedRectangle(background, new Pen(WithAlpha(GetAccentColor(), 0x55), 1), bounds, 16, 16);
+        var background = new LinearGradientBrush(ThemeColor("WolfShell"), ThemeColor("WolfPanel"), 90);
+        dc.DrawRoundedRectangle(background, null, bounds, 6, 6);
 
         var plot = GetPlotRect(bounds);
         var gainScale = GetGainScale();
-        DrawGrid(dc, plot, gainScale);
-        DrawLabels(dc, plot, gainScale);
-        DrawCompareCurve(dc, plot, gainScale);
-        DrawCurve(dc, plot, gainScale);
-        DrawBands(dc, plot, gainScale);
-        DrawLegend(dc, plot);
-        DrawHoverReadout(dc, plot, gainScale);
+        RenderSpectrum();
+        using var foreground = _eqVisual.RenderOpen();
+        DrawGrid(foreground, plot, gainScale);
+        DrawLabels(foreground, plot, gainScale);
+        DrawCompareCurve(foreground, plot, gainScale);
+        DrawCurve(foreground, plot, gainScale);
+        DrawBands(foreground, plot, gainScale);
+        DrawLegend(foreground, plot);
+        DrawHoverReadout(foreground, plot, gainScale);
+    }
+
+    private float[]? _spectrum;
+    public void SetSpectrumFrame(float[]? levels)
+    {
+        _spectrum = levels;
+        // Updating this retained layer leaves the expensive EQ response and labels untouched.
+        RenderSpectrum();
+    }
+
+    private void RenderSpectrum()
+    {
+        using var drawing = _spectrumVisual.RenderOpen();
+        if (ActualWidth > 80 && ActualHeight > 60)
+            DrawSpectrum(drawing, GetPlotRect(new Rect(0, 0, ActualWidth, ActualHeight)));
+    }
+
+    private void DrawSpectrum(DrawingContext dc, Rect plot)
+    {
+        if (_spectrum is not { Length: > 1 } values || !values.Any(value => value > 0.001f)) return;
+        var count = Math.Min(values.Length, Math.Clamp((int)(plot.Width / 12), 24, 96));
+        EnsureSpectrumBrushes(count);
+        var pitch = plot.Width / count;
+        var width = Math.Max(1, pitch - Math.Clamp(pitch * 0.26, 2, 5));
+        dc.PushClip(new RectangleGeometry(plot));
+        for (var i = 0; i < count; i++)
+        {
+            var first = i * values.Length / count;
+            var last = Math.Max(first + 1, (i + 1) * values.Length / count);
+            var level = 0f;
+            for (var j = first; j < last; j++) level = Math.Max(level, values[j]);
+            var height = Math.Clamp(level, 0, 1) * plot.Height * 0.9;
+            if (height < 0.5) continue;
+            var rect = new Rect(plot.Left + i * pitch + (pitch - width) / 2, plot.Bottom - height, width, height);
+            var (body, cap, glow) = _spectrumBrushes[i];
+            dc.DrawRoundedRectangle(body, null, rect, 2, 2);
+            dc.DrawRoundedRectangle(glow, null, new Rect(rect.Left - 1, rect.Top - 2, width + 2, 6), 3, 3);
+            dc.DrawRoundedRectangle(cap, null, new Rect(rect.Left, rect.Top, width, Math.Min(2, height)), 1, 1);
+        }
+        dc.Pop();
+    }
+
+    private Brush? _spectrumThemeBrush;
+    private Color _spectrumAccent;
+    private bool _spectrumLight;
+    private (Brush Body, Brush Cap, Brush Glow)[] _spectrumBrushes = [];
+    private void EnsureSpectrumBrushes(int count)
+    {
+        var theme = (Brush)Application.Current.FindResource("WolfGreenBrush");
+        var accent = GetAccentColor();
+        var light = Equals(Application.Current.TryFindResource("WolfBackgroundMode"), "Light");
+        if (_spectrumBrushes.Length == count && ReferenceEquals(theme, _spectrumThemeBrush)
+            && accent == _spectrumAccent && light == _spectrumLight) return;
+        _spectrumThemeBrush = theme; _spectrumAccent = accent; _spectrumLight = light;
+        var palette = theme is GradientBrush gradient
+            ? gradient.GradientStops.OrderBy(stop => stop.Offset).Select(stop => stop.Color).ToArray()
+            : new[] { accent, Color.FromRgb(38, 180, 255), Color.FromRgb(153, 104, 255), Color.FromRgb(248, 99, 177) };
+        if (palette.Length == 0) palette = new[] { accent };
+        _spectrumBrushes = new (Brush, Brush, Brush)[count];
+        for (var i = 0; i < count; i++)
+        {
+            var position = (double)i / Math.Max(1, count - 1) * (palette.Length - 1);
+            var index = Math.Min((int)position, palette.Length - 1);
+            var a = palette[index]; var b = palette[Math.Min(index + 1, palette.Length - 1)];
+            var fraction = position - index;
+            byte Mix(byte left, byte right) => (byte)Math.Round(left + (right - left) * fraction);
+            var color = Color.FromRgb(Mix(a.R, b.R), Mix(a.G, b.G), Mix(a.B, b.B));
+            if (light) color = Color.FromRgb((byte)(color.R * 0.8), (byte)(color.G * 0.8), (byte)(color.B * 0.8));
+            var body = new LinearGradientBrush(Color.FromArgb(light ? (byte)110 : (byte)140, color.R, color.G, color.B),
+                Color.FromArgb(16, color.R, color.G, color.B), 90);
+            var cap = new SolidColorBrush(Color.FromArgb(205, color.R, color.G, color.B));
+            var glow = new SolidColorBrush(Color.FromArgb(28, color.R, color.G, color.B));
+            body.Freeze(); cap.Freeze(); glow.Freeze();
+            _spectrumBrushes[i] = (body, cap, glow);
+        }
     }
 
     private static void DrawGrid(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
-        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(0x24, 0xE6, 0xF7, 0xFB)), 1);
+        var gridPen = new Pen(new SolidColorBrush(ThemeColor("WolfLine")), 1);
         var zeroPen = new Pen(WithAlpha(GetAccentColor(), 0xB0), 1.4);
 
         var start = Math.Ceiling(gainScale.Min / 6.0) * 6.0;
@@ -390,7 +489,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             dc.DrawLine(db == 0 ? zeroPen : gridPen, new Point(plot.Left, y), new Point(plot.Right, y));
         }
 
-        foreach (var frequency in new[] { 20d, 50d, 100d, 200d, 500d, 1000d, 2000d, 5000d, 10000d, 20000d })
+        foreach (var frequency in new[] { 20d, 30d, 40d, 50d, 60d, 70d, 80d, 90d, 100d, 150d, 200d, 300d, 400d, 500d, 600d, 700d, 800d, 900d, 1000d, 1500d, 2000d, 3000d, 4000d, 5000d, 6000d, 7000d, 8000d, 9000d, 10000d, 15000d, 20000d })
         {
             var x = FrequencyToX(frequency, plot);
             dc.DrawLine(gridPen, new Point(x, plot.Top), new Point(x, plot.Bottom));
@@ -400,7 +499,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
     private static void DrawLabels(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
         var typeface = new Typeface("Segoe UI");
-        var textBrush = new SolidColorBrush(Color.FromRgb(0x8D, 0xB6, 0xC4));
+        var textBrush = new SolidColorBrush(ThemeColor("WolfMuted"));
         const double pixelsPerDip = 1.0;
 
         var start = Math.Ceiling(gainScale.Min / 6.0) * 6.0;
@@ -411,7 +510,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             dc.DrawText(text, new Point(7, GainToY(db, plot, gainScale) - 7));
         }
 
-        foreach (var label in new[] { (20d, "20"), (100d, "100"), (1000d, "1k"), (10000d, "10k"), (20000d, "20k") })
+        foreach (var label in new[] { (20d, "20"), (50d, "50"), (100d, "100"), (200d, "200"), (500d, "500"), (1000d, "1k"), (2000d, "2k"), (5000d, "5k"), (10000d, "10k"), (20000d, "20k") })
         {
             var text = new FormattedText(label.Item2, System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, typeface, 10, textBrush, pixelsPerDip);
@@ -428,12 +527,12 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
         var geometry = BuildCurveGeometry(plot, gainScale, EstimateGain);
         var accent = GetAccentColor();
-        var glowPen = new Pen(WithAlpha(accent, 0x55), 8)
+        var glowPen = new Pen(WithAlpha(accent, 0x16), 5)
         {
             StartLineCap = PenLineCap.Round,
             EndLineCap = PenLineCap.Round
         };
-        var curvePen = new Pen(new SolidColorBrush(Lighten(accent, 0.38)), 2.8)
+        var curvePen = new Pen(new SolidColorBrush(accent), 2.8)
         {
             StartLineCap = PenLineCap.Round,
             EndLineCap = PenLineCap.Round
@@ -468,20 +567,20 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
         var accent = GetAccentColor();
         var selection = GetSelectionColor();
-        var activeFill = new SolidColorBrush(Color.FromRgb(0x0A, 0x3C, 0x2E));
-        var disabledFill = new SolidColorBrush(Color.FromRgb(0x11, 0x1A, 0x21));
+        var activeFill = new SolidColorBrush(ThemeColor("WolfPanel2"));
+        var disabledFill = new SolidColorBrush(ThemeColor("WolfPanel"));
         var activeDragFill = new SolidColorBrush(Lighten(accent, 0.28));
         var activeOutline = new Pen(new SolidColorBrush(accent), 1.8);
-        var disabledOutline = new Pen(new SolidColorBrush(Color.FromRgb(0x64, 0x74, 0x8B)), 1.5);
+        var disabledOutline = new Pen(new SolidColorBrush(ThemeColor("WolfDim")), 1.5);
         var hoverOutline = new Pen(WithAlpha(selection, 0xCC), 1.6);
         var selectionPen = new Pen(new SolidColorBrush(selection), 2.4);
-        var bypassSlashPen = new Pen(new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)), 1.5)
+        var bypassSlashPen = new Pen(new SolidColorBrush(ThemeColor("WolfMuted")), 1.5)
         {
             StartLineCap = PenLineCap.Round,
             EndLineCap = PenLineCap.Round
         };
-        var typeface = new Typeface(new FontFamily("Bahnschrift"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
-        var labelBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xF7, 0xFB));
+        var typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var labelBrush = new SolidColorBrush(ThemeColor("WolfText"));
         const double pixelsPerDip = 1.0;
 
         foreach (var band in Bands)
@@ -497,6 +596,9 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
             if (isSelected)
             {
+                dc.DrawEllipse(WithAlpha(selection, 0x09), null, nodePoint, 25, 25);
+                dc.DrawEllipse(WithAlpha(selection, 0x13), null, nodePoint, 20, 20);
+                dc.DrawEllipse(WithAlpha(selection, 0x20), null, nodePoint, 16, 16);
                 DrawQHandles(dc, nodePoint, band.Q, plot, selection);
             }
 
@@ -553,7 +655,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var editPoint = BandToDisplayPoint(band, plot, gainScale);
         var selection = GetSelectionColor();
         var typeface = new Typeface("Segoe UI");
-        var titleBrush = new SolidColorBrush(Color.FromRgb(0xF4, 0xFB, 0xFF));
+        var titleBrush = new SolidColorBrush(ThemeColor("WolfText"));
         const double pixelsPerDip = 1.0;
         var title = $"B{GetDisplayNumber(band)}  ·  {FormatFrequency(band.FrequencyHz)}{(band.Enabled ? string.Empty : "  ·  Bypassed")}";
         var titleText = new FormattedText(title, System.Globalization.CultureInfo.InvariantCulture,
@@ -566,7 +668,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var tooltipRect = new Rect(x, y, width, height);
 
         dc.DrawRoundedRectangle(
-            new SolidColorBrush(Color.FromArgb(0xEA, 0x08, 0x13, 0x18)),
+            new SolidColorBrush(ThemeColor("WolfPanel")),
             new Pen(WithAlpha(selection, 0x88), 1),
             tooltipRect,
             7,
@@ -1024,11 +1126,11 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
 
         var typeface = new Typeface("Segoe UI");
-        var textBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0xF7, 0xFB));
+        var textBrush = new SolidColorBrush(ThemeColor("WolfText"));
         const double pixelsPerDip = 1.0;
         var x = plot.Right - 156;
         var y = plot.Top + 10;
-        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0x88, 0x08, 0x17, 0x20)), null, new Rect(x - 10, y - 7, 150, 46), 8, 8);
+        dc.DrawRoundedRectangle(new SolidColorBrush(ThemeColor("WolfPanel2")), null, new Rect(x - 10, y - 7, 150, 46), 8, 8);
         dc.DrawLine(new Pen(new SolidColorBrush(Lighten(GetAccentColor(), 0.38)), 2.4), new Point(x, y + 4), new Point(x + 24, y + 4));
         dc.DrawText(new FormattedText("Current", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 10, textBrush, pixelsPerDip), new Point(x + 32, y - 3));
         var comparePen = new Pen(new SolidColorBrush(Color.FromRgb(0xF9, 0x73, 0x16)), 2.0) { DashStyle = DashStyles.Dash };

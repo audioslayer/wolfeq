@@ -29,13 +29,40 @@ public sealed partial class MainViewModel
     public int IntegrationSlot
     {
         get => _integrationSlot;
-        set { if (SetField(ref _integrationSlot, value)) OnPropertyChanged(nameof(StreamDeckCommand)); }
+        set { if (SetField(ref _integrationSlot, value)) RefreshStreamDeckScript(); }
     }
     public IEnumerable<int> IntegrationSlots => DeviceUserPresets.Select(p => p.Slot);
     public string StreamDeckExecutable => Path.Combine(AppContext.BaseDirectory, "WolfEQ.exe");
     public string StreamDeckArguments => $"--slot {IntegrationSlot}" +
         (string.IsNullOrWhiteSpace(_binding.UsbPath) ? "" : $" --device \"{_binding.UsbPath}\"");
     public string StreamDeckCommand => $"\"{StreamDeckExecutable}\" {StreamDeckArguments}";
+    public bool CanCopyStreamDeckPowerShell => !string.IsNullOrWhiteSpace(_binding.UsbPath) && IntegrationSlots.Contains(IntegrationSlot);
+    public string StreamDeckPowerShell => CanCopyStreamDeckPowerShell
+        ? StreamDeckScriptBuilder.Build(StreamDeckExecutable, IntegrationSlot, _binding.UsbPath!) : string.Empty;
+    public string StreamDeckSetupNote => CanCopyStreamDeckPowerShell
+        ? $"Ready for USER {IntegrationSlot} on {_binding.Name}."
+        : "Save your USB device in Device > Connections, then choose a supported USER slot.";
+    private string _streamDeckCopyStatus = string.Empty;
+    public string StreamDeckCopyStatus { get => _streamDeckCopyStatus; private set => SetField(ref _streamDeckCopyStatus, value); }
+    public ICommand CopyStreamDeckPowerShellCommand => new RelayCommand(() =>
+    {
+        try { Clipboard.SetText(StreamDeckPowerShell); StreamDeckCopyStatus = "Copied. Paste into Windows ScriptDeck's On Press field."; }
+        catch (Exception ex) { StreamDeckCopyStatus = $"Could not copy: {ex.Message}"; }
+    }, () => CanCopyStreamDeckPowerShell);
+    public ICommand OpenWindowsScriptDeckCommand => new RelayCommand(() => OpenUrl(
+        "https://marketplace.elgato.com/product/windows-scriptdeck-857f01dd-8fd4-44d5-8ec7-67ac850b21d3", "Windows ScriptDeck"));
+
+    private void RefreshStreamDeckScript()
+    {
+        OnPropertyChanged(nameof(StreamDeckCommand));
+        OnPropertyChanged(nameof(StreamDeckArguments));
+        OnPropertyChanged(nameof(StreamDeckPowerShell));
+        OnPropertyChanged(nameof(StreamDeckSetupNote));
+        OnPropertyChanged(nameof(CanCopyStreamDeckPowerShell));
+        OnPropertyChanged(nameof(CopyStreamDeckPowerShellCommand));
+        StreamDeckCopyStatus = string.Empty;
+    }
+
     public string DeviceBindingSummary => string.IsNullOrEmpty(_binding.UsbPath)
         ? "Choose the USB and Bluetooth connections for your DAC."
         : _binding.BluetoothAddress is not null
@@ -114,8 +141,9 @@ public sealed partial class MainViewModel
         _deviceService.SelectedDevicePath = _binding.UsbPath;
         _bleLightService.SelectedAddress = _binding.BluetoothAddress;
         _slotLightingProfileService.SetDevice(_binding.UsbPath);
+        RefreshLocalSlotNames();
         OnPropertyChanged(nameof(DeviceBindingSummary));
-        OnPropertyChanged(nameof(StreamDeckCommand));
+        RefreshStreamDeckScript();
         OnPropertyChanged(nameof(IntegrationSlots));
     }
 

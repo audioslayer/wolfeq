@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -27,7 +27,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private readonly WindowsAudioEndpointVolumeService _windowsVolumeService = new();
     private readonly WindowsAudioFormatService _windowsAudioFormatService = new();
     private readonly AutoEqGitHubProfileService _githubProfileService = new();
-    private readonly LocalPresetLibraryService _localLibraryService = new();
+    private readonly LocalPresetLibraryService _localLibraryService;
     private readonly SlotLightingProfileService _slotLightingProfileService = new();
     private readonly AppLogService _log = new();
     private readonly DispatcherTimer _profileAutosaveTimer;
@@ -96,8 +96,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private int _editGeneration;
     private Dictionary<int, SlotLightingProfileData> _slotLightingProfiles = [];
 
-    public MainViewModel()
+    public MainViewModel(LocalPresetLibraryService? localLibraryService = null)
     {
+        _localLibraryService = localLibraryService ?? new LocalPresetLibraryService();
         Presets = new ObservableCollection<EqPreset>(LoadStartupPresets());
         _profileAutosaveTimer = new DispatcherTimer
         {
@@ -126,6 +127,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         _editHistoryTimer.Tick += EditHistoryTimerOnTick;
 
         _selectedPreset = Presets[0];
+        _librarySelection = _selectedPreset;
         FilteredPresets = CollectionViewSource.GetDefaultView(Presets);
         FilteredPresets.Filter = FilterPreset;
         Presets.CollectionChanged += (_, _) =>
@@ -139,13 +141,21 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         {
             new("AmpUp Green", "#00E676"),
             new("Wolf Cyan", "#06B6D4"),
+            new("Studio Mint", "#30EBB1"),
             new("FiiO Red", "#C8102E"),
             new("Gold", "#FFB800"),
             new("Rose", "#FF4D8D"),
             new("Violet", "#9B5CFF"),
-            new("Ice Blue", "#5ED7FF")
+            new("Ice Blue", "#5ED7FF"),
+            new("Tangerine", "#FF9E64"),
+            new("Lavender", "#C4A1FF"),
+            new("Aurora", "#5EEAD4", "#7DD3FC", "#C4A1FF"),
+            new("Sunset", "#FFB86B", "#FF7BAA", "#C4A1FF"),
+            new("Neon", "#FF66CC", "#38DFFF"),
+            new("Ocean", "#38BDF8", "#5EEAD4", "#818CF8")
         };
         _selectedAccentColorOption = AccentColorOptions[0];
+        if (BackgroundThemeService.CurrentMode == "Light") ApplyAccentColor(_selectedAccentColorOption);
         LedColorOptions = new ObservableCollection<LedColorOption>
         {
             new("Follow device", 0x00, "#8A8F98"),
@@ -237,8 +247,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         CaptureCompareCommand = new RelayCommand(CaptureComparePreset);
         SwapCompareCommand = new RelayCommand(SwapComparePreset);
         ClearCompareCommand = new RelayCommand(ClearComparePreset);
-        DuplicatePresetCommand = new RelayCommand(DuplicateSelectedPreset, () => SelectedPreset is not null);
-        DeletePresetCommand = new RelayCommand(DeleteSelectedPreset, () => SelectedPreset is not null);
+        DuplicatePresetCommand = new RelayCommand(DuplicateSelectedPreset, () => LibrarySelection is not null);
+        DeletePresetCommand = new RelayCommand(DeleteSelectedPreset, () => LibrarySelection is not null);
         CreateFlatPresetCommand = new RelayCommand(CreateFlatPreset);
         EnableAllBandsCommand = new RelayCommand(EnableAllBands);
         BypassAllBandsCommand = new RelayCommand(BypassAllBands);
@@ -257,6 +267,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             OpenUrl("ms-settings:sound-defaultoutputproperties", "Windows output settings"));
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync);
         OpenReleasesCommand = new RelayCommand(() => OpenUrl("https://github.com/audioslayer/wolfeq/releases", "WolfEQ releases"));
+        OpenDiscordCommand = new RelayCommand(() => OpenUrl("https://discord.com/channels/1467241109657751737/1503967391581995069", "WolfEQ Discord channel"));
         OpenBuyMeCoffeeCommand = new RelayCommand(() => OpenUrl("https://www.buymeacoffee.com/audioslayer", "Buy Me a Coffee"));
 
         EditorSession.Changed += OnEditorSessionChanged;
@@ -271,8 +282,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
                   && K13HardwareEqIoEnabled
                   && SelectedDeviceProfile.SupportsEqReadback
                   && !_deviceBusy);
-        LoadLibraryPresetIntoEditorCommand = new RelayCommand(LoadLibraryPresetIntoEditor, () => SelectedPreset is not null);
-        WriteLibraryPresetToSlotCommand = new AsyncRelayCommand(WriteLibraryPresetToSlotAsync, () => SelectedPreset is not null && CanExecuteWriteToDevice());
+        LoadLibraryPresetIntoEditorCommand = new RelayCommand(LoadLibraryPresetIntoEditor, () => LibrarySelection is not null);
+        WriteLibraryPresetToSlotCommand = new AsyncRelayCommand(WriteLibraryPresetToSlotAsync, () => LibrarySelection is not null && CanExecuteWriteToDevice());
         LoadOnlineProfileIntoEditorCommand = new AsyncRelayCommand(LoadOnlineProfileIntoEditorAsync, () => SelectedGitHubProfile is not null);
         WriteOnlineProfileToSlotCommand = new AsyncRelayCommand(WriteOnlineProfileToSlotAsync, () => SelectedGitHubProfile is not null && CanExecuteWriteToDevice());
     }
@@ -465,6 +476,21 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         private set => SetField(ref _compareStatus, value);
     }
 
+    public IReadOnlyList<string> BackgroundModes { get; } = new[] { "Dark", "Light" };
+    private string _selectedBackgroundMode = BackgroundThemeService.CurrentMode;
+    public string SelectedBackgroundMode
+    {
+        get => _selectedBackgroundMode;
+        set
+        {
+            if (!BackgroundModes.Contains(value) || !SetField(ref _selectedBackgroundMode, value)) return;
+            BackgroundThemeService.Apply(value);
+            ApplyAccentColor(SelectedAccentColorOption);
+            try { BackgroundThemeService.Save(value); }
+            catch (Exception ex) { Status = $"Background changed, but could not save preference: {ex.Message}"; }
+        }
+    }
+
     public AccentColorOption SelectedAccentColorOption
     {
         get => _selectedAccentColorOption;
@@ -477,8 +503,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
             if (SetField(ref _selectedAccentColorOption, value))
             {
-                ApplyAccentColor(value.Hex);
-                Status = $"App accent changed to {value.Name}.";
+                ApplyAccentColor(value);
+                Status = $"Theme changed to {value.Name}.";
             }
         }
     }
@@ -570,6 +596,16 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// The selected library preset, or null while the editor holds detached device
     /// content that is not in the library (see <see cref="DetachEditorFromLibrary"/>).
     /// </summary>
+    private EqPreset? _librarySelection;
+    public EqPreset? LibrarySelection
+    {
+        get => _librarySelection;
+        set
+        {
+            if (SetField(ref _librarySelection, value)) RaiseEditorPresetCommandsCanExecuteChanged();
+        }
+    }
+
     public EqPreset? SelectedPreset
     {
         get => _selectedPreset;
@@ -929,6 +965,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public ICommand OpenWindowsOutputSettingsCommand { get; }
     public ICommand CheckForUpdatesCommand { get; }
     public ICommand OpenReleasesCommand { get; }
+    public ICommand OpenDiscordCommand { get; }
     public ICommand OpenBuyMeCoffeeCommand { get; }
     public RelayCommand SaveToLibraryCommand { get; }
     public AsyncRelayCommand WriteToDeviceCommand { get; }
@@ -2396,6 +2433,67 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
               ?? SelectedDeviceProfile.GetPresetDisplayName(slotId)
             : _selectedDeviceUserPreset?.DisplayName;
 
+    public string SuggestedLibraryName => EditorContentDisplayName;
+
+    public bool TrySaveNamedLibraryPreset(string name, out string? error)
+    {
+        name = name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            error = "Enter a name for this preset.";
+            return false;
+        }
+        if (!SaveToLibraryCommand.CanExecute(null))
+        {
+            error = "Load a preset or device EQ first.";
+            return false;
+        }
+        if (Presets.Any(preset => !ReferenceEquals(preset, SelectedPreset)
+            && string.Equals(preset.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            error = "That name is already in your library. Choose another name.";
+            return false;
+        }
+
+        var syncedSlotId = EditorSession.DeviceSyncState == DeviceSyncState.InSync
+            ? EditorSession.TargetSlotId : null;
+        var updated = BuildEditorPresetSnapshot(name);
+        var replacesSelected = SelectedPreset is not null
+            && string.Equals(SelectedPreset.Name, name, StringComparison.OrdinalIgnoreCase);
+        var index = replacesSelected ? Presets.IndexOf(SelectedPreset!) : -1;
+        var candidates = Presets.ToList();
+        if (index >= 0) candidates[index] = updated;
+        else candidates.Add(updated);
+        try
+        {
+            // Persist before changing the selection so a failed write leaves the editor intact.
+            _localLibraryService.Save(candidates);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            error = $"Couldn't save: {ex.Message}";
+            Status = error;
+            return false;
+        }
+        if (index >= 0)
+        {
+            Presets[index] = updated;
+            SelectPresetInternal(updated);
+            RefreshProfileLibrary();
+        }
+        else AddPresetAndSelect(updated, updated.Category);
+        LibrarySelection = updated;
+        CommitSavedProfileState();
+        IsProfileLibraryDirty = false;
+        EditorSession.NotifySavedToLibrary();
+        if (syncedSlotId is byte savedSlotId)
+            RememberSlotName(_binding.UsbPath, SelectedDeviceProfile.Id, savedSlotId, name);
+        Status = $"Saved '{name}' to your library.";
+        AddLog(Status);
+        error = null;
+        return true;
+    }
+
     private void SaveToLibrary()
     {
         if (SelectedPreset is null)
@@ -2474,7 +2572,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         IsDeviceBusy = true;
         try
         {
+            var writtenName = preset.Name;
             var result = await _deviceService.SaveCurrentUserPresetAsync(preset, targetSlotId);
+            RememberSlotName(result.Candidate.DevicePath, result.Profile.Id, result.PresetId, writtenName);
             foreach (var line in result.TransportLog)
             {
                 AddLog($"  {line}");
@@ -2685,43 +2785,42 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// when the preset is already selected (re-load), and asks before replacing unsaved
     /// edits. Never touches hardware.
     /// </summary>
-    private void LoadLibraryPresetIntoEditor()
+    private void LoadLibraryPresetIntoEditor() => TryOpenLibrarySelection();
+
+    public bool TryOpenLibrarySelection()
     {
-        if (SelectedPreset is null)
+        var preset = LibrarySelection;
+        if (preset is null || !Presets.Contains(preset)) return false;
+        if (!ReferenceEquals(preset, SelectedPreset))
         {
-            Status = "Pick a preset in My Library first.";
-            AddLog(Status);
-            return;
+            if (!ConfirmReplaceUnsavedEdits(preset.Name)) return false;
+            SelectPresetInternal(preset);
+            EditorSession.NotifyLoadedFromLibrary();
         }
-
-        if (!ConfirmReplaceUnsavedEdits(SelectedPreset.Name))
-        {
-            return;
-        }
-
-        LoadSelectedPreset();
-        EditorSession.NotifyLoadedFromLibrary();
-        Status = $"Loaded '{SelectedPreset.Name}' into the editor.";
+        Status = $"Opened '{preset.Name}' in the editor.";
         AddLog(Status);
+        return true;
     }
 
     /// <summary>Writes the selected library preset straight to the current target slot.</summary>
     private async Task WriteLibraryPresetToSlotAsync()
     {
-        if (SelectedPreset is null)
+        if (LibrarySelection is null)
         {
             Status = "Pick a preset in My Library first.";
             AddLog(Status);
             return;
         }
 
-        await WritePresetToSlotAsync(SelectedPreset);
+        await WritePresetToSlotAsync(LibrarySelection);
     }
 
     /// <summary>
     /// Online row "Load into editor": saves the profile into the library, then loads it
     /// (import selects the preset, and selection loads it). Guarded like a library load.
     /// </summary>
+    public event EventHandler? OnlineProfileOpenedInEditor;
+
     private async Task LoadOnlineProfileIntoEditorAsync()
     {
         if (SelectedGitHubProfile is not AutoEqProfileIndexEntry profile)
@@ -2745,6 +2844,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         EditorSession.NotifyLoadedFromLibrary();
         Status = $"Saved '{preset.Name}' to your library and loaded it into the editor.";
         AddLog(Status);
+        OnlineProfileOpenedInEditor?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -3065,7 +3165,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         IsDeviceBusy = true;
         try
         {
+            var writtenName = preset.Name;
             var result = await _deviceService.SaveCurrentUserPresetAsync(preset, targetSlotId);
+            RememberSlotName(result.Candidate.DevicePath, result.Profile.Id, result.PresetId, writtenName);
             foreach (var line in result.TransportLog)
             {
                 AddLog($"  {line}");
@@ -3455,7 +3557,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
                 Presets.Add(preset);
             }
 
-            SelectedProfileCategory = "Imported";
+            SelectedProfileCategory = "All";
             RefreshProfileLibrary();
             SelectPresetInternal(imported[0]);
             FilteredPresets.MoveCurrentTo(imported[0]);
@@ -3610,7 +3712,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void DuplicateSelectedPreset()
     {
-        if (SelectedPreset is not { } selectedPreset)
+        if (LibrarySelection is not { } selectedPreset)
         {
             return;
         }
@@ -3619,16 +3721,15 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         copy.IsFavorite = false;
         Presets.Add(copy);
         RefreshProfileLibrary();
-        SelectPresetInternal(copy);
-        // The copy includes any in-editor edits, so the editor now mirrors it exactly.
-        EditorSession.NotifyLoadedFromLibrary();
+        LibrarySelection = copy;
+        if (!TrySaveProfileLibraryQuietly(out var error)) AddLog($"Could not save copy: {error}");
         Status = $"Duplicated profile: {copy.Name}.";
         AddLog(Status);
     }
 
     private void DeleteSelectedPreset()
     {
-        if (SelectedPreset is not { } preset)
+        if (LibrarySelection is not { } preset)
         {
             return;
         }
@@ -3649,6 +3750,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        var wasOpenInEditor = ReferenceEquals(preset, SelectedPreset);
         Presets.RemoveAt(index);
         if (Presets.Count == 0)
         {
@@ -3661,10 +3763,12 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         RefreshProfileLibrary();
 
         var nextIndex = Math.Clamp(index, 0, Presets.Count - 1);
-        SelectPresetInternal(Presets[nextIndex]);
-        FilteredPresets.MoveCurrentTo(SelectedPreset);
-        // The neighbor preset replaced the deleted content in the editor.
-        EditorSession.NotifyLoadedFromLibrary();
+        LibrarySelection = Presets[nextIndex];
+        if (wasOpenInEditor)
+        {
+            SelectPresetInternal(LibrarySelection);
+            EditorSession.NotifyLoadedFromLibrary();
+        }
 
         Status = $"Deleted preset: {preset.Name}.";
         AddLog(Status);
@@ -3948,9 +4052,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
                 : "Flat");
         Presets.Add(preset);
         RefreshProfileLibrary();
-        SelectedProfileCategory = "Reference";
-        SelectPresetInternal(preset);
-        EditorSession.NotifyLoadedFromLibrary();
+        SelectedProfileCategory = "All";
+        LibrarySelection = preset;
+        if (!TrySaveProfileLibraryQuietly(out var error)) AddLog($"Could not save new preset: {error}");
         Status = "Created flat 10-band profile.";
         AddLog(Status);
     }
@@ -3998,7 +4102,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         Presets.Add(prepared);
         RefreshProfileLibrary();
-        SelectedProfileCategory = "Reference";
+        SelectedProfileCategory = "All";
         SelectPresetInternal(prepared);
         EditorSession.NotifyLoadedFromLibrary();
         Status = $"Prepared a 10-band copy for {SelectedDeviceProfile.DisplayName}.";
@@ -4050,7 +4154,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         Presets.Add(preset);
         RefreshProfileLibrary();
-        SelectedProfileCategory = "Reference";
+        SelectedProfileCategory = "All";
         SelectPresetInternal(preset);
         EditorSession.NotifyLoadedFromLibrary();
         Status = $"Created a smoothed copy for {SelectedDeviceProfile.DisplayName}.";
@@ -4133,7 +4237,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         Presets.Add(preset);
         RefreshProfileLibrary();
-        SelectedProfileCategory = "Listening";
+        SelectedProfileCategory = "All";
         SelectPresetInternal(preset);
         EditorSession.NotifyLoadedFromLibrary();
         Status = $"Created {toneName} tone-shape profile.";
@@ -5331,6 +5435,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             ? DeviceUserPresets.FirstOrDefault(option => option.PresetId == presetId)
             : null;
         _selectedDeviceUserPreset = selected ?? DeviceUserPresets[0];
+        OnPropertyChanged(nameof(IntegrationSlots));
+        RefreshStreamDeckScript();
+        RefreshLocalSlotNames();
         OnPropertyChanged(nameof(SelectedDeviceUserPreset));
         OnPropertyChanged(nameof(SlotLightingTitle));
         OnPropertyChanged(nameof(SlotLightingSummary));
@@ -5358,26 +5465,57 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         return string.IsNullOrWhiteSpace(safe) ? "WolfEQ-preset" : safe;
     }
 
-    private static void ApplyAccentColor(string hex)
+    private static void ApplyAccentColor(AccentColorOption option)
     {
-        if (ColorConverter.ConvertFromString(hex) is not Color color)
+        if (ColorConverter.ConvertFromString(option.Hex) is not Color color)
         {
             return;
         }
 
         var dim = Darken(color, 0.35);
         var hover = Color.FromArgb(0x1A, color.R, color.G, color.B);
+        static double Linear(byte channel)
+        {
+            var value = channel / 255.0;
+            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+        var palette = new[] { option.Hex, option.SecondaryHex, option.ThirdHex }
+            .Where(hex => hex is not null).Select(hex => (Color)ColorConverter.ConvertFromString(hex!)).ToArray();
+        if (BackgroundThemeService.CurrentMode == "Light")
+        {
+            // Keep the chosen hue, with enough contrast for icons and text on pale surfaces.
+            for (var i = 0; i < palette.Length; i++)
+                while (0.2126 * Linear(palette[i].R) + 0.7152 * Linear(palette[i].G) + 0.0722 * Linear(palette[i].B) > 0.14)
+                    palette[i] = Darken(palette[i], 0.08);
+            color = palette[0];
+            dim = Darken(color, 0.35);
+            hover = Color.FromArgb(0x1A, color.R, color.G, color.B);
+        }
+        var luminance = palette.Min(stop => 0.2126 * Linear(stop.R) + 0.7152 * Linear(stop.G) + 0.0722 * Linear(stop.B));
+        var contrast = luminance > 0.179 ? Colors.Black : Colors.White;
         var resources = Application.Current.Resources;
 
         resources["WolfGreen"] = color;
-        resources["WolfCyan"] = color;
+        resources["WolfCyan"] = palette[^1];
         resources["WolfCyanDim"] = dim;
         resources["WolfAccentHover"] = hover;
+        resources["WolfGreenContrast"] = contrast;
 
-        SetBrush(resources, "WolfGreenBrush", color);
-        SetBrush(resources, "WolfCyanBrush", color);
+        if (option.IsMulticolor)
+        {
+            var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+            for (var i = 0; i < palette.Length; i++) brush.GradientStops.Add(new GradientStop(palette[i], (double)i / (palette.Length - 1)));
+            resources["WolfGreenBrush"] = brush;
+            resources["WolfCyanBrush"] = brush;
+        }
+        else
+        {
+            SetBrush(resources, "WolfGreenBrush", color);
+            SetBrush(resources, "WolfCyanBrush", color);
+        }
         SetBrush(resources, "WolfCyanDimBrush", dim);
         SetBrush(resources, "WolfAccentHoverBrush", hover);
+        SetBrush(resources, "WolfGreenContrastBrush", contrast);
     }
 
     private void SetConnectionState(bool connected)
@@ -5460,11 +5598,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
-public sealed record DeviceUserPresetOption(int Slot, byte PresetId, string? Name = null)
+public sealed record DeviceUserPresetOption(int Slot, byte PresetId, string? Name = null, string? LocalEqName = null)
 {
     public string DisplayName => string.Equals(Name, "No writable slots", StringComparison.OrdinalIgnoreCase)
         ? "No writable slots"
         : $"Slot {Slot} - {DeviceName}";
+
+    public string SlotLabel => Name == "No writable slots" ? Name : $"USER {Slot}";
+    public string LocalEqSubtitle => string.IsNullOrWhiteSpace(LocalEqName) ? "No local name yet" : LocalEqName;
 
     public string DeviceName => string.IsNullOrWhiteSpace(Name) ? $"USER {Slot}" : Name;
 
@@ -5493,20 +5634,21 @@ public sealed record WindowsAudioQuickOption(
     ];
 }
 
-public sealed record AccentColorOption(string Name, string Hex)
+public sealed record AccentColorOption(string Name, string Hex, string? SecondaryHex = null, string? ThirdHex = null)
 {
+    public bool IsMulticolor => SecondaryHex is not null;
+    public string Description => IsMulticolor ? "Multicolor accents" : "Solid accent";
     public Brush Brush
     {
         get
         {
-            try
-            {
-                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(Hex));
-            }
-            catch
-            {
-                return Brushes.Transparent;
-            }
+            var colors = new[] { Hex, SecondaryHex, ThirdHex }.Where(hex => hex is not null)
+                .Select(hex => (Color)ColorConverter.ConvertFromString(hex!)).ToArray();
+            if (colors.Length == 1) return new SolidColorBrush(colors[0]);
+            var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+            for (var index = 0; index < colors.Length; index++)
+                gradient.GradientStops.Add(new GradientStop(colors[index], (double)index / (colors.Length - 1)));
+            return gradient;
         }
     }
 }

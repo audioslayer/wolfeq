@@ -1,22 +1,13 @@
-<UserControl x:Class="WolfEQ.Views.EditorWorkspace"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:controls="clr-namespace:WolfEQ.Controls"
-             mc:Ignorable="d"
-             d:DesignWidth="1280"
-             d:DesignHeight="700"
-             Foreground="{StaticResource WolfTextBrush}">
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:controls="clr-namespace:WolfEQ.Controls" xmlns:views="clr-namespace:WolfEQ.Views" x:Class="WolfEQ.Views.EditorWorkspace" mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="700" Foreground="{DynamicResource WolfTextBrush}">
     <UserControl.Resources>
+        <views:InverseBooleanConverter x:Key="InverseBoolean"/>
         <Style x:Key="CapsuleValueBox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource BandValueTextBox}">
             <Setter Property="MinHeight" Value="24"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/>
         </Style>
-
         <Style x:Key="CapsulePowerToggle" TargetType="{x:Type ToggleButton}">
             <Setter Property="Width" Value="34"/>
             <Setter Property="Height" Value="34"/>
@@ -27,34 +18,23 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ToggleButton}">
                         <Grid>
-                            <Ellipse x:Name="PowerRing"
-                                     Fill="#10161B"
-                                     Stroke="{StaticResource WolfDimBrush}"
-                                     StrokeThickness="1.5"/>
-                            <TextBlock x:Name="PowerGlyph"
-                                       Text="⏻"
-                                       FontFamily="Segoe UI Symbol"
-                                       FontSize="18"
-                                       Foreground="{StaticResource WolfDimBrush}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Margin="0,-1,0,0"/>
+                            <Ellipse x:Name="PowerRing" Fill="{DynamicResource WolfShellBrush}" Stroke="{DynamicResource WolfDimBrush}" StrokeThickness="1.5"/>
+                            <TextBlock x:Name="PowerGlyph" Text="⏻" FontFamily="Segoe UI Symbol" FontSize="18" Foreground="{DynamicResource WolfDimBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="PowerRing" Property="Fill" Value="{StaticResource WolfAccentHoverBrush}"/>
-                                <Setter TargetName="PowerRing" Property="Stroke" Value="{StaticResource WolfGreenBrush}"/>
-                                <Setter TargetName="PowerGlyph" Property="Foreground" Value="{StaticResource WolfGreenBrush}"/>
+                                <Setter TargetName="PowerRing" Property="Fill" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                <Setter TargetName="PowerRing" Property="Stroke" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter TargetName="PowerGlyph" Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="PowerRing" Property="Stroke" Value="{StaticResource WolfCyanBrush}"/>
+                                <Setter TargetName="PowerRing" Property="Stroke" Value="{DynamicResource WolfCyanBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-
         <Style x:Key="CapsuleCloseButton" TargetType="{x:Type Button}">
             <Setter Property="Width" Value="30"/>
             <Setter Property="Height" Value="30"/>
@@ -62,7 +42,7 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
             <Setter Property="FontSize" Value="19"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -73,60 +53,47 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfCyanDimBrush}"/>
-                                <Setter Property="Foreground" Value="{StaticResource WolfCyanBrush}"/>
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfCyanDimBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="ToolActionButton" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="MinHeight" Value="48"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Cursor" Value="Hand"/>
+        <Style x:Key="ToolsTab" TargetType="TabItem">
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="Chrome"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center"/>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Rail" Padding="10,11" BorderThickness="0,0,0,2" BorderBrush="Transparent" Background="Transparent">
+                            <ContentPresenter ContentSource="Header"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfCyanDimBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#6606B6D4"/>
+                                <Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource WolfGreenBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.38"/>
-                                <Setter Property="Cursor" Value="Arrow"/>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-
+        <Style x:Key="ToolActionButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="MinHeight" Value="48"/>
+        </Style>
         <Style x:Key="ToolGlyph" TargetType="{x:Type Path}">
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="18"/>
             <Setter Property="Stretch" Value="Uniform"/>
-            <Setter Property="Stroke" Value="{StaticResource WolfCyanBrush}"/>
+            <Setter Property="Stroke" Value="{DynamicResource WolfCyanBrush}"/>
             <Setter Property="StrokeThickness" Value="1.6"/>
             <Setter Property="StrokeStartLineCap" Value="Round"/>
             <Setter Property="StrokeEndLineCap" Value="Round"/>
@@ -135,779 +102,469 @@
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-
-        <Style x:Key="ToolMacroButton" TargetType="{x:Type Button}">
-            <Setter Property="MinHeight" Value="62"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="Margin" Value="3"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
-            <Setter Property="Background" Value="{StaticResource WolfShellBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+        <Style x:Key="ToolMacroButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Border x:Name="Chrome"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfCyanDimBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#6606B6D4"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource WolfGreenBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="MinHeight" Value="62"/>
         </Style>
-
-        <Style x:Key="ToolMenuToggle" TargetType="{x:Type ToggleButton}">
-            <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="Padding" Value="12,7"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
-            <Setter Property="Background" Value="{StaticResource WolfPanel2Brush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource WolfLineSoftBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ToggleButton}">
-                        <Border x:Name="Chrome"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfCyanDimBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource WolfCyanBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource WolfGreenBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
+        <Style x:Key="ToolMenuToggle" TargetType="ToggleButton" BasedOn="{StaticResource StudioMenuToggle}"/>
         <Style x:Key="ToolMenuSectionLabel" TargetType="{x:Type TextBlock}">
-            <Setter Property="Foreground" Value="{StaticResource WolfDimBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/>
             <Setter Property="FontSize" Value="9"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="10,8,10,4"/>
         </Style>
     </UserControl.Resources>
+    <ScrollViewer x:Name="WorkspaceScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid x:Name="WorkspaceGrid" MinHeight="760" Height="{Binding ActualHeight, ElementName=WorkspaceScroll}">
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="GraphRow" Height="*" MinHeight="320"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition x:Name="BandsRow" Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <!-- The graph is the band editor. All band-specific chrome is contextual. -->
+            <Border Grid.Row="0" Style="{StaticResource PanelBorder}" Padding="0" Margin="0">
+                <Grid Margin="12,10,12,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Margin="4,0,4,8">
+                        <TextBlock Text="EQ Curve" Style="{StaticResource SectionTitle}" DockPanel.Dock="Left" Margin="0"/>
+                        <ToggleButton x:Name="SpectrumToggle" DockPanel.Dock="Left" Margin="14,0,0,0" Padding="9,3" Height="28" MinHeight="0" FontSize="12"
+                                      Style="{StaticResource StudioMenuToggle}" AutomationProperties.Name="Show live playback spectrum"
+                                      ToolTip="Show music playing on your default Windows output behind the EQ curve. Display only; does not change audio. The spectrum uses its own relative level scale, not the EQ gain axis.">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M1,7 V13 M5,3 V17 M9,0 V20 M13,5 V15 M17,8 V12" Width="16" Height="16" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Margin="0,0,7,0"/>
+                                <TextBlock Text="Spectrum" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ToggleButton>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- The graph is the band editor. All band-specific chrome is contextual. -->
-        <Border Grid.Row="0"
-                Style="{StaticResource PanelBorder}"
-                Padding="0"
-                Margin="0,0,0,12">
-            <Grid Margin="12,10,12,12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <DockPanel Margin="4,0,4,8">
-                    <TextBlock Text="EQ Curve"
-                               Style="{StaticResource SectionTitle}"
-                               DockPanel.Dock="Left"
-                               Margin="0"/>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <TextBlock Text="Drag points · wheel or handles adjust Q · Alt-click bypass"
-                                   Style="{StaticResource DimText}"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,18,0"/>
-                        <TextBlock Text="20 Hz – 20 kHz"
-                                   Style="{StaticResource DimText}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </DockPanel>
-
-                <Grid Grid.Row="1" ClipToBounds="True">
-                    <controls:EqResponseGraphControl x:Name="Graph"
-                                                     MinHeight="300"
-                                                     Bands="{Binding Bands}"
-                                                     CompareBands="{Binding ComparePreset.Bands}"
-                                                     PreampDb="{Binding PreampDb}"
-                                                     IsInteractive="True"
-                                                     MinGainDb="{Binding SelectedDeviceProfile.MinGainDb}"
-                                                     MaxGainDb="{Binding SelectedDeviceProfile.MaxGainDb}"
-                                                     MinQ="{Binding SelectedDeviceProfile.MinQ}"
-                                                     MaxQ="{Binding SelectedDeviceProfile.MaxQ}"/>
-
-                    <!-- Interactive overlay. The canvas itself is transparent to the graph;
-                         only the capsule receives pointer input. -->
-                    <Canvas x:Name="BandEditorCanvas" Panel.ZIndex="20">
-                        <Border x:Name="CapsuleStem"
-                                Width="1.5"
-                                Background="{StaticResource WolfCyanBrush}"
-                                Opacity="0.78"
-                                IsHitTestVisible="False">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedBand, ElementName=Graph}" Value="{x:Null}">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                        </Border>
-
-                        <Border x:Name="BandEditorCapsule"
-                                Width="700"
-                                Height="58"
-                                Padding="10,8"
-                                Background="#F20B1116"
-                                BorderBrush="#9906B6D4"
-                                BorderThickness="1"
-                                CornerRadius="12">
-                            <Border.Effect>
-                                <DropShadowEffect Color="Black" BlurRadius="22" ShadowDepth="5" Opacity="0.62" Direction="270"/>
-                            </Border.Effect>
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedBand, ElementName=Graph}" Value="{x:Null}">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-
-                            <Grid>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="Drag to adjust" ToolTip="Drag a band to change frequency and gain. Use the wheel or handles for Q; Alt-click to bypass." Style="{StaticResource DimText}" VerticalAlignment="Center" Margin="0,0,18,0"/>
+                            <TextBlock Text="20 Hz – 20 kHz" Style="{StaticResource DimText}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <Grid Grid.Row="1" ClipToBounds="True">
+                        <controls:EqResponseGraphControl x:Name="Graph" MinHeight="0" Bands="{Binding Bands}" CompareBands="{Binding ComparePreset.Bands}" PreampDb="{Binding PreampDb}" IsInteractive="True" MinGainDb="{Binding SelectedDeviceProfile.MinGainDb}" MaxGainDb="{Binding SelectedDeviceProfile.MaxGainDb}" MinQ="{Binding SelectedDeviceProfile.MinQ}" MaxQ="{Binding SelectedDeviceProfile.MaxQ}"/>
+                    </Grid>
+                    <Border x:Name="BandEditorCapsule" Grid.Row="2" MinHeight="70" Margin="0,12,0,0" Padding="4,12" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,1,0,0">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedBand, ElementName=Graph}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="240"/>
+                                <ColumnDefinition Width="1.15*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="0.9*"/>
+                                <ColumnDefinition Width="130"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Selected band" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <Border Width="34" Height="34" CornerRadius="17" BorderBrush="{DynamicResource WolfGreenBrush}" BorderThickness="2">
+                                    <TextBlock Text="{Binding SelectedBandDisplayNumber, ElementName=Graph}" Foreground="{DynamicResource WolfGreenBrush}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Button Content="‹" FontSize="24" Style="{StaticResource QuietButton}" Click="PreviousBand_Click" ToolTip="Previous band"/>
+                                <Button Content="›" FontSize="24" Style="{StaticResource QuietButton}" Click="NextBand_Click" ToolTip="Next band"/>
+                            </StackPanel>
+                            <Grid Grid.Column="1" Margin="12,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="1"/>
-                                    <ColumnDefinition Width="116"/>
-                                    <ColumnDefinition Width="1"/>
-                                    <ColumnDefinition Width="116"/>
-                                    <ColumnDefinition Width="1"/>
-                                    <ColumnDefinition Width="106"/>
-                                    <ColumnDefinition Width="1"/>
-                                    <ColumnDefinition Width="98"/>
-                                    <ColumnDefinition Width="1"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition/>
                                 </Grid.ColumnDefinitions>
-
-                                <ToggleButton Grid.Column="0"
-                                              Style="{StaticResource CapsulePowerToggle}"
-                                              IsChecked="{Binding SelectedBand.Enabled, ElementName=Graph, Mode=TwoWay}"
-                                              Margin="0,0,10,0"/>
-
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding SelectedBandDisplayNumber, ElementName=Graph, StringFormat=B{0}}"
-                                           Foreground="{StaticResource WolfGreenBrush}"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,13,0"/>
-
-                                <Rectangle Grid.Column="2" Fill="{StaticResource WolfLineSoftBrush}" Margin="0,1"/>
-
-                                <ComboBox Grid.Column="3"
-                                          ItemsSource="{Binding Source={x:Static controls:EqFilterTypeValues.All}}"
-                                          SelectedItem="{Binding SelectedBand.FilterType, ElementName=Graph, Mode=TwoWay}"
-                                          MinHeight="32"
-                                          Padding="8,5"
-                                          Margin="10,0"/>
-
-                                <Rectangle Grid.Column="4" Fill="{StaticResource WolfLineSoftBrush}" Margin="0,1"/>
-
-                                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBox x:Name="FrequencyBox"
-                                             Width="68"
-                                             Tag="Frequency"
-                                             Style="{StaticResource CapsuleValueBox}"
-                                             Text="{Binding SelectedBand.FrequencyHz, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
-                                             KeyDown="StripValueBox_KeyDown"
-                                             LostFocus="StripValueBox_LostFocus"/>
-                                    <TextBlock Text="Hz" Style="{StaticResource TinyLabel}" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                                </StackPanel>
-
-                                <Rectangle Grid.Column="6" Fill="{StaticResource WolfLineSoftBrush}" Margin="0,1"/>
-
-                                <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBox x:Name="GainBox"
-                                             Width="57"
-                                             Tag="Gain"
-                                             Style="{StaticResource CapsuleValueBox}"
-                                             Text="{Binding SelectedBand.GainDb, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:F1}}"
-                                             KeyDown="StripValueBox_KeyDown"
-                                             LostFocus="StripValueBox_LostFocus"/>
-                                    <TextBlock Text="dB" Style="{StaticResource TinyLabel}" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                                </StackPanel>
-
-                                <Rectangle Grid.Column="8" Fill="{StaticResource WolfLineSoftBrush}" Margin="0,1"/>
-
-                                <StackPanel Grid.Column="9" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock Text="Q" Style="{StaticResource TinyLabel}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                    <TextBox x:Name="QBox"
-                                             Width="58"
-                                             Tag="Q"
-                                             Style="{StaticResource CapsuleValueBox}"
-                                             Text="{Binding SelectedBand.Q, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:F2}}"
-                                             KeyDown="StripValueBox_KeyDown"
-                                             LostFocus="StripValueBox_LostFocus"/>
-                                </StackPanel>
-
-                                <Rectangle Grid.Column="10" Fill="{StaticResource WolfLineSoftBrush}" Margin="0,1"/>
-
-                                <Button Grid.Column="11"
-                                        Content="×"
-                                        Style="{StaticResource CapsuleCloseButton}"
-                                        Click="DismissBandEditor_Click"
-                                        ToolTip="Close band controls"
-                                        Margin="9,0,0,0"/>
+                                <TextBlock Text="Filter type" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <ComboBox Grid.Column="1" ItemsSource="{x:Static controls:EqFilterTypeValues.All}" SelectedItem="{Binding SelectedBand.FilterType, ElementName=Graph, Mode=TwoWay}" MinHeight="44"/>
                             </Grid>
-                        </Border>
-                    </Canvas>
-                </Grid>
-            </Grid>
-        </Border>
-
-        <!-- One compact utility footer; no persistent band list. -->
-        <Border Grid.Row="1" Style="{StaticResource PanelBorder}" Padding="14,9">
-            <Grid MinHeight="42">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*" MinWidth="220"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Column="0"
-                           Text="Preamp"
-                           Style="{StaticResource TinyLabel}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,0"/>
-                <controls:StyledSlider Grid.Column="1"
-                                       Minimum="{Binding SelectedDeviceProfile.MinGainDb}"
-                                       Maximum="{Binding SelectedDeviceProfile.MaxGainDb}"
-                                       Value="{Binding PreampDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                       Step="0.5"
-                                       AccentColor="{DynamicResource WolfGreen}"
-                                       ShowLabel="False"
-                                       VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2"
-                           Text="{Binding PreampDb, StringFormat={}{0:F1} dB}"
-                           Style="{StaticResource ValueText}"
-                           FontWeight="SemiBold"
-                           VerticalAlignment="Center"
-                           MinWidth="62"
-                           TextAlignment="Right"
-                           Margin="12,0"/>
-
-                <Rectangle Grid.Column="3" Fill="{StaticResource WolfLineSoftBrush}" Margin="6,2,16,2"/>
-
-                <Border Grid.Column="4"
-                        VerticalAlignment="Center"
-                        Padding="2"
-                        CornerRadius="8"
-                        ToolTip="{Binding HeadroomGuardianText}">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="Background" Value="#B912171B"/>
-                            <Setter Property="BorderBrush" Value="#5500E676"/>
-                            <Setter Property="BorderThickness" Value="1"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HeadroomGuardianTitle}" Value="Clipping Risk">
-                                    <Setter Property="Background" Value="#19FFB800"/>
-                                    <Setter Property="BorderBrush" Value="#88FFB800"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="1"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0"
-                                Command="{Binding ApplyAutoHeadroomCommand}"
-                                Style="{StaticResource QuietButton}"
-                                Background="{StaticResource WolfAccentHoverBrush}"
-                                BorderBrush="Transparent"
-                                BorderThickness="0"
-                                Padding="7,4,10,4"
-                                VerticalAlignment="Stretch"
-                                ToolTip="Match preamp to the strongest enabled EQ boost">
-                            <Grid>
+                            <Grid Grid.Column="2" Margin="12,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Width="28"
-                                        Height="28"
-                                        Background="#2400E676"
-                                        BorderBrush="#6600E676"
-                                        BorderThickness="1"
-                                        CornerRadius="7"
-                                        Margin="0,0,8,0">
-                                    <Path Width="16"
-                                          Height="13"
-                                          Stretch="Fill"
-                                          Stroke="{DynamicResource WolfGreenBrush}"
-                                          StrokeThickness="1.6"
-                                          StrokeStartLineCap="Round"
-                                          StrokeEndLineCap="Round"
-                                          StrokeLineJoin="Round"
-                                          Data="M 1,11 L 4,8 L 7,9.5 L 11,3 L 15,5 M 1,12 L 15,12"/>
+                                <TextBlock Text="Frequency" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <Border Grid.Column="1" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="5" Padding="10,0">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="Hz" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBox x:Name="FrequencyBox" Tag="Frequency" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.FrequencyHz, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Frequency"/>
+                                    </DockPanel>
                                 </Border>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Optimize headroom"
-                                               FontSize="11"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource WolfTextBrush}"/>
-                                    <TextBlock Text="{Binding OptimizedHeadroomPreviewText}"
-                                               FontSize="9"
-                                               Foreground="{StaticResource WolfMutedBrush}"
-                                               Margin="0,1,0,0"/>
-                                </StackPanel>
                             </Grid>
-                        </Button>
-                        <Border Grid.Column="1"
-                                Height="25"
-                                Background="{StaticResource WolfLineSoftBrush}"
-                                VerticalAlignment="Center"/>
-                        <StackPanel Grid.Column="2"
-                                    Orientation="Horizontal"
-                                    Margin="11,0,12,0"
-                                    VerticalAlignment="Center">
-                            <Ellipse Width="7" Height="7" Margin="0,0,7,0">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{StaticResource WolfGreenBrush}"/>
+                            <Grid Grid.Column="3" Margin="12,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Gain" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <Border Grid.Column="1" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="5" Padding="10,0">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="dB" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBox x:Name="GainBox" Tag="Gain" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.GainDb, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:+0.0;-0.0;0.0}}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Gain"/>
+                                    </DockPanel>
+                                </Border>
+                            </Grid>
+                            <Grid Grid.Column="4" Margin="12,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Q" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <Border Grid.Column="1" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="5" Padding="10,0">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBox x:Name="QBox" Tag="Q" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.Q, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:F2}}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Q"/>
+                                    </DockPanel>
+                                </Border>
+                            </Grid>
+                            <Border Grid.Column="5" Background="{DynamicResource WolfPanel2Brush}" CornerRadius="5" Margin="12,0,0,0" Padding="8">
+                                <CheckBox Style="{StaticResource StudioBypass}" IsChecked="{Binding SelectedBand.Enabled, ElementName=Graph, Converter={StaticResource InverseBoolean}, Mode=TwoWay}" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+            <GridSplitter x:Name="BandDivider" Grid.Row="1" Height="12" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                          ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" ShowsPreview="False" Focusable="True"
+                          KeyboardIncrement="12" DragCompleted="BandDivider_DragCompleted" Visibility="Collapsed"
+                          ToolTip="Drag up or down to resize Band controls. Arrow keys also resize."
+                          AutomationProperties.Name="Resize EQ graph and band controls">
+                <GridSplitter.Template><ControlTemplate TargetType="GridSplitter"><Grid Background="Transparent">
+                    <Border x:Name="Grip" Width="48" Height="3" CornerRadius="2" Background="{DynamicResource WolfLineSoftBrush}"/>
+                </Grid><ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Background" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Grip" Property="Background" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
+                </ControlTemplate.Triggers></ControlTemplate></GridSplitter.Template>
+            </GridSplitter>
+            <views:BandControls x:Name="BandPanel" Grid.Row="2" Margin="0,0,0,12" Bands="{Binding Bands}" Profile="{Binding SelectedDeviceProfile}" SelectedBand="{Binding SelectedBand, ElementName=Graph, Mode=TwoWay}"/>
+            <Border x:Name="PreampPanel" Grid.Row="3" Style="{StaticResource PanelBorder}" Padding="14,9">
+                <Grid MinHeight="46">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="1.4*"/>
+                        <ColumnDefinition Width="130"/>
+                        <ColumnDefinition Width="1"/>
+                        <ColumnDefinition Width="1.1*"/>
+                        <ColumnDefinition Width="0.75*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Preamp   ⓘ" FontSize="14" VerticalAlignment="Center"/>
+                    <controls:StyledSlider Grid.Column="1" Minimum="{Binding SelectedDeviceProfile.MinGainDb}" Maximum="{Binding SelectedDeviceProfile.MaxGainDb}" Value="{Binding PreampDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="0.5" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" VerticalAlignment="Center"/>
+                    <Border Grid.Column="2" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="5" Padding="16,10" Margin="16,0,20,0">
+                        <TextBlock Text="{Binding PreampDb, StringFormat={}{0:F1} dB}" FontSize="14" VerticalAlignment="Center"/>
+                    </Border>
+                    <Border Grid.Column="3" Background="{DynamicResource WolfLineSoftBrush}" Margin="0,7"/>
+                    <Button Grid.Column="4" Command="{Binding ApplyAutoHeadroomCommand}" Style="{StaticResource QuietButton}" Margin="16,0" HorizontalContentAlignment="Stretch" ToolTip="Match preamp to the strongest enabled EQ boost">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="42"/>
+                                <ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+                            <Path Data="M0,18 L5,18 L9,7 L13,30 L18,0 L23,36 L28,12 L32,23 L37,18" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="2.5" Width="28" Height="28" Stretch="Uniform" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Optimize headroom" FontSize="14" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding OptimizedHeadroomPreviewText}" Foreground="{DynamicResource WolfMutedBrush}" FontSize="11" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Button>
+                    <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding HeadroomGuardianText}">
+                        <TextBlock FontSize="23" Margin="0,0,14,0" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="✓"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HeadroomGuardianTitle}" Value="Clipping Risk">
+                                            <Setter Property="Text" Value="!"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource WolfWarningBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <StackPanel>
+                            <TextBlock Text="{Binding HeadroomGuardianTitle}" FontSize="14" FontWeight="SemiBold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding HeadroomGuardianTitle}" Value="Clipping Risk">
-                                                <Setter Property="Fill" Value="{StaticResource WolfWarningBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource WolfWarningBrush}"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <StackPanel>
-                                <TextBlock Text="{Binding HeadroomGuardianTitle}"
-                                           FontSize="11"
-                                           FontWeight="SemiBold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{StaticResource WolfGreenBrush}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HeadroomGuardianTitle}" Value="Clipping Risk">
-                                                    <Setter Property="Foreground" Value="{StaticResource WolfWarningBrush}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock Text="{Binding HeadroomMarginText}"
-                                           FontSize="9"
-                                           Foreground="{StaticResource WolfMutedBrush}"
-                                           Margin="0,1,0,0"/>
-                            </StackPanel>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding HeadroomMarginText}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" Margin="0,3,0,0"/>
                         </StackPanel>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Column="5"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Margin="14,0"
-                        Padding="8,5"
-                        Background="{StaticResource WolfAccentHoverBrush}"
-                        BorderBrush="#6600E676"
-                        BorderThickness="1"
-                        CornerRadius="7"
-                        ToolTip="{Binding CompareDeltaHint}">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="Visibility" Value="Visible"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasComparePreset}" Value="False">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="6"
-                                 Height="6"
-                                 Fill="{StaticResource WolfGreenBrush}"
-                                 Margin="0,0,7,0"/>
-                        <TextBlock Text="A/B active"
-                                   Foreground="{StaticResource WolfGreenBrush}"
-                                   FontSize="10"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center"/>
                     </StackPanel>
-                </Border>
-
-                <ToggleButton Grid.Column="6"
-                              x:Name="ToolsButton"
-                              Style="{StaticResource ToolMenuToggle}"
-                              IsChecked="{Binding IsOpen, ElementName=ToolsPopup, Mode=TwoWay}"
-                              VerticalAlignment="Center"
-                              AutomationProperties.Name="Open editing tools">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Tools" VerticalAlignment="Center"/>
-                        <Path Width="9"
-                              Height="5"
-                              Margin="9,1,0,0"
-                              VerticalAlignment="Center"
-                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}"
-                              StrokeThickness="1.5"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              Data="M 1,1 L 4.5,4 L 8,1"/>
-                    </StackPanel>
-                </ToggleButton>
-
-                <Popup x:Name="ToolsPopup"
-                       PlacementTarget="{Binding ElementName=ToolsButton}"
-                       Placement="Bottom"
-                       HorizontalOffset="-289"
-                       VerticalOffset="7"
-                       StaysOpen="False"
-                       AllowsTransparency="True"
-                       PopupAnimation="Fade"
-                       DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
-                       Closed="ToolsPopup_Closed">
-                    <Border Width="360"
-                            Padding="8"
-                            Background="#FC181A1C"
-                            BorderBrush="{StaticResource WolfLineSoftBrush}"
-                            BorderThickness="1"
-                            CornerRadius="12"
-                            Effect="{StaticResource WolfComboShadow}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Grid Grid.Row="0" Margin="10,6,10,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Width="30"
-                                        Height="30"
-                                        Background="{StaticResource WolfAccentHoverBrush}"
-                                        BorderBrush="#5500E676"
-                                        BorderThickness="1"
-                                        CornerRadius="7">
-                                    <Path Width="15"
-                                          Height="15"
-                                          Stretch="Uniform"
-                                          Stroke="{StaticResource WolfGreenBrush}"
-                                          StrokeThickness="1.6"
-                                          StrokeStartLineCap="Round"
-                                          StrokeEndLineCap="Round"
-                                          Data="M 2,4 L 14,4 M 5,8 L 14,8 M 8,12 L 14,12"/>
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Editing tools" FontSize="13" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Shape, compare, prepare, and share"
-                                               Style="{StaticResource DimText}"
-                                               Margin="0,2,0,0"/>
-                                </StackPanel>
+                    <ToggleButton Grid.Column="6" x:Name="ToolsButton" Style="{StaticResource ToolMenuToggle}" IsChecked="{Binding IsOpen, ElementName=ToolsPopup, Mode=TwoWay}" VerticalAlignment="Center" AutomationProperties.Name="Open editing tools">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Tools" VerticalAlignment="Center"/>
+                            <Path Width="9" Height="5" Margin="9,1,0,0" VerticalAlignment="Center" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 1,1 L 4.5,4 L 8,1"/>
+                        </StackPanel>
+                    </ToggleButton>
+                    <Popup x:Name="ToolsPopup" PlacementTarget="{Binding ElementName=ToolsButton}" Placement="Bottom" HorizontalOffset="-329" VerticalOffset="7" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Closed="ToolsPopup_Closed">
+                        <Border Width="400" Padding="10" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" Effect="{StaticResource WolfComboShadow}" Height="540" x:Name="ToolsSurface">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="12,4,4,6">
+                                    <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource QuietButton}" Width="28" Height="28" MinHeight="0" Padding="0" Click="ToolMenuItem_Click" AutomationProperties.Name="Close tools" ToolTip="Close tools"/>
+                                    <TextBlock Text="EQ tools" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <TabControl x:Name="ToolsTabs" Background="Transparent" BorderThickness="0" Padding="0" Grid.Row="1">
+                                    <TabControl.Template>
+                                        <ControlTemplate TargetType="TabControl">
+                                            <Grid KeyboardNavigation.TabNavigation="Local">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                                <Border BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,0,0,1">
+                                                    <TabPanel IsItemsHost="True"/>
+                                                </Border>
+                                                <ContentPresenter Grid.Row="1" ContentSource="SelectedContent"/>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </TabControl.Template>
+                                    <TabItem Header="Edit" Style="{StaticResource ToolsTab}" Tag="M3,5 H17 M3,15 H17 M7,2 V8 M13,12 V18">
+                                        <TabItem.HeaderTemplate>
+                                            <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Path Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Data="{Binding Tag, RelativeSource={RelativeSource AncestorType=TabItem}}"/>
+                                                    <TextBlock Text="{Binding}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </TabItem.HeaderTemplate>
+                                        <ScrollViewer MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel Margin="0,0,0,8">
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding ApplyAutoHeadroomCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Adjust preamp to avoid clipping" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,14 L6,9 L10,11 L15,3 M2,18 H18" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Adjust preamp to avoid clipping" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Lower the overall level to make room for boosts." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding EnableAllBandsCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Turn all bands on" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M10,2 V10 M5,4 A8,8 0 1 0 15,4" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Turn all bands on" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Apply every band in your EQ." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding BypassAllBandsCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Bypass all bands" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M10,2 V10 M5,4 A8,8 0 1 0 15,4 M2,18 L18,2" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Bypass all bands" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Turn off all bands while keeping their settings." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding SortBandsByFrequencyCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Sort bands: low to high" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M3,4 H17 M6,10 H17 M10,16 H17" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Sort bands: low to high" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Reorder the bands by frequency." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding ZeroAllGainsCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Reset gains to zero" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,10 H18 M5,5 V15 M15,5 V15" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Reset gains to zero" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Set all band gains and the preamp to 0 dB." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Expander Header="Quick sound tweaks" Margin="10,8,10,0">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Each tweak creates a new copy of your preset." Foreground="{DynamicResource WolfMutedBrush}" TextWrapping="Wrap" Margin="12,12,12,8"/>
+                                                        <Button Style="{StaticResource ToolActionButton}" Command="{Binding AddBassPunchCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="More bass" Margin="0,2" Padding="12,9">
+                                                            <DockPanel>
+                                                                <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,14 Q5,2 9,10 T18,12" Margin="0,0,12,0"/>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="More bass" FontSize="13" FontWeight="SemiBold"/>
+                                                                    <TextBlock Text="Add weight and impact." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </Button>
+                                                        <Button Style="{StaticResource ToolActionButton}" Command="{Binding AddWarmTiltCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Warmer sound" Margin="0,2" Padding="12,9">
+                                                            <DockPanel>
+                                                                <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,4 L18,16" Margin="0,0,12,0"/>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="Warmer sound" FontSize="13" FontWeight="SemiBold"/>
+                                                                    <TextBlock Text="A more relaxed tonal balance." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </Button>
+                                                        <Button Style="{StaticResource ToolActionButton}" Command="{Binding AddTrebleTamerCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Softer treble" Margin="0,2" Padding="12,9">
+                                                            <DockPanel>
+                                                                <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,6 Q8,4 12,12 T18,14" Margin="0,0,12,0"/>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="Softer treble" FontSize="13" FontWeight="SemiBold"/>
+                                                                    <TextBlock Text="Reduce brightness and sharpness." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </Button>
+                                                        <Button Style="{StaticResource ToolActionButton}" Command="{Binding AddGamingClarityCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Gaming clarity" Margin="0,2" Padding="12,9">
+                                                            <DockPanel>
+                                                                <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M5,6 H15 Q18,6 19,15 Q18,19 14,14 H6 Q2,19 1,15 Q2,6 5,6 M5,8 V12 M3,10 H7 M14,9 H16" Margin="0,0,12,0"/>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="Gaming clarity" FontSize="13" FontWeight="SemiBold"/>
+                                                                    <TextBlock Text="Emphasize dialogue and footsteps." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Expander>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </TabItem>
+                                    <TabItem Header="Compare" Style="{StaticResource ToolsTab}" Tag="M2,6 H18 L14,2 M18,14 H2 L6,18">
+                                        <TabItem.HeaderTemplate>
+                                            <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Path Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Data="{Binding Tag, RelativeSource={RelativeSource AncestorType=TabItem}}"/>
+                                                    <TextBlock Text="{Binding}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </TabItem.HeaderTemplate>
+                                        <ScrollViewer MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel Margin="0,0,0,8">
+                                                <TextBlock Text="Save a reference, make changes, then switch between the two to compare." Foreground="{DynamicResource WolfMutedBrush}" TextWrapping="Wrap" Margin="12,12,12,8"/>
+                                                <Border Background="{DynamicResource WolfShellBrush}" CornerRadius="6" Padding="12" Margin="10,0,10,8">
+                                                    <TextBlock Text="{Binding CompareStatus}" Foreground="{DynamicResource WolfGreenBrush}" TextWrapping="Wrap"/>
+                                                </Border>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding CaptureCompareCommand}" AutomationProperties.Name="Save current EQ for comparison" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M5,4 H15 V18 H3 V4 H5 M7,2 H13 V6 H7 Z" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Save current EQ for comparison" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Keep a reference of the current settings." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding SwapCompareCommand}" AutomationProperties.Name="Switch between EQs" IsEnabled="{Binding HasComparePreset}" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,6 H18 L14,2 M18,14 H2 L6,18" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Switch between EQs" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Swap the editor settings with your saved reference." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding ClearCompareCommand}" AutomationProperties.Name="Clear saved comparison" IsEnabled="{Binding HasComparePreset}" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M4,4 L16,16 M16,4 L4,16" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Clear saved comparison" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Remove the reference; keep the current EQ." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </TabItem>
+                                    <TabItem Header="Device" Style="{StaticResource ToolsTab}" Tag="M2,3 H18 V16 H2 Z M5,7 H15 M5,12 H9">
+                                        <TabItem.HeaderTemplate>
+                                            <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Path Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Data="{Binding Tag, RelativeSource={RelativeSource AncestorType=TabItem}}"/>
+                                                    <TextBlock Text="{Binding}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </TabItem.HeaderTemplate>
+                                        <ScrollViewer MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel Margin="0,0,0,8">
+                                                <TextBlock Text="Create a copy for supported FiiO devices. Use Write in the toolbar to send it to your device." Foreground="{DynamicResource WolfMutedBrush}" TextWrapping="Wrap" Margin="12,12,12,8"/>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding PrepareK13PresetCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Create device-ready copy" IsEnabled="{Binding SupportsK13PresetTools}" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,3 H18 V16 H2 Z M5,7 H15 M5,12 H9" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Create device-ready copy" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Sort into 10 bands and adjust preamp for boosts." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding SmoothK13PresetCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Create a smoother copy" IsEnabled="{Binding SupportsK13PresetTools}" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M2,14 C6,14 5,4 10,4 S14,14 18,14" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Create a smoother copy" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Make a gentler version for the device." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <TextBlock Text="These tools are unavailable for the selected model." TextWrapping="Wrap" Margin="12,10">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource DimText}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SupportsK13PresetTools}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </TabItem>
+                                    <TabItem Header="Share" Style="{StaticResource ToolsTab}" Tag="M5,2 H18 V15 H5 Z M2,5 V18 H15 M8,6 H15 M8,10 H12">
+                                        <TabItem.HeaderTemplate>
+                                            <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Path Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Data="{Binding Tag, RelativeSource={RelativeSource AncestorType=TabItem}}"/>
+                                                    <TextBlock Text="{Binding}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </TabItem.HeaderTemplate>
+                                        <ScrollViewer MaxHeight="430" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel Margin="0,0,0,8">
+                                                <TextBlock Text="Copy EQ information to your clipboard, ready to paste into a message or document." Foreground="{DynamicResource WolfMutedBrush}" TextWrapping="Wrap" Margin="12,12,12,8"/>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding CopyTuningCardCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Copy EQ summary" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M5,2 H18 V15 H5 Z M2,5 V18 H15 M8,6 H15 M8,10 H12" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Copy EQ summary" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="A short overview of your tuning and setup." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Style="{StaticResource ToolActionButton}" Command="{Binding CopyTuningReportCommand}" Click="ToolMenuItem_Click" AutomationProperties.Name="Copy full EQ report" Margin="0,2" Padding="12,9">
+                                                    <DockPanel>
+                                                        <Path Style="{StaticResource ToolGlyph}" DockPanel.Dock="Left" Data="M3,2 H12 L17,7 V18 H3 Z M12,2 V7 H17 M6,10 H14 M6,14 H14" Margin="0,0,12,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Copy full EQ report" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="All band settings, headroom, and diagnostic details." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </TabItem>
+                                </TabControl>
                             </Grid>
-
-                            <Border Grid.Row="1" Height="1" Background="{StaticResource WolfLineBrush}" Margin="2,0"/>
-                            <ScrollViewer Grid.Row="2"
-                                          MaxHeight="530"
-                                          VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled"
-                                          Padding="0,0,2,0">
-                            <StackPanel>
-                            <TextBlock Text="QUICK TUNING" Style="{StaticResource ToolMenuSectionLabel}"/>
-                            <TextBlock Text="Creates a new copy, so your original stays untouched."
-                                       Style="{StaticResource DimText}"
-                                       TextWrapping="Wrap"
-                                       Margin="10,0,10,5"/>
-
-                            <UniformGrid Columns="2" Margin="-1,0,-1,3">
-                                <Button Style="{StaticResource ToolMacroButton}"
-                                        Command="{Binding AddBassPunchCommand}"
-                                        Click="ToolMenuItem_Click"
-                                        AutomationProperties.Name="Create a Bass Punch copy">
-                                    <StackPanel>
-                                        <TextBlock Text="Bass Punch" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Weight + impact" Style="{StaticResource DimText}" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource ToolMacroButton}"
-                                        Command="{Binding AddWarmTiltCommand}"
-                                        Click="ToolMenuItem_Click"
-                                        AutomationProperties.Name="Create a Warm Tilt copy">
-                                    <StackPanel>
-                                        <TextBlock Text="Warm Tilt" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Relaxed listening" Style="{StaticResource DimText}" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource ToolMacroButton}"
-                                        Command="{Binding AddTrebleTamerCommand}"
-                                        Click="ToolMenuItem_Click"
-                                        AutomationProperties.Name="Create a Treble Tamer copy">
-                                    <StackPanel>
-                                        <TextBlock Text="Treble Tamer" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Soften bright tracks" Style="{StaticResource DimText}" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource ToolMacroButton}"
-                                        Command="{Binding AddGamingClarityCommand}"
-                                        Click="ToolMenuItem_Click"
-                                        AutomationProperties.Name="Create a Gaming Clarity copy">
-                                    <StackPanel>
-                                        <TextBlock Text="Gaming Clarity" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Dialogue + footsteps" Style="{StaticResource DimText}" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Button>
-                            </UniformGrid>
-
-                            <TextBlock Text="BAND MANAGEMENT" Style="{StaticResource ToolMenuSectionLabel}"/>
-
-                            <UniformGrid Columns="2" Margin="2,0,2,4">
-                                <Button Content="Enable all"
-                                        Command="{Binding EnableAllBandsCommand}"
-                                        Click="ToolMenuItem_Click"
-                                        Style="{StaticResource QuietButton}"
-                                        Margin="0,0,4,0"
-                                        ToolTip="Turn every EQ band on"/>
-                                <Button Content="Bypass all"
-                                        Command="{Binding BypassAllBandsCommand}"
-                                        Click="ToolMenuItem_Click"
-                                        Style="{StaticResource QuietButton}"
-                                        Margin="0"
-                                        ToolTip="Temporarily turn every EQ band off"/>
-                            </UniformGrid>
-
-                            <Button Style="{StaticResource ToolActionButton}"
-                                    Command="{Binding SortBandsByFrequencyCommand}"
-                                    Click="ToolMenuItem_Click"
-                                    AutomationProperties.Name="Sort bands by frequency">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="38"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="32" Height="32" Background="#1512323A" CornerRadius="7">
-                                        <Path Style="{StaticResource ToolGlyph}"
-                                              Data="M 2,4 L 16,4 M 5,9 L 16,9 M 8,14 L 16,14"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Sort by frequency" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Reorder bands from low to high" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-
-                            <Button Style="{StaticResource ToolActionButton}"
-                                    Command="{Binding ZeroAllGainsCommand}"
-                                    Click="ToolMenuItem_Click"
-                                    AutomationProperties.Name="Flatten all gains">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="38"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="32" Height="32" Background="#1512323A" CornerRadius="7">
-                                        <Path Style="{StaticResource ToolGlyph}"
-                                              Data="M 2,9 L 16,9 M 5,5 L 5,13 M 13,5 L 13,13"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Flat EQ" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Reset bands and preamp to 0.0 dB" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-
-                            <TextBlock Text="A/B COMPARE" Style="{StaticResource ToolMenuSectionLabel}"/>
-
-                            <Border Margin="2,0,2,4"
-                                    Padding="9"
-                                    Background="{StaticResource WolfShellBrush}"
-                                    BorderBrush="{StaticResource WolfLineSoftBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding CompareStatus}"
-                                               Foreground="{StaticResource WolfMutedBrush}"
-                                               FontSize="11"
-                                               TextTrimming="CharacterEllipsis"
-                                               Margin="2,0,2,8"/>
-                                    <UniformGrid Columns="3">
-                                        <Button Content="Capture"
-                                                Command="{Binding CaptureCompareCommand}"
-                                                Click="ToolMenuItem_Click"
-                                                Style="{StaticResource QuietButton}"
-                                                Margin="0,0,4,0"
-                                                ToolTip="Capture the current curve as the A/B reference"/>
-                                        <Button Content="Swap"
-                                                Command="{Binding SwapCompareCommand}"
-                                                Click="ToolMenuItem_Click"
-                                                IsEnabled="{Binding HasComparePreset}"
-                                                Style="{StaticResource QuietButton}"
-                                                Margin="0,0,4,0"
-                                                ToolTip="Swap the editor curve and A/B reference"/>
-                                        <Button Content="Clear"
-                                                Command="{Binding ClearCompareCommand}"
-                                                Click="ToolMenuItem_Click"
-                                                IsEnabled="{Binding HasComparePreset}"
-                                                Style="{StaticResource QuietButton}"
-                                                Margin="0"
-                                                ToolTip="Remove the comparison curve"/>
-                                    </UniformGrid>
-                                </StackPanel>
-                            </Border>
-
-                            <TextBlock Text="SAFETY &amp; DEVICE" Style="{StaticResource ToolMenuSectionLabel}"/>
-
-                            <Button Style="{StaticResource ToolActionButton}"
-                                    Command="{Binding ApplyAutoHeadroomCommand}"
-                                    Click="ToolMenuItem_Click"
-                                    AutomationProperties.Name="Optimize preamp headroom">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="38"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="32" Height="32" Background="#1512323A" CornerRadius="7">
-                                        <Path Style="{StaticResource ToolGlyph}"
-                                              Stroke="{StaticResource WolfGreenBrush}"
-                                              Data="M 2,13 L 5,10 L 8,12 L 12,6 L 16,8 M 2,16 L 16,16"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Optimize Headroom" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Match preamp to the strongest enabled boost" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-
-                            <Button Style="{StaticResource ToolActionButton}"
-                                    Command="{Binding PrepareK13PresetCommand}"
-                                    IsEnabled="{Binding SupportsK13PresetTools}"
-                                    Click="ToolMenuItem_Click"
-                                    AutomationProperties.Name="Create device copy">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="38"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="32" Height="32" Background="#1512323A" CornerRadius="7">
-                                        <Path Style="{StaticResource ToolGlyph}"
-                                              Data="M 6,3 L 15,3 L 15,12 L 6,12 Z M 3,6 L 3,15 L 12,15"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Device Copy" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Map this curve to the device preset" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-
-                            <Button Style="{StaticResource ToolActionButton}"
-                                    Command="{Binding SmoothK13PresetCommand}"
-                                    IsEnabled="{Binding SupportsK13PresetTools}"
-                                    Click="ToolMenuItem_Click"
-                                    AutomationProperties.Name="Create smooth device copy">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="38"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="32" Height="32" Background="#1512323A" CornerRadius="7">
-                                        <Path Style="{StaticResource ToolGlyph}"
-                                              Data="M 1,13 C 5,13 5,5 9,5 C 13,5 13,11 17,11"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Smooth Copy" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Create a gentler device-ready curve" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-
-                            <Border Height="1" Background="{StaticResource WolfLineBrush}" Margin="2,8,2,4"/>
-                            <TextBlock Text="SHARE" Style="{StaticResource ToolMenuSectionLabel}"/>
-
-                            <Button Style="{StaticResource ToolActionButton}"
-                                    Command="{Binding CopyTuningCardCommand}"
-                                    Click="ToolMenuItem_Click"
-                                    AutomationProperties.Name="Copy tuning card">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="38"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="32" Height="32" Background="#1512323A" CornerRadius="7">
-                                        <Path Style="{StaticResource ToolGlyph}"
-                                              Data="M 5,4 L 3,4 L 3,16 L 14,16 L 14,4 L 12,4 M 6,2 L 11,2 L 11,6 L 6,6 Z M 6,10 L 11,10 M 6,13 L 10,13"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Copy tuning card" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Copy a shareable setup summary" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-
-                            <Button Style="{StaticResource ToolActionButton}"
-                                    Command="{Binding CopyTuningReportCommand}"
-                                    Click="ToolMenuItem_Click"
-                                    AutomationProperties.Name="Copy detailed tuning report">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="38"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="32" Height="32" Background="#1512323A" CornerRadius="7">
-                                        <Path Style="{StaticResource ToolGlyph}"
-                                              Data="M 4,2 L 13,2 L 17,6 L 17,17 L 4,17 Z M 13,2 L 13,6 L 17,6 M 7,10 L 14,10 M 7,13 L 14,13"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Copy detailed report" FontSize="12" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Diagnostics, safety, and every band" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-                        </StackPanel>
-                        </ScrollViewer>
-                        </Grid>
-                    </Border>
-                </Popup>
-            </Grid>
-        </Border>
-    </Grid>
+                        </Border>
+                    </Popup>
+                </Grid>
+            </Border>
+        </Grid>
+    </ScrollViewer>
 </UserControl>

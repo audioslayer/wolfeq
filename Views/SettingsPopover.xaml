@@ -9,8 +9,9 @@
              d:DesignWidth="460"
              d:DesignHeight="820"
              Width="460"
-             Foreground="{StaticResource WolfTextBrush}">
+             Foreground="{DynamicResource WolfTextBrush}">
     <UserControl.Resources>
+        <Geometry x:Key="DiscordLogoGeometry">M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z</Geometry>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <!-- Copied from MainWindow resources; views keep their own converter copies. -->
         <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
@@ -23,16 +24,7 @@
                 <TextBlock Text="{Binding}" VerticalAlignment="Center" FontWeight="SemiBold"/>
             </StackPanel>
         </DataTemplate>
-        <Style x:Key="SettingsActionButton" TargetType="Button">
-            <Setter Property="Background" Value="#23282D"/>
-            <Setter Property="Foreground" Value="{StaticResource WolfTextBrush}"/>
-            <Setter Property="BorderBrush" Value="#39434C"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="MinHeight" Value="30"/>
-            <Setter Property="Margin" Value="3"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
+        <Style x:Key="SettingsActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
                 <StackPanel Orientation="Horizontal">
                     <controls:PhosphorIcon IconName="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}" IconSize="13" IconBrush="{DynamicResource WolfGreenBrush}" Margin="0,0,6,0" VerticalAlignment="Center">
                         <controls:PhosphorIcon.Style><Style TargetType="controls:PhosphorIcon"><Style.Triggers>
@@ -41,49 +33,14 @@
                     </controls:PhosphorIcon>
                     <ContentPresenter Content="{Binding}" VerticalAlignment="Center"/>
                 </StackPanel>
-            </DataTemplate></Setter.Value></Setter>
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-                <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
-                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
-                </Border>
-                <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
-                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.7"/></Trigger>
-                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.4"/></Trigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate></Setter.Value></Setter>
-        </Style>
+            </DataTemplate></Setter.Value></Setter></Style>
         <Style x:Key="SettingsPrimaryButton" TargetType="Button" BasedOn="{StaticResource SettingsActionButton}">
             <Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
-        <Style x:Key="SettingsTabs" TargetType="TabControl">
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
-                <StackPanel>
-                    <Border Background="#101214" BorderBrush="{StaticResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="7" Padding="3">
-                        <UniformGrid Rows="1" IsItemsHost="True"/>
-                    </Border>
-                    <ContentPresenter ContentSource="SelectedContent"/>
-                </StackPanel>
-            </ControlTemplate></Setter.Value></Setter>
-        </Style>
-        <Style x:Key="SettingsTab" TargetType="TabItem">
-            <Setter Property="Foreground" Value="{StaticResource WolfMutedBrush}"/>
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
-                <Border x:Name="TabSurface" Background="Transparent" CornerRadius="5" Padding="10,7" Cursor="Hand">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <controls:PhosphorIcon IconName="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" IconSize="14" IconBrush="{DynamicResource WolfGreenBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                    <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-                <ControlTemplate.Triggers>
-                    <Trigger Property="IsSelected" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
-                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="#23272B"/></Trigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate></Setter.Value></Setter>
-        </Style>
+        <Style x:Key="SettingsTabs" TargetType="TabControl" BasedOn="{StaticResource StudioTabs}"/>
+        <Style x:Key="SettingsTab" TargetType="TabItem" BasedOn="{StaticResource StudioTab}"/>
     </UserControl.Resources>
 
     <Border Style="{StaticResource OverlayPanelBorder}">
@@ -116,9 +73,6 @@
                     <TextBlock Text="Settings"
                                FontSize="16"
                                FontWeight="SemiBold"/>
-                    <TextBlock Text="Your device. Your preferences."
-                               Style="{StaticResource DimText}"
-                               Margin="0,3,0,0"/>
                 </StackPanel>
                 <Button x:Name="CloseButton"
                         Grid.Column="2"
@@ -140,7 +94,7 @@
             <Border Grid.Row="1"
                     Height="1"
                     Margin="12,0"
-                    Background="{StaticResource WolfLineBrush}"/>
+                    Background="{DynamicResource WolfLineBrush}"/>
 
             <ScrollViewer Grid.Row="2"
                           Margin="10,10,6,10"
@@ -151,8 +105,8 @@
                     <Expander Header="Device" Tag="Cpu" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="True" Margin="0,0,0,8">
  <StackPanel Margin="0,10,0,0">
  <DockPanel Margin="0,0,0,10">
- <Button Command="{Binding ConnectCommand}" Style="{StaticResource QuietButton}" DockPanel.Dock="Right" ToolTip="Reconnect device" Width="30" Height="28" MinHeight="0" Padding="0" Margin="0">
- <controls:PhosphorIcon IconName="Power" IconSize="15" IconBrush="{StaticResource WolfMutedBrush}"/>
+ <Button Command="{Binding ConnectCommand}" Style="{StaticResource QuietButton}" DockPanel.Dock="Right" ToolTip="Reconnect device" AutomationProperties.Name="Reconnect device" Width="30" Height="28" MinHeight="0" Padding="0" Margin="0">
+ <Path Data="M16,6 A7,7 0 1 0 17,12 M16,1 V6 H11" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
  </Button>
  <StackPanel><TextBlock Text="{Binding DeviceNickname}" FontSize="14" FontWeight="SemiBold"/><TextBlock Text="{Binding ConnectionText}" Style="{StaticResource DimText}" Margin="0,2,0,0"/></StackPanel>
  </DockPanel>
@@ -182,7 +136,7 @@
                                                 <DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" MaxWidth="305" ToolTip="{Binding Path}"/></DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
-                                        <TextBlock Text="Select a USB device" Margin="12,0,32,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{StaticResource WolfDimBrush}">
+                                        <TextBlock Text="Select a USB device" Margin="12,0,32,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource WolfDimBrush}">
                                             <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedUsbDevice}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                         </TextBlock>
                                     </Grid>
@@ -203,7 +157,7 @@
                                                 <DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" MaxWidth="305" ToolTip="{Binding Details}"/></DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
-                                        <TextBlock Text="Select a Bluetooth device" Margin="12,0,32,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{StaticResource WolfDimBrush}">
+                                        <TextBlock Text="Select a Bluetooth device" Margin="12,0,32,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource WolfDimBrush}">
                                             <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedBluetoothDevice}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                         </TextBlock>
                                     </Grid>
@@ -219,7 +173,16 @@
                             </DockPanel>
                         <Expander Header="Model &amp; compatibility" Margin="0,12,0,0">
  <StackPanel Margin="0,8,0,0">
- <ComboBox ItemsSource="{Binding DeviceProfiles}" SelectedItem="{Binding SelectedDeviceProfile}" DisplayMemberPath="DisplayLabel"/>
+ <ComboBox ItemsSource="{Binding DeviceProfiles}" SelectedItem="{Binding SelectedDeviceProfile}" TextSearch.TextPath="DisplayLabel">
+     <ComboBox.ItemTemplate>
+         <DataTemplate>
+             <StackPanel Orientation="Horizontal">
+                 <Image Source="{Binding ProductImagePath}" Width="40" Height="32" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,10,0"/>
+                 <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center"/>
+             </StackPanel>
+         </DataTemplate>
+     </ComboBox.ItemTemplate>
+ </ComboBox>
  <TextBlock Text="{Binding DeviceProfileCapabilityText}" Style="{StaticResource DimText}" Margin="0,6,0,0"/>
  <TextBlock Text="K13 PEQ: up to 192 kHz / 24-bit PCM. MQA is unavailable while EQ is active; switching EQ may briefly reconnect USB." Style="{StaticResource DimText}" Margin="0,6,0,0" Visibility="{Binding IsK13R2RSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
  </StackPanel>
@@ -234,20 +197,20 @@
  <TextBlock Text="Input" VerticalAlignment="Center"/>
  <ComboBox Grid.Column="1" ItemsSource="{Binding DeviceInputSources}" SelectedItem="{Binding SelectedDeviceInputSource}" DisplayMemberPath="DisplayName"/>
  <StackPanel Grid.Column="2" Orientation="Horizontal">
- <Button Command="{Binding ReadInputSourceCommand}" Style="{StaticResource QuietButton}" Margin="6,0,0,0" Padding="6" ToolTip="Read current input"><controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{StaticResource WolfMutedBrush}"/></Button>
+ <Button Command="{Binding ReadInputSourceCommand}" Style="{StaticResource QuietButton}" Margin="6,0,0,0" Padding="6" ToolTip="Read current input"><controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}"/></Button>
  <Button Style="{StaticResource SettingsPrimaryButton}" Tag="ArrowRight" Content="Apply" Command="{Binding SetInputSourceCommand}" Margin="2,0,0,0"/>
  </StackPanel>
  </Grid>
  <StackPanel IsEnabled="{Binding SelectedDeviceSupportsBleDeviceControls}">
-<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceVolume}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{StaticResource WolfTextBrush}"/><TextBlock Text="Volume" Foreground="{StaticResource WolfMutedBrush}"/></DockPanel>
+<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceVolume}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/><TextBlock Text="Volume" Foreground="{DynamicResource WolfMutedBrush}"/></DockPanel>
  <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False"  Margin="0,0,0,6"/>
-<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceVolumeLimit}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{StaticResource WolfTextBrush}"/><TextBlock Text="Volume limit" Foreground="{StaticResource WolfMutedBrush}"/></DockPanel>
+<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceVolumeLimit}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/><TextBlock Text="Volume limit" Foreground="{DynamicResource WolfMutedBrush}"/></DockPanel>
  <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolumeLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False"  Margin="0,0,0,6"/>
-<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceChannelBalanceDisplay}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{StaticResource WolfTextBrush}"/><TextBlock Text="Balance" Foreground="{StaticResource WolfMutedBrush}"/></DockPanel>
+<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceChannelBalanceDisplay}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/><TextBlock Text="Balance" Foreground="{DynamicResource WolfMutedBrush}"/></DockPanel>
  <controls:StyledSlider Minimum="-10" Maximum="10" Value="{Binding DeviceChannelBalance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" CenterOrigin="True" Margin="0,0,0,6"/>
 <CheckBox Content="High gain" IsChecked="{Binding DeviceHighGain, Mode=TwoWay}" Margin="0,6,0,12"/>
  </StackPanel>
- <Border Height="1" Background="{StaticResource WolfLineSoftBrush}" Margin="0,2,0,12"/>
+ <Border Height="1" Background="{DynamicResource WolfLineSoftBrush}" Margin="0,2,0,12"/>
  <TextBlock Text="Active slot name" Style="{StaticResource DimText}" Margin="0,0,0,6"/>
  <DockPanel>
  <Button Style="{StaticResource SettingsActionButton}" Tag="Keyboard" Content="Rename" Command="{Binding RenameUserSlotCommand}" DockPanel.Dock="Right" Margin="8,0,0,0"/>
@@ -261,7 +224,7 @@
 
                     <Expander Header="Profile Lights" Tag="Lightbulb" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
-                              Foreground="{StaticResource WolfMutedBrush}"
+                              Foreground="{DynamicResource WolfMutedBrush}"
                               Margin="0,0,0,10"
                               Visibility="{Binding SelectedDeviceSupportsBleLighting, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Margin="0,10,0,0">
@@ -303,7 +266,7 @@
                                             </Button>
                                         </DockPanel>
 
-                                        <TextBlock Text="Color" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Theme" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
                                         <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,12">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -352,7 +315,7 @@
                                                                                          RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
                                                                             </MultiBinding>
                                                                         </DataTrigger.Binding>
-                                                                        <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{StaticResource WolfTextBrush}"/>
+                                                                        <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{DynamicResource WolfTextBrush}"/>
                                                                         <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
                                                                     </DataTrigger>
                                                                 </ControlTemplate.Triggers>
@@ -409,7 +372,7 @@
                                             </Button>
                                         </DockPanel>
 
-                                        <TextBlock Text="Color" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Theme" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
                                         <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,12">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -458,7 +421,7 @@
                                                                                          RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
                                                                             </MultiBinding>
                                                                         </DataTrigger.Binding>
-                                                                        <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{StaticResource WolfTextBrush}"/>
+                                                                        <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{DynamicResource WolfTextBrush}"/>
                                                                         <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
                                                                     </DataTrigger>
                                                                 </ControlTemplate.Triggers>
@@ -510,13 +473,13 @@
 
                     <Expander Header="Windows Audio" Tag="SpeakerHigh" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
-                              Foreground="{StaticResource WolfMutedBrush}"
+                              Foreground="{DynamicResource WolfMutedBrush}"
                               Expanded="WindowsAudioExpander_Expanded"
                               Margin="0,0,0,10">
                         <StackPanel Margin="0,10,0,0">
                             <Border Padding="13,12"
-                                    Background="#B912171B"
-                                    BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                    Background="{DynamicResource WolfShellBrush}"
+                                    BorderBrush="{DynamicResource WolfLineSoftBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10">
                                 <StackPanel>
@@ -569,7 +532,7 @@
                                                         <Style TargetType="{x:Type Button}" BasedOn="{StaticResource QuietButton}">
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                                    <Setter Property="Background" Value="{StaticResource WolfAccentHoverBrush}"/>
+                                                                    <Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
                                                                     <Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
                                                                     <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
                                                                 </DataTrigger>
@@ -598,8 +561,8 @@
 
                             <Border Padding="13,12"
                                     Margin="0,8,0,0"
-                                    Background="#B912171B"
-                                    BorderBrush="{StaticResource WolfLineSoftBrush}"
+                                    Background="{DynamicResource WolfShellBrush}"
+                                    BorderBrush="{DynamicResource WolfLineSoftBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10">
                                 <Grid>
@@ -625,10 +588,10 @@
 
                             <Border Padding="10,8"
                                     Margin="0,8,0,0"
-                                    Background="#20262B"
+                                    Background="{DynamicResource WolfPanel2Brush}"
                                     CornerRadius="8">
                                 <TextBlock Text="Applies to the Windows default output. Unsupported formats stay disabled."
-                                           Foreground="{StaticResource WolfMutedBrush}"
+                                           Foreground="{DynamicResource WolfMutedBrush}"
                                            FontSize="10"
                                            TextWrapping="Wrap"/>
                             </Border>
@@ -639,6 +602,31 @@
                         <StackPanel Margin="4,10">
                             <TextBlock Text="Stream Deck" FontWeight="SemiBold" FontSize="14"/>
                             <TextBlock Text="Switch to an EQ already stored in a USER slot with one key press." Style="{StaticResource MutedText}" Margin="0,6,0,10"/>
+                            <ToggleButton x:Name="StreamDeckSetupButton" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=StreamDeckSetupPopup, Mode=TwoWay}" Margin="0,0,0,12" HorizontalContentAlignment="Left">
+                                <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="Keyboard" IconSize="18" IconBrush="{DynamicResource WolfGreenBrush}" Margin="0,0,10,0"/><TextBlock Text="Windows ScriptDeck setup"/></StackPanel>
+                            </ToggleButton>
+                            <Popup x:Name="StreamDeckSetupPopup" PlacementTarget="{Binding ElementName=StreamDeckSetupButton}" Placement="Left" HorizontalOffset="-10" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                <Border Width="420" Padding="18" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" PreviewKeyDown="StreamDeckSetup_KeyDown">
+                                    <ScrollViewer MaxHeight="540" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,12"><Button DockPanel.Dock="Right" Content="&#x00D7;" Style="{StaticResource QuietButton}" Click="CloseStreamDeckSetup_Click" AutomationProperties.Name="Close Stream Deck setup"/><TextBlock Text="One-button EQ switching" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
+                                            <TextBlock Text="1. Install Windows ScriptDeck" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Get the Windows ScriptDeck plugin by Start-Automating from Elgato Marketplace." TextWrapping="Wrap" Style="{StaticResource DimText}" Margin="0,5,0,8"/>
+                                            <Button Content="Open plugin in Marketplace" Command="{Binding OpenWindowsScriptDeckCommand}" Style="{StaticResource AccentButton}" HorizontalAlignment="Left"/>
+                                            <TextBlock Text="2. Choose the USER slot" FontWeight="SemiBold" Margin="0,16,0,6"/>
+                                            <ComboBox ItemsSource="{Binding IntegrationSlots}" SelectedItem="{Binding IntegrationSlot}" AutomationProperties.Name="Stream Deck USER slot"/>
+                                            <TextBlock Text="{Binding StreamDeckSetupNote}" TextWrapping="Wrap" Style="{StaticResource DimText}" Margin="0,6,0,8"/>
+                                            <TextBlock Text="3. Paste into On Press" FontWeight="SemiBold" Margin="0,8,0,6"/>
+                                            <TextBlock Text="Add the plugin's script action to a Stream Deck key. Copy the script below into its On Press field, then name your key. Repeat with a different slot for each EQ." TextWrapping="Wrap" Style="{StaticResource DimText}"/>
+                                            <TextBox Text="{Binding StreamDeckPowerShell, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="150" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" Margin="0,10,0,8" AutomationProperties.Name="PowerShell script for Windows ScriptDeck"/>
+                                            <Button Content="Copy PowerShell script" Command="{Binding CopyStreamDeckPowerShellCommand}" Style="{StaticResource SavePresetButton}"/>
+                                            <TextBlock Text="{Binding StreamDeckCopyStatus}" TextWrapping="Wrap" Foreground="{DynamicResource WolfGreenBrush}" Margin="0,6,0,0"/>
+                                            <TextBlock Text="Uses your WolfEQ location and saved USB device automatically. Recopy the script if either changes." TextWrapping="Wrap" Style="{StaticResource DimText}" Margin="0,10,0,0"/>
+                                            <TextBlock Text="Switches an EQ already stored on the device. Save or discard editor changes first. For matching LED colors, enable automatic slot lighting and save a Bluetooth connection." TextWrapping="Wrap" Style="{StaticResource DimText}" Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
                             <TextBlock Text="USER slot"/>
                             <ComboBox ItemsSource="{Binding IntegrationSlots}" SelectedItem="{Binding IntegrationSlot}" Margin="0,4,0,8"/>
                             <TextBox Text="{Binding StreamDeckCommand, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,4,0,8"/>
@@ -657,12 +645,16 @@
 
                     <Expander Header="Appearance" Tag="Palette" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
-                              Foreground="{StaticResource WolfMutedBrush}"
+                              Foreground="{DynamicResource WolfMutedBrush}"
                               Margin="0,0,0,10">
                         <StackPanel Margin="0,10,0,0">
-                            <TextBlock Text="Color"
+                            <TextBlock Text="Background" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                            <ComboBox ItemsSource="{Binding BackgroundModes}" SelectedItem="{Binding SelectedBackgroundMode}" AutomationProperties.Name="Background mode" Margin="0,0,0,8"/>
+                            <TextBlock Text="Choose light or dark surfaces. Your accent palette works with either." Style="{StaticResource DimText}" Margin="0,0,0,18"/>
+                            <TextBlock Text="Accent theme"
                                        Style="{StaticResource TinyLabel}"
                                        Margin="0,0,0,8"/>
+                            <TextBlock Text="Choose a solid color or a multicolor palette." TextWrapping="Wrap" Style="{StaticResource DimText}" Margin="0,0,0,10"/>
                             <ItemsControl ItemsSource="{Binding AccentColorOptions}" Margin="0,0,0,12">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -677,7 +669,7 @@
                                                 Margin="0,0,8,8"
                                                 Padding="0"
                                                 Cursor="Hand"
-                                                ToolTip="{Binding Name}"
+                                                ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}"
                                                 Background="Transparent"
                                                 BorderBrush="Transparent">
                                             <Button.Template>
@@ -711,7 +703,7 @@
                                                                              RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
                                                                 </MultiBinding>
                                                             </DataTrigger.Binding>
-                                                            <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{StaticResource WolfTextBrush}"/>
+                                                            <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{DynamicResource WolfTextBrush}"/>
                                                             <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
                                                         </DataTrigger>
                                                     </ControlTemplate.Triggers>
@@ -721,12 +713,14 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <TextBlock Text="{Binding SelectedAccentColorOption.Name}" FontWeight="SemiBold" Foreground="{DynamicResource WolfGreenBrush}"/>
+                            <TextBlock Text="{Binding SelectedAccentColorOption.Description}" Style="{StaticResource DimText}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Expander>
 
                     <Expander Header="About" Tag="AppWindow" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
-                              Foreground="{StaticResource WolfMutedBrush}">
+                              Foreground="{DynamicResource WolfMutedBrush}">
                         <StackPanel Margin="0,10,0,0">
                             <DockPanel Margin="0,0,0,10" LastChildFill="False">
                                 <Button Style="{StaticResource SettingsActionButton}" Tag="ArrowRight" Content="Releases"
@@ -760,6 +754,20 @@
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,12"/>
 
+                            <Button x:Name="DiscordChannelButton" Command="{Binding OpenDiscordCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Stretch" Padding="12" Margin="0,0,0,10" ToolTip="Open the WolfEQ app channel in Discord" AutomationProperties.Name="Open WolfEQ Discord channel">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <Border Width="40" Height="40" Background="{DynamicResource WolfAccentHoverBrush}" CornerRadius="10" Margin="0,0,12,0">
+                                        <Path Data="{StaticResource DiscordLogoGeometry}" Fill="{DynamicResource WolfGreenBrush}" Width="26" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="WolfEQ on Discord" FontSize="14" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Open our app channel" Style="{StaticResource DimText}" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <Path Grid.Column="2" Data="M2,12 L12,2 M4,2 H12 V10" Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </Grid>
+                            </Button>
+
                             <Button Command="{Binding OpenBuyMeCoffeeCommand}"
                                     Style="{StaticResource QuietButton}"
                                     HorizontalAlignment="Left"
@@ -767,7 +775,7 @@
                                 <StackPanel Orientation="Horizontal">
                                     <controls:PhosphorIcon IconName="Heart"
                                                            IconSize="15"
-                                                           IconBrush="{StaticResource WolfMutedBrush}"
+                                                           IconBrush="{DynamicResource WolfMutedBrush}"
                                                            VerticalAlignment="Center"
                                                            Margin="0,0,8,0"/>
                                     <TextBlock Text="Buy me a coffee"

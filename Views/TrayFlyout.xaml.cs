@@ -128,7 +128,7 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
             ? "Save or discard your editor changes before switching profiles."
             : !Vm.IsDeviceConnected ? "Connect your saved USB device to switch profiles. Open Settings to choose a device."
             : IsWorking ? "Device busy. Your profiles will be ready shortly."
-            : "Choose a profile above. Its saved lighting cue follows automatically when enabled.");
+            : string.Empty);
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public TrayPanelState(MainViewModel vm)
@@ -188,9 +188,10 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
 internal sealed class TraySlotState(DeviceUserPresetOption option) : INotifyPropertyChanged
 {
     public int Slot => option.Slot;
-    public string Label => option.DeviceName;
+    public string Label => option.SlotLabel + (IsActive ? " ? Active" : "");
+    public string ToolTip => $"{Label}\n{Caption}";
     public bool IsActive { get; private set; }
-    public string Caption => IsActive ? "ACTIVE ON DEVICE" : $"PROFILE {Slot:00}";
+    public string Caption => option.LocalEqSubtitle;
     public event PropertyChangedEventHandler? PropertyChanged;
     public void Update(byte? activePreset)
     {

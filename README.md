@@ -1,42 +1,103 @@
-<p align="center">
-  <img src="Assets/icon/wolfeq.png" width="120" alt="WolfEQ logo" />
-</p>
-
+<p align="center"><img src="Assets/icon/wolfeq.png" width="100" alt="WolfEQ green waveform logo" /></p>
 <h1 align="center">WolfEQ</h1>
-
+<p align="center"><strong>Your music. Your curve. Your workspace.</strong><br/>A Windows parametric EQ editor for FiiO and Snowsky devices.</p>
 <p align="center">
-  <strong>WolfEQ 0.6.0 beta is the current release.</strong><br/>
-  A modern Windows PEQ workspace for FiiO K13 R2R and guarded experimental FiiO / Snowsky device support.
+  <a href="https://github.com/audioslayer/wolfeq/releases/latest"><img src="https://img.shields.io/github/v/release/audioslayer/wolfeq?label=latest%20beta" alt="Latest beta" /></a>
+  <img src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6" alt="Windows 10 / 11" />
+  <img src="https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet&logoColor=white" alt=".NET 8" />
+  <img src="https://img.shields.io/badge/license-MIT-00C875" alt="MIT license" />
+</p>
+<p align="center">
+  <a href="https://github.com/audioslayer/wolfeq/releases/latest">Download</a> &bull;
+  <a href="CHANGELOG.md">Changelog</a> &bull;
+  <a href="https://discord.com/channels/1467241109657751737/1503967391581995069">Discord app channel</a> &bull;
+  <a href="https://github.com/audioslayer/wolfeq/issues">Report an issue</a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/audioslayer/wolfeq/releases/latest"><img src="https://img.shields.io/github/v/release/audioslayer/wolfeq?include_prereleases&label=beta" alt="Latest release" /></a>
-  <img src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6?logo=windows&logoColor=white" alt="Windows 10 / 11" />
-  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white" alt=".NET 8" />
-  <img src="https://img.shields.io/badge/FiiO-K13%20R2R-C8102E" alt="FiiO K13 R2R" />
-  <img src="https://img.shields.io/badge/devices-experimental-orange" alt="Experimental device profiles" />
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
-</p>
+## ✨ Meet WolfEQ 0.7.0 beta
 
-## System tray (0.6 beta)
+A redesigned workspace, colorful live spectrum bars, light and dark backgrounds, and a faster path from finding a preset to making it yours.
 
-WolfEQ now includes a Windows system tray companion for switching the USER profiles already saved on your connected DAC. Click or right-click its tray icon to see device status and choose a USER slot. Double-click the icon or choose **Open editor** to return to the full editor. If Windows hides the icon, find it under the taskbar's hidden-icons arrow.
+![WolfEQ editor with colorful spectrum bars and expanded band controls](docs/images/editor-spectrum.png)
 
-The tray panel has saved **Close to tray** and **Minimize to tray** preferences. Close to tray is enabled by default, so the window's close button keeps WolfEQ running in the tray. Minimize to tray is initially disabled, so minimizing keeps the normal taskbar button until you enable it. Choose **Quit** in the tray panel to exit WolfEQ completely.
+*App render with an illustrative spectrum. Band controls start collapsed; expand them when you want hands-on faders or a table.*
 
-Tray switches use the same device safeguards and optional profile lighting as the editor. Save or discard unsaved edits before switching. Switching a USER slot selects EQ already stored on the DAC; use the editor to write a library preset to a slot.
+| | What's new |
+|---|---|
+| 🎚️ **Make room for your mix** | Drag EQ nodes, edit frequency/gain/Q/filter shape, and resize Band controls live with the divider. |
+| 🎶 **See what's playing** | Colorful spectrum bars behind the curve, with smooth motion and a one-click toggle. |
+| 🎨 **Make it yours** | Light or dark backgrounds, green by default, solid accents, and Aurora, Sunset, Neon, and Ocean palettes. |
+| 📚 **Find, name, and open** | A compact library, naming before saving, Curve/Table online previews, and local names for device slots. |
+| ⌨️ **One-button switching** | A Windows ScriptDeck setup flyout generates a ready-to-paste PowerShell command for your saved device. |
+| ✨ **Details that connect** | Theme-aware icons, device thumbnails, selected-band highlights, subtle glows, and a larger transparent app/tray logo. |
 
-Download the installer or portable build from the latest release below.
+<details>
+<summary><strong>See light mode</strong></summary>
 
-## Stream Deck and device selection (0.5 beta)
+![WolfEQ light appearance with green accents](docs/images/editor-light.png)
 
-1. Open **Settings > Device > Connections**, refresh USB devices, and select your DAC.
-2. Scan for nearby K13 Bluetooth devices. Select one and use **Identify** to briefly turn its lights green and restore them. Confirm it is the same unit connected over USB, then **Save device connection**.
-3. Under **Settings > Profile Lights**, enable **Apply saved lighting when switching USER slots** if desired and configure each slot's colors. Previous global colors remain in `slot-lighting.json`; the new version stores colors separately for each USB device.
-4. Open **Settings > Integrations**, choose a USER slot, and click **Save shortcut**.
-5. In Stream Deck, add **System > Open** to a key and choose the saved `.lnk` in **App / File**. Name the key for your headphones and repeat for other slots. Use a current Stream Deck version with support for shortcut arguments ([Elgato release notes](https://edge.elgato.com/egc/sd_content/releasenotes/7.0.0.html)).
+Choose **Settings → Appearance → Background**. Background mode is saved, and accent colors adapt for readable contrast.
+</details>
 
-The Integrations section also provides a copyable command containing your executable path and selected USB device. Shortcuts switch EQ already stored on the DAC; they do not write library presets. Recreate them if you move the executable or change the saved device connection. A USB port change can change the device path and require selecting the device again.
+## 🚀 Download
+
+**[Get the latest release](https://github.com/audioslayer/wolfeq/releases/latest)**
+
+- **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.7.0-beta/WolfEQ-Setup-0.7.0-beta.exe)** — normal installation and shortcuts.
+- **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.7.0-beta/WolfEQ-0.7.0-beta-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
+- Both include the .NET runtime. SHA-256 checksums are supplied with the release.
+
+## 🔌 First session
+
+1. Connect your DAC over USB. In **Settings → Device → Connections**, refresh the list, select your device, and save the connection.
+2. For supported K13 lighting controls, select its Bluetooth connection too. Use **Identify** to confirm you have the same unit.
+3. Open **Library**. Choose a saved preset, or search AutoEQ and OPRA through **Discover Online** and inspect its **Curve** or **Table** preview.
+4. Choose **Open in editor**. Opening a preset closes the library; browsing alone does not replace your edits.
+5. Shape the curve or expand **Band controls**. Use **Optimize headroom** to make room for boosts, then **Save to Library** to choose a name.
+6. Select the intended USER slot and write when ready. On supported devices, **Live sync** sends edits automatically; its question-mark tooltip explains the behavior.
+
+The **Tools** menu groups editing, A/B comparison, device preparation, and sharing. Undo/redo is available in the title bar and with **Ctrl+Z / Ctrl+Y**. Import/export includes Equalizer APO, FiiO XML, and JSON workflows.
+
+## 🎶 Live spectrum
+
+The **Spectrum** toggle beside **EQ Curve** shows audio playing through the **default Windows multimedia output**. It is a visual monitor: it does not process audio or measure the DAC's final analog response. Spectrum height uses its own relative level scale, separate from the EQ gain axis.
+
+- Enabled by default; an explicitly saved off choice is respected.
+- Follows output-device changes and fades to silence when playback stops.
+- Pauses capture and animation when disabled, hidden, minimized, inactive, or scrolled out of view.
+- Separate drawing layers, cached colors, and precomputed FFT data reduce repeated work.
+
+## 📚 Presets and local slot names
+
+**My Library** includes compact search, **+ New**, and a preset-actions menu for duplicate, delete, and device writing. **Save to Library** asks for a name before saving. Online presets are saved locally before opening or writing; their previews include a read-only band table.
+
+WolfEQ remembers descriptive names **locally for each saved USB device and slot**. They appear in the slot picker, selected-slot subtitle, and tray quick profiles. These labels stay on your PC; they are not names written into device firmware.
+
+## 📌 System tray
+
+Click or right-click the green waveform for quick access to saved USER slots and their local names. Double-click it or choose **Open editor** to return to the workspace.
+
+- **Close to tray** defaults on; **Minimize to tray** defaults off. Both preferences are saved.
+- **Quit** exits the app and checks for unsaved edits.
+- The active indicator reflects the confirmed device slot. Optional saved profile lighting follows confirmed switches.
+
+Tray and automation switches select EQ **already stored on the device**. Save or discard editor changes before switching; use the editor to write a library preset into a slot.
+
+## ⌨️ Stream Deck setup
+
+In **Settings → Integrations**, open **Windows ScriptDeck setup**:
+
+1. Follow the link to [Windows ScriptDeck by Start-Automating](https://marketplace.elgato.com/product/windows-scriptdeck-857f01dd-8fd4-44d5-8ec7-67ac850b21d3) in the Elgato Marketplace.
+2. Choose the USER slot to switch to.
+3. Copy the generated PowerShell script. WolfEQ fills in its executable location and saved USB device path, with argument quoting handled for you.
+4. Add the plugin's script action to a Stream Deck key and paste the script into **On Press**. Repeat for other slots.
+
+Re-copy scripts if you move WolfEQ or change its saved connection. For lighting, save the Bluetooth connection and enable **Apply saved lighting when switching USER slots** under **Profile Lights**.
+
+The existing **Save shortcut** workflow is also available: assign the exported `.lnk` to Stream Deck's **System → Open** action.
+
+<details>
+<summary><strong>Command-line automation and exit codes</strong></summary>
 
 ```text
 WolfEQ.exe --slot 2
@@ -45,86 +106,15 @@ WolfEQ.exe --list-devices
 WolfEQ.exe --help
 ```
 
-`--device` accepts the saved connection name or exact USB path. It must match the connection configured in Settings; it cannot silently reassign the Bluetooth device. Commands work with the app open or closed. Existing instances receive the request without stealing focus. Cold commands run without displaying the editor and exit when finished. Save or discard unsaved edits before switching with automation.
+`--device` accepts the saved connection name or exact USB path. It must match the saved connection and never silently reassigns Bluetooth. Existing instances receive requests without taking focus; cold commands run without opening the editor.
 
-Exit codes: **0** success, **1** failure/disconnected device, **2** invalid arguments or unsupported slot, **3** busy/unsaved edits, **4** slot switched but lighting failed. The latest result is also written to `%LOCALAPPDATA%\WolfEQ\automation-result.json`. In PowerShell, use `Start-Process -Wait -PassThru` when you need to wait for this Windows GUI executable and inspect its exit code.
+Exit codes: **0** success, **1** failure/disconnected, **2** invalid arguments/unsupported slot, **3** busy/unsaved edits, **4** slot switched but lighting failed.
 
-EQ uses USB; lights and supported device controls use Bluetooth. Saved connections never fall back to another unit. Previous automatically cached Bluetooth addresses are ignored until you explicitly select and save a target. If Bluetooth is unavailable, the confirmed EQ slot switch is kept and the lighting failure is reported separately.
-
----
-
-## 🐺 Overview
-
-WolfEQ is a desktop app for people who want a cleaner way to tune PEQ on supported FiiO and Snowsky devices. Instead of juggling device menus, preset files, and separate graph tools, WolfEQ brings the complete workflow into one Windows app: discover or import a profile, load it into the editor, shape and compare the curve, then write it to a compatible USER slot.
-
-The **FiiO K13 R2R** is the main WolfEQ-verified device. WolfEQ 0.6.0 beta also includes experimental profiles for BR15 R2R, QX13, BTR17, BTR13, KA15, KA17, JA11, Snowsky Melody, and Snowsky Retro Nano. Newly added community profiles start in guarded save-only mode without automatic readback or live writes until their Windows HID endpoints are verified on physical hardware.
+Results are also written to `%LOCALAPPDATA%\WolfEQ\automation-result.json`. Use PowerShell `Start-Process -Wait -PassThru` when you need the GUI executable's exit code.
+</details>
 
 ---
 
-## 🚀 Latest Beta
-
-Download the latest published beta, WolfEQ 0.6.0, from the [latest GitHub release](https://github.com/audioslayer/wolfeq/releases/latest):
-
-- [Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.6.0-beta/WolfEQ-Setup-0.6.0-beta.exe)
-- [Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.6.0-beta/WolfEQ-0.6.0-beta-win-x64.zip)
-
-WolfEQ 0.6.0 beta adds:
-
-- A modern system tray panel with quick USER-profile switching, confirmed active-slot indicators, and device status.
-- Saved close-to-tray and minimize-to-tray preferences, quick editor/settings access, and guarded Quit.
-- Unsaved-edit protection and optional saved lighting when switching profiles from the tray.
-
-Features carried forward from 0.5.0 beta:
-
-- Explicit USB and Bluetooth device selection, an Identify action, and no automatic fallback to another unit.
-- Per-device lighting settings that optionally follow confirmed USER-slot changes.
-- Stream Deck commands, shortcut export, and setup instructions under Settings > Integrations.
-- A compact Settings redesign with Device Connections / Controls tabs, themed icons and buttons, and optional setup details.
-
-Features carried forward from 0.4.0 beta:
-
-- A graph-native EQ workspace with numbered points and a contextual precision editor.
-- Distinct selected, enabled, and bypassed band states plus draggable Q handles.
-- Grouped EQ undo/redo, A/B curve comparison, and quick tone-shaping tools.
-- A compact Tools menu for band organization, flattening, device-ready copies, smoothing, and tuning-card export.
-- Explicit navigation across all ten K13 R2R USER slots.
-- A dedicated Discover Online library source for AutoEQ and OPRA profiles, with separate load and write actions.
-- Slide-over library and settings panels with cleaner connected surfaces, clearer hierarchy, and redesigned device controls.
-- Guarded connect-time device loading that preserves unsaved editor changes.
-- Explicit device readback capabilities so unsupported reads do not disconnect otherwise writable devices.
-- Snowsky Melody USER 1-3 writes without unsupported automatic or manual EQ readback.
-- Guarded community profiles for FiiO BR15 R2R, QX13, BTR17, and BTR13, including the BTR17 V2 save command and device-specific slot/filter limits.
-- An Optimize Headroom control that shows the strongest enabled boost and matching inverse preamp before applying it.
-- Advanced Windows audio quick controls for supported default-output formats, plus direct access to spatial sound settings.
-- Hardened imports, online downloads, updater handling, local saves, device packets, and application logs.
-- Faster wide-graph drawing and a cached combined AutoEQ/OPRA search index.
-- Regression tests for editor history, synchronization, unsaved-edit protection, device capabilities, and security boundaries.
-
----
-
-## ✨ What WolfEQ Does
-
-- 🎚️ Edits PEQ gain, frequency, Q, filter type, and global preamp.
-- 📈 Shows a live response preview while you shape a preset.
-- 💾 Reads, writes, and refreshes verified K13 USER slots, with guarded save-only paths for selected community-configured devices.
-- 📚 Saves, imports, exports, duplicates, favorites, and deletes local presets.
-- 🔎 Searches online AutoEQ and OPRA profiles so you can start from known headphone correction curves.
-- 🧰 Imports and exports WolfEQ JSON, Equalizer APO text, and FiiO XML.
-- ⚠️ Shows the exact clipping margin and can match preamp automatically to the strongest enabled boost.
-
----
-
-## Workflow
-
-1. Open **Library** and choose **My Library** or **Discover Online**.
-2. Search AutoEQ + OPRA, import a local preset, or select a saved profile.
-3. Load the profile into the editor and tune it directly on the graph or in the precision controls.
-4. Use **Tools** for undo/redo, sorting, flattening, safer device copies, smoothing, or a shareable tuning card.
-5. Select a writable USER slot, review headroom and device compatibility, then write the result to the device.
-
-Online profiles are downloaded into WolfEQ before they are applied. Loading an online result does not silently write to hardware, and writing remains limited to the selected device profile's declared USER slots.
-
----
 
 ## 🎧 Device Support
 
@@ -170,9 +160,9 @@ This is beta software, and every profile except K13 R2R is intentionally marked 
 
 If you test an experimental profile:
 
-1. Select the exact device model and click **Detect**.
+1. Select the exact device model in Settings and use **Reconnect device**.
 2. Start with a flat or low-gain profile and an unused USER slot.
-3. Confirm the selected slot on the device before choosing **Save Changes**.
+3. Confirm the selected slot on the device before choosing **Write to USER**.
 4. Report the Windows version, device firmware, USB mode, selected slot, and whether the device stayed connected.
 5. Attach `%LOCALAPPDATA%\WolfEQ\logs\wolfeq.log` when reporting a failure.
 

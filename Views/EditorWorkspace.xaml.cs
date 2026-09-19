@@ -4,74 +4,36 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Threading;
 using WolfEQ.Models;
 
 namespace WolfEQ.Views;
 
 /// <summary>
 /// Primary graph-native EQ editing surface. Band selection lives on the graph's
-/// <c>SelectedBand</c> dependency property and the precision editor follows the
-/// selected node. Expects the application's MainViewModel as DataContext.
+/// <c>SelectedBand</c> dependency property and the precision editor sits below the
+/// response curve. Expects the application's MainViewModel as DataContext.
 /// </summary>
 public partial class EditorWorkspace : UserControl
 {
-    private bool _bandEditorPositionUpdatePending;
-
     public EditorWorkspace()
     {
         InitializeComponent();
-        Graph.SelectedBandAnchorChanged += (_, _) => RequestBandEditorPositionUpdate();
-        Graph.SizeChanged += (_, _) => RequestBandEditorPositionUpdate();
-        BandEditorCapsule.SizeChanged += (_, _) => RequestBandEditorPositionUpdate();
-        Loaded += (_, _) => RequestBandEditorPositionUpdate();
+        InitializeSpectrum();
+        BandPanel.AddHandler(Expander.ExpandedEvent, new RoutedEventHandler(BandExpansionChanged));
+        BandPanel.AddHandler(Expander.CollapsedEvent, new RoutedEventHandler(BandExpansionChanged));
+        WorkspaceGrid.SizeChanged += (_, _) => ConstrainBandHeight();
+        BandExpansionChanged(this, new RoutedEventArgs());
+        Loaded += (_, _) => Graph.SelectedBand ??= Graph.Bands?.OrderBy(b => b.FrequencyHz).ThenBy(b => b.Number).FirstOrDefault();
     }
 
-    private void RequestBandEditorPositionUpdate()
+    private void PreviousBand_Click(object sender, RoutedEventArgs e) => SelectAdjacentBand(-1);
+    private void NextBand_Click(object sender, RoutedEventArgs e) => SelectAdjacentBand(1);
+    private void SelectAdjacentBand(int direction)
     {
-        if (!IsLoaded || _bandEditorPositionUpdatePending)
-        {
-            return;
-        }
-
-        _bandEditorPositionUpdatePending = true;
-        Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
-        {
-            _bandEditorPositionUpdatePending = false;
-            UpdateBandEditorPosition();
-        }));
-    }
-
-    private void UpdateBandEditorPosition()
-    {
-        if (!Graph.TryGetSelectedBandAnchor(out var anchor) ||
-            BandEditorCanvas.ActualWidth <= 1 ||
-            BandEditorCanvas.ActualHeight <= 1)
-        {
-            return;
-        }
-
-        var capsuleWidth = BandEditorCapsule.ActualWidth > 1 ? BandEditorCapsule.ActualWidth : BandEditorCapsule.Width;
-        var capsuleHeight = BandEditorCapsule.ActualHeight > 1 ? BandEditorCapsule.ActualHeight : BandEditorCapsule.Height;
-        const double edgePadding = 12;
-        const double nodeClearance = 34;
-
-        var maxLeft = Math.Max(edgePadding, BandEditorCanvas.ActualWidth - capsuleWidth - edgePadding);
-        var left = Math.Clamp(anchor.X - capsuleWidth / 2, edgePadding, maxLeft);
-        var belowTop = anchor.Y + nodeClearance;
-        var placeBelow = belowTop + capsuleHeight <= BandEditorCanvas.ActualHeight - edgePadding;
-        var top = placeBelow
-            ? belowTop
-            : Math.Max(edgePadding, anchor.Y - nodeClearance - capsuleHeight);
-
-        Canvas.SetLeft(BandEditorCapsule, left);
-        Canvas.SetTop(BandEditorCapsule, top);
-
-        var stemTop = placeBelow ? anchor.Y + 15 : top + capsuleHeight;
-        var stemBottom = placeBelow ? top : anchor.Y - 15;
-        Canvas.SetLeft(CapsuleStem, anchor.X - CapsuleStem.Width / 2);
-        Canvas.SetTop(CapsuleStem, Math.Min(stemTop, stemBottom));
-        CapsuleStem.Height = Math.Max(0, Math.Abs(stemBottom - stemTop));
+        var bands = Graph.Bands?.OrderBy(b => b.FrequencyHz).ThenBy(b => b.Number).ToList();
+        if (bands is not { Count: > 0 }) return;
+        var index = Graph.SelectedBand is null ? 0 : bands.IndexOf(Graph.SelectedBand);
+        Graph.SelectedBand = bands[(index + direction + bands.Count) % bands.Count];
     }
 
     private void DismissBandEditor_Click(object sender, RoutedEventArgs e)
@@ -133,7 +95,7 @@ public partial class EditorWorkspace : UserControl
             return;
         }
 
-        if (!double.TryParse(box.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var typed))
+        if (!double.TryParse(box.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var typed) || !double.IsFinite(typed))
         {
             // Non-numeric input: revert to the previous value.
             expression.UpdateTarget();

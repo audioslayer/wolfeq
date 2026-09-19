@@ -28,6 +28,20 @@ public partial class LibraryPanel : UserControl
     private void CloseButton_Click(object sender, RoutedEventArgs e)
         => CloseRequested?.Invoke(this, EventArgs.Empty);
 
+    private void OpenPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel model && model.TryOpenLibrarySelection())
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void PresetAction_Click(object sender, RoutedEventArgs e) => PresetActionsPopup.IsOpen = false;
+
+    private void PreviewView_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton { Tag: string index } && int.TryParse(index, out var selectedIndex))
+            OnlinePreviewTabs.SelectedIndex = selectedIndex;
+    }
+
     private void OnlineSearchBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not MainViewModel viewModel)

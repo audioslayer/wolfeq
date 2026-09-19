@@ -29,6 +29,7 @@ public partial class App : Application
                 Finish(await _automation.SendAsync(e.Args));
                 return;
             }
+            BackgroundThemeService.Apply(BackgroundThemeService.Load());
             var window = new MainWindow();
             MainWindow = window;
             _viewModel = (MainViewModel)window.DataContext;

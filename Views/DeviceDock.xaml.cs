@@ -1,21 +1,20 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using WolfEQ.ViewModels;
 
 namespace WolfEQ.Views;
 
 /// <summary>
-/// Permanent device dock strip: connection status + Detect, hardware slot chips,
+/// Permanent device dock strip: connection status + Detect, a USER-slot menu,
 /// Load from slot, the editor/device sync indicator, the live-sync toggle, and the
 /// Save to Library / Write to device actions. Expects the application's
 /// MainViewModel as (inherited) DataContext.
 /// <para>
 /// <see cref="EditorSessionState"/> is a plain class (Changed event, no
 /// INotifyPropertyChanged), so the sync-indicator colors and the Write button's
-/// disabled-reason line are refreshed from code-behind instead of XAML triggers.
+/// tooltip are refreshed from code-behind instead of XAML triggers.
 /// </para>
 /// </summary>
 public partial class DeviceDock : UserControl
@@ -26,11 +25,6 @@ public partial class DeviceDock : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
-        Loaded += (_, _) =>
-        {
-            UpdateSlotScrollButtons();
-            BringSelectedSlotIntoView();
-        };
         RefreshDeviceState();
     }
 
@@ -80,15 +74,9 @@ public partial class DeviceDock : UserControl
             RefreshDeviceState();
         }
 
-        if (string.IsNullOrEmpty(e.PropertyName)
-            || e.PropertyName is nameof(MainViewModel.SelectedDeviceUserPreset)
-                or nameof(MainViewModel.SelectedDeviceProfile))
-        {
-            BringSelectedSlotIntoView();
-        }
     }
 
-    /// <summary>Updates the sync-indicator colors and the Write button's disabled-reason line.</summary>
+    /// <summary>Updates the sync-indicator colors and the Write button's tooltip.</summary>
     private void RefreshDeviceState()
     {
         var dimBrush = BrushResource("WolfDimBrush", Brushes.Gray);
@@ -96,10 +84,10 @@ public partial class DeviceDock : UserControl
 
         if (_viewModel is null)
         {
-            // Design time / no DataContext yet: neutral indicator, no reason line.
+            // Design time / no DataContext yet: neutral indicator, no tooltip.
             SyncStateDot.Fill = dimBrush;
             SyncStateText.Foreground = mutedBrush;
-            WriteDisabledReasonText.Visibility = Visibility.Collapsed;
+            WriteToDeviceButton.ToolTip = "Write the editor's EQ to the device slot";
             return;
         }
 
@@ -130,12 +118,11 @@ public partial class DeviceDock : UserControl
             }
         }
 
-        // Disabled-reason line: plain-English explanation whenever Write cannot run.
+        // Disabled-tooltip: plain-English explanation whenever Write cannot run.
         var reason = _viewModel.WriteToDeviceCommand.CanExecute(null)
             ? null
             : DescribeWriteBlocker(_viewModel);
-        WriteDisabledReasonText.Text = reason ?? string.Empty;
-        WriteDisabledReasonText.Visibility = reason is null ? Visibility.Collapsed : Visibility.Visible;
+        WriteToDeviceButton.ToolTip = reason ?? "Write the editor's EQ to the device slot";
     }
 
     /// <summary>
@@ -165,7 +152,7 @@ public partial class DeviceDock : UserControl
         return null;
     }
 
-    /// <summary>Mirrors the view model's writable-target check for the reason line.</summary>
+    /// <summary>Mirrors the view model's writable-target check for the tooltip.</summary>
     private static bool HasWritableTargetSlot(MainViewModel viewModel)
     {
         var targetSlotId = viewModel.EditorSession.TargetSlotId ?? viewModel.SelectedDeviceUserPreset?.PresetId;
@@ -173,50 +160,66 @@ public partial class DeviceDock : UserControl
                && viewModel.SelectedDeviceProfile.WritableSlots.Any(slot => slot.Id == slotId);
     }
 
-    /// <summary>Routes the vertical mouse wheel to horizontal chip scrolling (scrollbars are hidden).</summary>
-    private void SlotChipScroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    public void OpenLibrarySave()
     {
-        if (sender is ScrollViewer scroller && scroller.ScrollableWidth > 0)
+        if (_viewModel is null || !_viewModel.SaveToLibraryCommand.CanExecute(null)) return;
+        LibraryPresetName.Text = _viewModel.SuggestedLibraryName;
+        LibrarySaveError.Visibility = Visibility.Collapsed;
+        SaveLibraryPopup.IsOpen = true;
+    }
+
+    private void SaveLibraryButton_Click(object sender, RoutedEventArgs e) => OpenLibrarySave();
+
+    private void SaveLibraryPopup_Opened(object? sender, EventArgs e)
+    {
+        LibraryPresetName.Focus();
+        LibraryPresetName.SelectAll();
+    }
+
+    private void SaveLibraryPopup_Closed(object? sender, EventArgs e) => SaveLibraryButton.Focus();
+
+    private void CancelLibrarySave_Click(object sender, RoutedEventArgs e) => SaveLibraryPopup.IsOpen = false;
+
+    private void ConfirmLibrarySave_Click(object sender, RoutedEventArgs e) => ConfirmLibrarySave();
+
+    private void ConfirmLibrarySave()
+    {
+        if (_viewModel is null) return;
+        if (_viewModel.TrySaveNamedLibraryPreset(LibraryPresetName.Text, out var error))
+            SaveLibraryPopup.IsOpen = false;
+        else
         {
-            scroller.ScrollToHorizontalOffset(scroller.HorizontalOffset - e.Delta);
-            e.Handled = true;
+            LibrarySaveError.Text = error;
+            LibrarySaveError.Visibility = Visibility.Visible;
+            LibraryPresetName.Focus();
         }
     }
 
-    private void SlotScrollLeftButton_Click(object sender, RoutedEventArgs e)
-        => SlotChipScroller.ScrollToHorizontalOffset(Math.Max(0, SlotChipScroller.HorizontalOffset - 220));
-
-    private void SlotScrollRightButton_Click(object sender, RoutedEventArgs e)
-        => SlotChipScroller.ScrollToHorizontalOffset(
-            Math.Min(SlotChipScroller.ScrollableWidth, SlotChipScroller.HorizontalOffset + 220));
-
-    private void SlotChipScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
-        => UpdateSlotScrollButtons();
-
-    private void UpdateSlotScrollButtons()
+    private void SaveLibraryPopup_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        SlotScrollLeftButton.IsEnabled = SlotChipScroller.HorizontalOffset > 0.5;
-        SlotScrollRightButton.IsEnabled = SlotChipScroller.HorizontalOffset < SlotChipScroller.ScrollableWidth - 0.5;
+        if (e.Key == System.Windows.Input.Key.Escape) SaveLibraryPopup.IsOpen = false;
+        else if (e.Key == System.Windows.Input.Key.Enter) ConfirmLibrarySave();
+        else return;
+        e.Handled = true;
     }
 
-    private void BringSelectedSlotIntoView()
+    private void LiveSyncHelp_Click(object sender, RoutedEventArgs e)
     {
-        if (!IsLoaded || _viewModel?.SelectedDeviceUserPreset is null)
+        if (LiveSyncHelp.ToolTip is ToolTip tip)
         {
-            return;
+            tip.PlacementTarget = LiveSyncHelp;
+            tip.IsOpen = true;
         }
-
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            if (SlotItems.ItemContainerGenerator.ContainerFromItem(_viewModel.SelectedDeviceUserPreset)
-                is FrameworkElement container)
-            {
-                container.BringIntoView();
-            }
-
-            UpdateSlotScrollButtons();
-        }));
     }
+
+    private void SlotMenuItem_Click(object sender, RoutedEventArgs e) => SlotPopup.IsOpen = false;
+
+    private void DeviceSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.GetWindow(this) is MainWindow window) window.OpenSettings();
+    }
+
+    private void SlotPopup_Closed(object? sender, EventArgs e) => SlotMenuButton.IsChecked = false;
 
     private Brush BrushResource(string key, Brush fallback)
         => TryFindResource(key) as Brush ?? fallback;

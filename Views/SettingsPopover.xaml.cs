@@ -32,6 +32,16 @@ public partial class SettingsPopover : UserControl
     private void CloseButton_Click(object sender, RoutedEventArgs e)
         => CloseRequested?.Invoke(this, EventArgs.Empty);
 
+    private void CloseStreamDeckSetup_Click(object sender, RoutedEventArgs e) => StreamDeckSetupPopup.IsOpen = false;
+
+    private void StreamDeckSetup_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Escape) return;
+        StreamDeckSetupPopup.IsOpen = false;
+        StreamDeckSetupButton.Focus();
+        e.Handled = true;
+    }
+
     private void WindowsAudioExpander_Expanded(object sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel &&

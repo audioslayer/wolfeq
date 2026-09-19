@@ -43,6 +43,7 @@ public sealed class PhosphorIcon : Grid
 
     public PhosphorIcon()
     {
+        SetResourceReference(IconColorProperty, "WolfText");
         Width = 20;
         Height = 20;
         Children.Add(basePath);
@@ -97,12 +98,12 @@ public sealed class PhosphorIcon : Grid
         basePath.Data = FindGeometry($"Ph.{IconName}.Base");
         detailPath.Data = FindGeometry($"Ph.{IconName}.Detail");
 
-        var detailBrush = CloneBrush(IconBrush) ?? new SolidColorBrush(IconColor);
-        var baseBrush = detailBrush.CloneCurrentValue();
-        baseBrush.Opacity = BaseOpacity;
-
-        basePath.Fill = baseBrush;
-        detailPath.Fill = detailBrush;
+        // Keep the live theme brush: cloning captures its old color when the
+        // resource is updated in place. Layer opacity belongs to the path.
+        var brush = IconBrush ?? new SolidColorBrush(IconColor);
+        basePath.Fill = brush;
+        basePath.Opacity = BaseOpacity;
+        detailPath.Fill = brush;
     }
 
     private Geometry? FindGeometry(string key)
@@ -129,13 +130,4 @@ public sealed class PhosphorIcon : Grid
         }
     }
 
-    private static Brush? CloneBrush(Brush? brush)
-    {
-        if (brush is null)
-        {
-            return null;
-        }
-
-        return brush.CloneCurrentValue();
-    }
 }

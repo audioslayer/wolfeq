@@ -31,6 +31,8 @@ public sealed record FiioDeviceProfile(
 {
     public string DisplayLabel => IsVerified ? DisplayName : $"{DisplayName} (experimental)";
 
+    public string ProductImagePath => $"pack://application:,,,/WolfEQ;component/Assets/devices/{Id}.png";
+
     public IReadOnlyList<FiioDeviceSlot> WritableSlots
         => Slots.Where(slot => slot.IsWritable).ToArray();
 
