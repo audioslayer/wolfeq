@@ -71,3 +71,13 @@ public enum ApoLaunchOutcome
 }
 
 public sealed record ApoLaunchResult(ApoLaunchOutcome Outcome, string Message);
+
+public enum ApoSetupStage
+{
+    Verifying,
+    Downloading,
+    WaitingForSetup
+}
+
+/// <summary>Progress of the Install Equalizer APO flow; <paramref name="TotalBytes"/> is null when unknown.</summary>
+public sealed record ApoSetupProgress(ApoSetupStage Stage, long BytesReceived = 0, long? TotalBytes = null);

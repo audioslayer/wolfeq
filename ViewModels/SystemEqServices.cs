@@ -13,6 +13,7 @@ namespace WolfEQ.ViewModels;
 /// <param name="GetEndpointStatus">Per-endpoint APO health, keyed by the endpoint GUID (with braces).</param>
 /// <param name="IsFiioEndpoint">True when the endpoint is a FiiO device (double-EQ warning).</param>
 /// <param name="RunInstaller">Runs the bundled Equalizer APO installer and waits for it to exit.</param>
+/// <param name="RunInstallerWithProgress">Same as <paramref name="RunInstaller"/>, reporting download progress; preferred when set.</param>
 /// <param name="RunDeviceSelector">Runs APO's DeviceSelector ("Add outputs") and waits for it to exit.</param>
 public sealed record SystemEqServices(
     IEqOutputBackend Backend,
@@ -20,7 +21,8 @@ public sealed record SystemEqServices(
     Func<string, ApoEndpointStatus> GetEndpointStatus,
     Func<AudioEndpointInfo, bool> IsFiioEndpoint,
     Func<Task<ApoLaunchResult>> RunInstaller,
-    Func<Task<ApoLaunchResult>> RunDeviceSelector)
+    Func<Task<ApoLaunchResult>> RunDeviceSelector,
+    Func<IProgress<ApoSetupProgress>, Task<ApoLaunchResult>>? RunInstallerWithProgress = null)
 {
     /// <summary>Test hook: when set, <see cref="CreateDefault"/> returns this instead of the real services.</summary>
     internal static Func<SystemEqServices>? DefaultOverride { get; set; }
@@ -41,34 +43,47 @@ public sealed record SystemEqServices(
 
         var installation = new EqualizerApoInstallation(new WindowsRegistryReader());
         var launcher = new ApoProcessLauncher();
+        var downloader = new ApoInstallerDownloader();
         return new(
             new EqualizerApoBackend(_ => Task.Run(installation.GetStatus)),
             new WindowsAudioEndpointCatalog(),
             installation.GetEndpointStatus,
             FiioEndpointMatcher.IsFiioEndpoint,
-            () => RunInstallerAsync(launcher, new ApoInstallerDownloader()),
+            () => RunInstallerAsync(launcher, downloader, null),
             () => installation.DeviceSelectorPath is { } selector
                 ? launcher.RunDeviceSelectorAsync(selector)
                 : Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.NotFound,
-                    "Equalizer APO's device selector was not found. Install Equalizer APO first.")));
+                    "Equalizer APO's device selector was not found. Install Equalizer APO first.")),
+            progress => RunInstallerAsync(launcher, downloader, progress));
     }
 
     /// <summary>
     /// Runs the bundled installer when it is present and verified; otherwise downloads the
     /// official pinned installer, verifies its SHA-256, and runs that.
     /// </summary>
-    internal static async Task<ApoLaunchResult> RunInstallerAsync(ApoProcessLauncher launcher, ApoInstallerDownloader downloader)
+    internal static async Task<ApoLaunchResult> RunInstallerAsync(
+        ApoProcessLauncher launcher,
+        ApoInstallerDownloader downloader,
+        IProgress<ApoSetupProgress>? progress)
     {
+        progress?.Report(new ApoSetupProgress(ApoSetupStage.Verifying));
         var bundled = ApoProcessLauncher.FindBundledInstaller(AppContext.BaseDirectory);
-        if (bundled is not null && await ApoInstallerDownloader.MatchesPinnedHashAsync(bundled))
+        string? installer = bundled is not null && await ApoInstallerDownloader.MatchesPinnedHashAsync(bundled)
+            ? bundled
+            : null;
+        if (installer is null)
         {
-            return await launcher.RunInstallerAsync(bundled);
+            var (downloaded, message) = await downloader.GetVerifiedInstallerAsync(progress);
+            if (downloaded is null)
+            {
+                return new ApoLaunchResult(ApoLaunchOutcome.Failed, message);
+            }
+
+            installer = downloaded;
         }
 
-        var (downloaded, message) = await downloader.GetVerifiedInstallerAsync();
-        return downloaded is null
-            ? new ApoLaunchResult(ApoLaunchOutcome.Failed, message)
-            : await launcher.RunInstallerAsync(downloaded);
+        progress?.Report(new ApoSetupProgress(ApoSetupStage.WaitingForSetup));
+        return await launcher.RunInstallerAsync(installer);
     }
 }
 

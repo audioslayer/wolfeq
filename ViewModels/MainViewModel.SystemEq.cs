@@ -132,7 +132,7 @@ public sealed partial class MainViewModel
 
         ToggleSystemEqBypassCommand = new RelayCommand(() => SystemEqBypassed = !SystemEqBypassed);
         RefreshSystemEqEndpointsCommand = new AsyncRelayCommand(StartSystemEqRefresh);
-        InstallEqualizerApoCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(_systemEq.RunInstaller, isInstaller: true));
+        InstallEqualizerApoCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(RunApoInstallerWithProgressAsync, isInstaller: true));
         OpenApoDeviceSelectorCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(_systemEq.RunDeviceSelector, isInstaller: false));
         RemoveSystemEqFromApoCommand = new AsyncRelayCommand(RemoveSystemEqFromApoAsync);
 
@@ -684,7 +684,7 @@ public sealed partial class MainViewModel
     private async Task RunApoLauncherCoreAsync(Func<Task<ApoLaunchResult>> launch, bool isInstaller)
     {
         _systemEqNotice = isInstaller
-            ? "Getting Equalizer APO setup ready. Approve the Windows prompt, then finish the setup..."
+            ? "Setting up Equalizer APO..."
             : "Waiting for the Equalizer APO device selector to close...";
         UpdateSystemEqStatus();
 

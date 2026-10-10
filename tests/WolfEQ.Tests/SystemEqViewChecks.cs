@@ -62,6 +62,7 @@ internal static class SystemEqViewChecks
         Assert.DoesNotContain(StudioViewChecks.Descendants(integrationsExpander).OfType<ComboBox>(), IsShown);
 
         VerifyTrayTips();
+        VerifyInstallProgress(rig);
 
         var dock = new DeviceDock { DataContext = model };
         StudioViewChecks.Layout(dock, 1586, 80);
@@ -106,6 +107,41 @@ internal static class SystemEqViewChecks
         Assert.StartsWith("WolfEQ — System EQ bypassed · WolfEQ can't write to the Equalizer APO config folder (Access is denied)", blocked);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(blocked, "can't write"));
         Assert.DoesNotContain("System EQ: System EQ", blocked);
+    }
+
+    /// <summary>While Install Equalizer APO runs, the card shows a progress bar instead of the button.</summary>
+    private static void VerifyInstallProgress(SystemEqTestRig rig)
+    {
+        var services = rig.Services with
+        {
+            // Never completes during the check: the card stays in its busy state.
+            RunInstallerWithProgress = _ => new TaskCompletionSource<ApoLaunchResult>().Task
+        };
+        rig.Backend.Status = SystemEqBackendStatus.NotInstalled("Equalizer APO is not installed.");
+        var model = new MainViewModel(new LocalPresetLibraryService(rig.LibraryPath + ".progress"), services, rig.SettingsPath + ".progress");
+        model.SelectedDeviceProfile = SystemEqProfiles.WindowsSystemEq;
+        Assert.Equal(SystemEqState.NeedsInstall, model.SystemEqState);
+
+        var settings = new SettingsPopover { DataContext = model };
+        StudioViewChecks.Layout(settings, 460, 900);
+        settings.DataContext = null;
+        foreach (var expander in StudioViewChecks.Descendants(settings).OfType<Expander>())
+            expander.IsExpanded = Equals(expander.Header, "Device");
+        settings.DataContext = model;
+        StudioViewChecks.Layout(settings, 460, 900);
+        Assert.True(IsShown((FrameworkElement)settings.FindName("InstallApoButton")));
+        Assert.False(IsShown((FrameworkElement)settings.FindName("ApoSetupProgressPanel")));
+
+        model.InstallEqualizerApoCommand.Execute(null);
+        model.ApplySystemEqSetupProgress(new ApoSetupProgress(ApoSetupStage.Downloading, 4_500_000, 11_980_366));
+        StudioViewChecks.Layout(settings, 460, 900);
+        StudioViewChecks.Render(settings, 460, 900, "studio-settings-system-eq-installing");
+        Assert.False(IsShown((FrameworkElement)settings.FindName("InstallApoButton")));
+        Assert.True(IsShown((FrameworkElement)settings.FindName("ApoSetupProgressPanel")));
+        var bar = StudioViewChecks.Descendants(settings).OfType<ProgressBar>().Single(IsShown);
+        Assert.False(bar.IsIndeterminate);
+        Assert.InRange(bar.Value, 37, 38);
+        rig.Backend.Status = SystemEqTestRig.InstalledStatus;
     }
 
     /// <summary>True when the element and every visual ancestor are <see cref="Visibility.Visible"/>.</summary>

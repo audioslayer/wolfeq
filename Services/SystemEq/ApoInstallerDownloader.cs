@@ -35,9 +35,12 @@ public sealed class ApoInstallerDownloader
     /// Returns a verified installer path, reusing a previously downloaded copy when it still
     /// matches the pinned hash. Returns null with a plain message when the download fails.
     /// </summary>
-    public async Task<(string? Path, string Message)> GetVerifiedInstallerAsync(CancellationToken cancellationToken = default)
+    public async Task<(string? Path, string Message)> GetVerifiedInstallerAsync(
+        IProgress<ApoSetupProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         var target = CachedInstallerPath;
+        progress?.Report(new ApoSetupProgress(ApoSetupStage.Verifying));
         if (await MatchesPinnedHashAsync(target, cancellationToken).ConfigureAwait(false))
         {
             return (target, "Using the verified Equalizer APO installer.");
@@ -51,6 +54,8 @@ public sealed class ApoInstallerDownloader
             using (var response = await client.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
+                var totalBytes = response.Content.Headers.ContentLength;
+                progress?.Report(new ApoSetupProgress(ApoSetupStage.Downloading, 0, totalBytes));
                 if (response.Content.Headers.ContentLength is > MaxInstallerBytes)
                 {
                     return (null, "The Equalizer APO download was unexpectedly large, so it was not used.");
@@ -58,9 +63,10 @@ public sealed class ApoInstallerDownloader
 
                 await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                 await using var destination = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None);
-                await CopyBoundedAsync(source, destination, cancellationToken).ConfigureAwait(false);
+                await CopyBoundedAsync(source, destination, totalBytes, progress, cancellationToken).ConfigureAwait(false);
             }
 
+            progress?.Report(new ApoSetupProgress(ApoSetupStage.Verifying));
             if (!await MatchesPinnedHashAsync(temporary, cancellationToken).ConfigureAwait(false))
             {
                 return (null, "The downloaded Equalizer APO installer failed its integrity check, so it was not run.");
@@ -102,8 +108,16 @@ public sealed class ApoInstallerDownloader
         }
     }
 
-    private static async Task CopyBoundedAsync(Stream source, Stream destination, CancellationToken cancellationToken)
+    private static async Task CopyBoundedAsync(
+        Stream source,
+        Stream destination,
+        long? totalBytes,
+        IProgress<ApoSetupProgress>? progress,
+        CancellationToken cancellationToken)
     {
+        // Report about every 256 KB so the UI gets a smooth bar without a flood of dispatcher posts.
+        const long reportEvery = 256 * 1024;
+        long nextReport = reportEvery;
         var buffer = new byte[81920];
         long total = 0;
         int read;
@@ -116,7 +130,14 @@ public sealed class ApoInstallerDownloader
             }
 
             await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+            if (total >= nextReport)
+            {
+                nextReport = total + reportEvery;
+                progress?.Report(new ApoSetupProgress(ApoSetupStage.Downloading, total, totalBytes));
+            }
         }
+
+        progress?.Report(new ApoSetupProgress(ApoSetupStage.Downloading, total, totalBytes ?? total));
     }
 
     private static HttpClient CreateDefaultClient()

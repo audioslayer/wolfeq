@@ -255,7 +255,19 @@
                                         <StackPanel>
                                             <TextBlock Text="Install Equalizer APO" FontWeight="SemiBold"/>
                                             <TextBlock Text="WolfEQ uses the free Equalizer APO engine to apply your EQ to Windows outputs. It isn't installed yet." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,10"/>
-                                            <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Cloud" Content="Install Equalizer APO" Command="{Binding InstallEqualizerApoCommand}" HorizontalAlignment="Left" Padding="12,6" Margin="0"/>
+                                            <Button x:Name="InstallApoButton" Content="Install Equalizer APO" Command="{Binding InstallEqualizerApoCommand}" HorizontalAlignment="Left" Padding="12,6" Margin="0" Tag="Cloud">
+                                                <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SettingsPrimaryButton}"><Style.Triggers><DataTrigger Binding="{Binding IsSystemEqSetupBusy}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                                            </Button>
+                                            <!-- Shown while the installer is checked, downloaded, and running. -->
+                                            <StackPanel x:Name="ApoSetupProgressPanel">
+                                                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsSystemEqSetupBusy}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                                                <TextBlock Text="{Binding SystemEqSetupProgressText}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,8"/>
+                                                <ProgressBar Height="6" Minimum="0" Maximum="100"
+                                                             Value="{Binding SystemEqSetupProgressPercent, Mode=OneWay}"
+                                                             IsIndeterminate="{Binding IsSystemEqSetupProgressIndeterminate}"
+                                                             Foreground="{DynamicResource WolfCyanBrush}"
+                                                             AutomationProperties.Name="Equalizer APO setup progress"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                     <Border Margin="0,12,0,0">
