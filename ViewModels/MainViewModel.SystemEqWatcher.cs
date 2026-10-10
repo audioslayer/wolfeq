@@ -65,12 +65,7 @@ public sealed partial class MainViewModel
     private void SystemEqConfigOnChanged(object sender, FileSystemEventArgs e)
     {
         // Raised on a thread-pool thread; the debounce timer lives on the UI dispatcher.
-        Application.Current?.Dispatcher.BeginInvoke(() =>
-        {
-            if (IsSystemEqSelected && !_systemEqApplyHalted)
-            {
-                QueueSystemEqApply();
-            }
-        });
+        // A repair re-apply, not a user change: it waits while the startup hold is active.
+        Application.Current?.Dispatcher.BeginInvoke(() => QueueSystemEqApply(isUserChange: false));
     }
 }

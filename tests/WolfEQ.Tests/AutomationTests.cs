@@ -114,6 +114,54 @@ public sealed class AutomationTests
     }
 
     [Fact]
+    public async Task SystemEqAutomationWaitsForAnInFlightApplyAndReportsTheRealOutcome()
+    {
+        using var rig = new SystemEqTestRig();
+        var model = await rig.CreateSystemEqModelAsync();
+        var gate = new TaskCompletionSource();
+        rig.Backend.ApplyGate = gate;
+
+        model.Bands[0].GainDb = 5;
+        var debounced = model.FlushSystemEqApplyAsync();
+        Assert.False(debounced.IsCompleted);
+
+        var bypass = model.ExecuteAutomationAsync(AutomationRequest.Parse(["--system-eq-bypass", "on"]));
+        var bypassOff = model.ExecuteAutomationAsync(AutomationRequest.Parse(["--system-eq-bypass", "off"]));
+        Assert.False(bypass.IsCompleted);
+        Assert.False(bypassOff.IsCompleted);
+
+        gate.SetResult();
+        await debounced;
+        var bypassResult = await bypass;
+        var bypassOffResult = await bypassOff;
+
+        // The in-flight apply picked up the bypass instead of the command reporting Failed,
+        // and the second command ran only after the first finished.
+        Assert.Equal((0, "Windows System EQ bypass on."), (bypassResult.ExitCode, bypassResult.Message));
+        Assert.Equal((0, "Windows System EQ bypass off."), (bypassOffResult.ExitCode, bypassOffResult.Message));
+        Assert.Equal([false, true, false], rig.Backend.Applies.Select(apply => apply.Bypassed));
+        Assert.Equal(5, rig.Backend.Applies[0].Preset.Bands[0].GainDb);
+    }
+
+    [Fact]
+    public async Task SystemEqPresetAutomationRefusesUnsavedEditsToTheOpenPreset()
+    {
+        using var rig = new SystemEqTestRig();
+        var model = await rig.CreateSystemEqModelAsync();
+        var open = model.SelectedPreset!;
+        var storedGain = open.Bands[0].GainDb;
+        model.Bands[0].GainDb = storedGain + 4;
+        await model.FlushSystemEqApplyAsync();
+        rig.Backend.Applies.Clear();
+
+        var result = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--preset", open.Name]));
+
+        Assert.Equal(3, result.ExitCode);
+        Assert.Contains("unsaved", result.Message);
+        Assert.Empty(rig.Backend.Applies);
+    }
+
+    [Fact]
     public async Task SystemEqAutomationNeedsSystemEqMode()
     {
         using var rig = new SystemEqTestRig();
