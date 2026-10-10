@@ -22,14 +22,33 @@ public sealed record SystemEqServices(
     Func<Task<ApoLaunchResult>> RunInstaller,
     Func<Task<ApoLaunchResult>> RunDeviceSelector)
 {
+    /// <summary>Test hook: when set, <see cref="CreateDefault"/> returns this instead of the real services.</summary>
+    internal static Func<SystemEqServices>? DefaultOverride { get; set; }
+
+    /// <summary>The real Equalizer APO services (registry detection, NAudio endpoints, elevated launchers).</summary>
     public static SystemEqServices CreateDefault()
-        => new(
-            new NullEqOutputBackend(),
-            new EmptyAudioEndpointCatalog(),
-            _ => new ApoEndpointStatus(false, false),
-            _ => false,
-            () => Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.NotFound, NullEqOutputBackend.UnavailableMessage)),
-            () => Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.NotFound, NullEqOutputBackend.UnavailableMessage)));
+    {
+        if (DefaultOverride is not null)
+        {
+            return DefaultOverride();
+        }
+
+        var installation = new EqualizerApoInstallation(new WindowsRegistryReader());
+        var launcher = new ApoProcessLauncher();
+        return new(
+            new EqualizerApoBackend(_ => Task.Run(installation.GetStatus)),
+            new WindowsAudioEndpointCatalog(),
+            installation.GetEndpointStatus,
+            FiioEndpointMatcher.IsFiioEndpoint,
+            () => ApoProcessLauncher.FindBundledInstaller(AppContext.BaseDirectory) is { } installer
+                ? launcher.RunInstallerAsync(installer)
+                : Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.NotFound,
+                    "The bundled Equalizer APO installer is missing. Reinstall WolfEQ or install Equalizer APO manually.")),
+            () => installation.DeviceSelectorPath is { } selector
+                ? launcher.RunDeviceSelectorAsync(selector)
+                : Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.NotFound,
+                    "Equalizer APO's device selector was not found. Install Equalizer APO first.")));
+    }
 }
 
 /// <summary>Safe stand-in used until the Equalizer APO backend is wired: reports "not installed" and writes nothing.</summary>

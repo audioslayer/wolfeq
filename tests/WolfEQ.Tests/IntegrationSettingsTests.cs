@@ -77,6 +77,7 @@ public sealed class IntegrationSettingsTests
                 VerifyTrayFlyout(model);
                 BandControlsViewChecks.Verify(model);
                 StudioViewChecks.Verify(model);
+                SystemEqViewChecks.Verify();
                 app.Shutdown();
             }
             catch (Exception ex) { failure = ex; }

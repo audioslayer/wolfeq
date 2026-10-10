@@ -172,6 +172,7 @@ public sealed partial class MainViewModel
         // harmless (header-only WolfEQ.txt). Only "Remove from Equalizer APO" removes it.
         _systemEqSettings.Selected = false;
         SaveSystemEqSettings();
+        StopSystemEqConfigWatcher();
         _systemEqApplyTimer.Stop();
         _systemEqApplyPending = false;
         _systemEqNotice = null;
@@ -476,6 +477,7 @@ public sealed partial class MainViewModel
         _systemEqApplyHalted = state is SystemEqState.NeedsInstall or SystemEqState.Blocked;
         _systemEqApplyError = null;
         SystemEqState = state;
+        UpdateSystemEqConfigWatcher();
         UpdateSystemEqStatus();
         QueueSystemEqApply();
     }

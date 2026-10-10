@@ -10,7 +10,10 @@ namespace WolfEQ.Services.SystemEq;
 /// </summary>
 public sealed class SystemEqSettings
 {
-    public static string DefaultPath => Path.Combine(Environment.GetFolderPath(
+    /// <summary>Test hook: redirects the default settings path away from the real profile.</summary>
+    internal static string? DefaultPathOverride { get; set; }
+
+    public static string DefaultPath => DefaultPathOverride ?? Path.Combine(Environment.GetFolderPath(
         Environment.SpecialFolder.LocalApplicationData), "WolfEQ", "system-eq.json");
 
     [JsonPropertyName("selected")]

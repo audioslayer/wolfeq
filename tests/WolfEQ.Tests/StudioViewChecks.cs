@@ -311,14 +311,14 @@ internal static class StudioViewChecks
         }
     }
 
-    private static void Layout(FrameworkElement element, double width, double height)
+    internal static void Layout(FrameworkElement element, double width, double height)
     {
         element.Measure(new Size(width, height));
         element.Arrange(new Rect(0, 0, width, height));
         element.UpdateLayout();
     }
 
-    private static void Render(FrameworkElement element, int width, int height, string name)
+    internal static void Render(FrameworkElement element, int width, int height, string name)
     {
         Layout(element, width, height);
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
@@ -329,7 +329,7 @@ internal static class StudioViewChecks
         encoder.Save(output);
     }
 
-    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    internal static IEnumerable<DependencyObject> Descendants(DependencyObject root)
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
         {

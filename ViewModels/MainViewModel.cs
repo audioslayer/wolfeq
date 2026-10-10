@@ -364,7 +364,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public string DeviceProfileCapabilityText => SelectedDeviceProfile.CapabilitySummary;
+    public string DeviceProfileCapabilityText => IsSystemEqSelected
+        ? "10 bands, -24 to +12 dB, all filters, applied to any Windows output through Equalizer APO"
+        : SelectedDeviceProfile.CapabilitySummary;
     public bool SelectedDeviceSupportsBleInput => SelectedDeviceProfile.HasBleInput;
     public bool SelectedDeviceSupportsBleLighting => SelectedDeviceProfile.HasBleLighting;
     public bool SelectedDeviceSupportsBleDeviceControls => SelectedDeviceProfile.HasBleDeviceControls;
