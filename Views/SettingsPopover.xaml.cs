@@ -26,6 +26,18 @@ public partial class SettingsPopover : UserControl
         InitializeComponent();
     }
 
+    /// <summary>
+    /// One-line summary shown under a settings section title while it is collapsed.
+    /// Kept separate from <c>Header</c> (which stays the plain section name) and from
+    /// <c>Tag</c> (which carries the section icon).
+    /// </summary>
+    public static readonly DependencyProperty SectionSummaryProperty = DependencyProperty.RegisterAttached(
+        "SectionSummary", typeof(string), typeof(SettingsPopover), new PropertyMetadata(string.Empty));
+
+    public static string GetSectionSummary(DependencyObject element) => (string)element.GetValue(SectionSummaryProperty);
+
+    public static void SetSectionSummary(DependencyObject element, string value) => element.SetValue(SectionSummaryProperty, value);
+
     /// <summary>Raised when the user clicks the panel's ✕ button.</summary>
     public event EventHandler? CloseRequested;
 
