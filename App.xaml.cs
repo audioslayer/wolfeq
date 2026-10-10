@@ -11,6 +11,9 @@ public partial class App : Application
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private MainViewModel? _viewModel;
     private TrayIconService? _tray;
+    /// <summary>Hidden flag the uninstaller passes to remove WolfEQ's block and file from Equalizer APO.</summary>
+    internal const string RemoveSoftwareEqArgument = "--remove-software-eq";
+
     internal bool IsExiting { get; private set; }
     internal bool CanHideToTray => _tray?.IsAvailable == true;
 
@@ -21,6 +24,15 @@ public partial class App : Application
         try
         {
             if (e.Args.Length > 0) AttachConsole(unchecked((uint)-1));
+            if (e.Args.Length == 1 && string.Equals(e.Args[0], RemoveSoftwareEqArgument, StringComparison.OrdinalIgnoreCase))
+            {
+                // Run by the uninstaller: take WolfEQ's EQ out of Equalizer APO so it doesn't keep
+                // playing after WolfEQ is gone. No window, no automation pipe.
+                var removal = await ViewModels.SystemEqServices.CreateDefault().Backend.RemoveAsync();
+                Finish(new(removal.Succeeded ? 0 : 1, removal.Message));
+                return;
+            }
+
             var request = AutomationRequest.Parse(e.Args);
             if (request.Help) { Finish(new(0, AutomationRequest.Usage)); return; }
             _automation = new AutomationHost();

@@ -197,6 +197,12 @@ internal static class StudioViewChecks
         Assert.Same(preview.Bands, previewTable.ItemsSource);
         Assert.Equal(6, previewTable.Columns.Count);
         Render(library, 860, 820, "studio-library-online-table");
+        // Picking another result must refresh the preview (the blank-preview bug fixed in 56aaead).
+        var replacement = new WolfEQ.Models.EqPreset { Name = "Second preview", Bands = new() { new() { Number = 1, FrequencyHz = 120, GainDb = -2, Q = 0.7 } } };
+        previewProperty.SetValue(model, replacement);
+        Layout(library, 860, 820);
+        Assert.Same(replacement.Bands, previewTable.ItemsSource);
+        Assert.Same(replacement.Bands, libraryGraph.Bands);
         previewProperty.SetValue(model, null);
         Layout(library, 860, 820);
         Assert.Empty(previewTable.Items);

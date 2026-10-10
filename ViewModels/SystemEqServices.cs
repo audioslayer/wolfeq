@@ -82,8 +82,31 @@ public sealed record SystemEqServices(
             installer = downloaded;
         }
 
-        progress?.Report(new ApoSetupProgress(ApoSetupStage.WaitingForSetup));
-        return await launcher.RunInstallerAsync(installer);
+        // Lock the file against writes, renames and deletes, then re-check its hash under the lock and
+        // keep it locked until setup exits, so nothing can be swapped in between the check and the
+        // elevated launch. Setup can still open it for reading and execution.
+        System.IO.FileStream guard;
+        try
+        {
+            guard = new System.IO.FileStream(installer, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            return new ApoLaunchResult(ApoLaunchOutcome.Failed, $"Couldn't open the Equalizer APO installer: {ex.Message}");
+        }
+
+        using (guard)
+        {
+            var hash = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(guard));
+            if (!string.Equals(hash, ApoInstallerDownloader.PinnedSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                return new ApoLaunchResult(ApoLaunchOutcome.Failed,
+                    "The Equalizer APO installer failed its integrity check, so it was not run.");
+            }
+
+            progress?.Report(new ApoSetupProgress(ApoSetupStage.WaitingForSetup));
+            return await launcher.RunInstallerAsync(installer);
+        }
     }
 }
 

@@ -25,6 +25,9 @@ No FiiO DAC? No problem. **Software EQ** brings WolfEQ's headphone library, Auto
 | ⏯️ **Bypass anywhere** | Compare EQ on and off from the app or the tray, without losing your curve. |
 | 🤝 **Plays well with Peace** | WolfEQ keeps to its own file and one marked line, and warns about stacked EQ. |
 | ⌨️ **Automation** | `--system-eq-bypass` and `--preset` for Stream Deck and scripts. |
+| 📚 **A roomier library** | List and large preview side by side, Favorites, rename, and one-click saving from online results. |
+| 🔀 **Quicker switching** | A device menu in the toolbar, a clearer USER slot menu, and color-coded connection status. |
+| 📌 **A new tray** | Now playing, an EQ switch, and quick presets in Software EQ mode. |
 
 Still here from 0.7.0: the redesigned workspace, colorful live spectrum bars, light and dark backgrounds, and a faster path from finding a preset to making it yours.
 
@@ -106,19 +109,24 @@ The **Spectrum** toggle beside **EQ Curve** shows audio playing through the **de
 
 ## 📚 Presets and local slot names
 
-**My Library** includes compact search, **+ New**, and a preset-actions menu for duplicate, delete, and device writing. **Save to Library** asks for a name before saving. Online presets are saved locally before opening or writing; their previews include a read-only band table.
+Open **Library** for your presets on the left and a large preview on the right: the curve or a band table, preamp, filter count, whether the preset fits your device, and where it came from.
 
-WolfEQ remembers descriptive names **locally for each saved USB device and slot**. They appear in the slot picker, selected-slot subtitle, and tray quick profiles. These labels stay on your PC; they are not names written into device firmware.
+- **My Library**, **Favorites**, and **Discover online** tabs. Saved presets can be filtered by category; online results by **AutoEQ** or **OPRA**.
+- Hover a saved preset to **star** it, **rename** it (✎ or F2), or delete it. Double-click opens it in the editor.
+- Hover an online result to save it to My Library without opening it.
+- **Import** and **Export** sit at the top of the library: Equalizer APO / Peace text, FiiO XML, WolfEQ JSON, library backups, and a copyable tuning report.
+- **Save to Library** asks for a name before saving. Online presets are saved locally before opening or writing.
+
+WolfEQ remembers descriptive names **locally for each saved USB device and slot**. They appear in the USER slot menu, the tray, and the selected-slot subtitle. These labels stay on your PC; they are not names written into device firmware.
 
 ## 📌 System tray
 
-Click or right-click the green waveform for quick access to saved USER slots and their local names. Double-click it or choose **Open editor** to return to the workspace.
+Click or right-click the green waveform for the tray panel. Double-click it or choose **Open editor** to return to the workspace.
 
-- **Close to tray** defaults on; **Minimize to tray** defaults off. Both preferences are saved.
+- **Now playing** shows the active slot or preset. In Software EQ mode it has an EQ switch for bypass.
+- FiiO mode shows your USER slots as chips, with a check on the active one. Software EQ mode shows up to six quick presets, favorites first.
+- **Tray options** holds **Close to tray** (on by default) and **Minimize to tray** (off by default). Both are saved.
 - **Quit** exits the app and checks for unsaved edits.
-- The active indicator reflects the confirmed device slot. Optional saved profile lighting follows confirmed switches.
-
-In Software EQ mode, the tray shows a bypass toggle and the Software EQ status instead of USER slots.
 
 Tray and automation switches select EQ **already stored on the device**. Save or discard editor changes before switching; use the editor to write a library preset into a slot.
 

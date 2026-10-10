@@ -201,8 +201,24 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
         RebuildSlots();
     }
 
+    // The view model raises many changes while a band is dragged; only these affect the flyout.
+    private static readonly HashSet<string> FlyoutProperties = new(StringComparer.Ordinal)
+    {
+        nameof(MainViewModel.Status), nameof(MainViewModel.SelectedPreset), nameof(MainViewModel.Presets),
+        nameof(MainViewModel.SelectedDeviceProfile), nameof(MainViewModel.SelectedDeviceUserPreset),
+        nameof(MainViewModel.TrayConfirmedPresetId), nameof(MainViewModel.IsDeviceConnected), nameof(MainViewModel.ConnectionText),
+        nameof(MainViewModel.ConnectionTone), nameof(MainViewModel.IsSystemEqSelected), nameof(MainViewModel.IsHardwareDeviceSelected), nameof(MainViewModel.SystemEqBypassed),
+        nameof(MainViewModel.SystemEqStatusText), nameof(MainViewModel.IntegrationControlsEnabled), nameof(MainViewModel.DeviceNickname),
+        nameof(MainViewModel.FavoritePresetCount), nameof(MainViewModel.IsProfileLibraryDirty)
+    };
+
     private void OnVmChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is { } name && !FlyoutProperties.Contains(name))
+        {
+            return;
+        }
+
         if (e.PropertyName == nameof(MainViewModel.Status))
         {
             if (_switching) _progress = Vm.Status;
@@ -224,8 +240,10 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
     private void SyncQuickPresets()
     {
         var next = Vm.TrayQuickPresets;
+        // Rows snapshot name and favorite (EqPreset has no change notifications), so a rename or
+        // star change rebuilds them too.
         if (!next.SequenceEqual(QuickPresets.Select(row => row.Preset))
-            || QuickPresets.Any(row => row.IsFavorite != row.Preset.IsFavorite))
+            || QuickPresets.Any(row => row.IsFavorite != row.Preset.IsFavorite || row.Name != row.Preset.Name))
         {
             QuickPresets.Clear();
             foreach (var preset in next) QuickPresets.Add(new TrayPresetState(preset));
@@ -293,7 +311,7 @@ internal sealed class TraySlotState(DeviceUserPresetOption option) : INotifyProp
 internal sealed class TrayPresetState(EqPreset preset) : INotifyPropertyChanged
 {
     public EqPreset Preset => preset;
-    public string Name => preset.Name;
+    public string Name { get; } = preset.Name;
     public bool IsFavorite { get; } = preset.IsFavorite;
     public string IconName => IsFavorite ? "Heart" : "SlidersHorizontal";
     public string Subtitle => IsFavorite ? $"Favorite · {preset.Category}" : preset.Category;

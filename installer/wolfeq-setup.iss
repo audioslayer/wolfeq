@@ -50,6 +50,12 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+; Stop WolfEQ first so it can't re-add its Equalizer APO block, then remove WolfEQ's EQ from APO
+; so it doesn't keep playing after uninstall. APO itself and other configs (Peace) are left alone.
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im ""{#MyAppExeName}"""; Flags: runhidden; RunOnceId: "StopWolfEQ"
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--remove-software-eq"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveSoftwareEq"
+
 [Code]
 function InitializeSetup(): Boolean;
 var
