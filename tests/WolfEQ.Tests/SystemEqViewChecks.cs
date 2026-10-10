@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
@@ -72,6 +73,17 @@ internal static class SystemEqViewChecks
         Assert.False(IsShown((FrameworkElement)dock.FindName("WriteToDeviceButton")));
         Assert.True(IsShown((FrameworkElement)dock.FindName("SystemEqDockPanel")));
 
+        // A fuller library: favorites lead, and the list stops at six rows.
+        EqPreset[] extra =
+        [
+            new() { Name = "Ananda Music - Warm Detail", Category = "Listening", IsFavorite = true },
+            new() { Name = "Late night podcast", Category = "Voice" },
+            new() { Name = "Competitive FPS", Category = "Gaming", IsFavorite = true },
+            new() { Name = "Movie night", Category = "Cinema" },
+            new() { Name = "Bass lift", Category = "Listening" },
+            new() { Name = "Hidden seventh", Category = "Listening" },
+        ];
+        foreach (var preset in extra) model.Presets.Add(preset);
         var tray = new TrayFlyout(model, () => { }, () => { }, () => { });
         var trayContent = (FrameworkElement)tray.Content;
         trayContent.DataContext = tray.DataContext;
@@ -80,7 +92,20 @@ internal static class SystemEqViewChecks
         StudioViewChecks.Layout(trayContent, 368, 720);
         StudioViewChecks.Render(trayContent, 368, 720, "studio-tray-system-eq");
         Assert.DoesNotContain(StudioViewChecks.Descendants(trayContent).OfType<Button>(), button => button.Tag is int && IsShown(button));
+        Assert.False(IsShown(TrayPart<FrameworkElement>(trayContent, "SlotsPanel")), "USER slot chips are hardware-only.");
+        var quickPanel = TrayPart<FrameworkElement>(trayContent, "QuickPresetsPanel");
+        Assert.True(IsShown(quickPanel), "Quick presets must be visible in System EQ mode.");
+        var quickRows = StudioViewChecks.Descendants(quickPanel).OfType<Button>().Where(IsShown).ToArray();
+        Assert.Equal(Math.Min(MainViewModel.TrayQuickPresetLimit, model.Presets.Count), quickRows.Length);
+        Assert.Equal(model.TrayQuickPresets.Select(preset => preset.Name), quickRows.Select(AutomationProperties.GetName));
+        // The EQ switch shows "on" while System EQ is not bypassed.
+        var eqToggle = TrayPart<ToggleButton>(trayContent, "EqToggle");
+        Assert.True(IsShown(eqToggle));
+        Assert.Equal(!model.SystemEqBypassed, eqToggle.IsChecked);
+        Assert.Equal(["Ananda Music - Warm Detail", "Competitive FPS"], quickRows.Take(2).Select(AutomationProperties.GetName));
+        Assert.DoesNotContain(quickRows, row => AutomationProperties.GetName(row) == "Hidden seventh");
         tray.DisposeFlyout();
+        foreach (var preset in extra) model.Presets.Remove(preset);
     }
 
     /// <summary>Tray tooltip: no doubled "System EQ" prefix, problems survive bypass, 127-char limit.</summary>
@@ -169,6 +194,10 @@ internal static class SystemEqViewChecks
     }
 
     /// <summary>True when the element and every visual ancestor are <see cref="Visibility.Visible"/>.</summary>
+    /// <summary>Detached tray content has no name scope of its own; find named parts in the visual tree.</summary>
+    private static T TrayPart<T>(FrameworkElement root, string name) where T : FrameworkElement
+        => StudioViewChecks.Descendants(root).OfType<T>().Single(element => element.Name == name);
+
     private static bool IsShown(FrameworkElement element)
     {
         for (DependencyObject? current = element; current is not null; current = VisualTreeHelper.GetParent(current))
