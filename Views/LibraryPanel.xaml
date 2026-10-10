@@ -33,10 +33,42 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding Name}"
                            FontSize="13"
                            FontWeight="SemiBold"
                            TextTrimming="CharacterEllipsis"/>
+                <!-- Row delete: shown on hover or when the row is selected. -->
+                <Button x:Name="RowDeleteButton" Grid.Column="1" Grid.RowSpan="2" Click="RowDeleteButton_Click"
+                        Width="30" Height="30" Margin="8,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
+                        ToolTip="Delete preset" AutomationProperties.Name="Delete preset">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                                <Path x:Name="Glyph" Data="M3,5 H17 M7,5 V2 H13 V5 M5,5 V18 H15 V5 M8,8 V15 M12,8 V15" Width="14" Height="14" Stretch="Uniform"
+                                      Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="#26FF5555"/>
+                                    <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource WolfDangerBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Hidden"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
                 <DockPanel Grid.Row="1" Margin="0,3,0,0">
                     <TextBlock Text="{Binding Category}"
                                Style="{StaticResource TinyLabel}"
@@ -300,6 +332,7 @@
                          ItemsSource="{Binding FilteredPresets}"
                          SelectedItem="{Binding LibrarySelection}"
                          x:Name="SavedPresetList" IsSynchronizedWithCurrentItem="False"
+                         KeyDown="SavedPresetList_KeyDown"
                          ItemTemplate="{StaticResource LibraryPresetListItemTemplate}"
                          MinHeight="120"/>
                 <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
@@ -314,13 +347,31 @@
                 <Border x:Name="LibrarySelectionActions" Grid.Row="2" Visibility="{Binding HasItems, ElementName=SavedPresetList, Converter={StaticResource BooleanToVisibilityConverter}}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,12,0,0">
                     <StackPanel>
                         <TextBlock Text="{Binding LibrarySelection.Name, TargetNullValue=Select a preset}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="2,0,0,10"/>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <Button x:Name="OpenPresetButton" Click="OpenPresetButton_Click" Margin="0,0,8,0" Padding="12,10">
 
                                 <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SavePresetButton}"><Style.Triggers><DataTrigger Binding="{Binding LibrarySelection}" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></Button.Style>
                                 <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="17" IconBrush="{DynamicResource WolfGreenContrastBrush}" Margin="0,0,8,0"/><TextBlock Text="Open in editor" Foreground="{DynamicResource WolfGreenContrastBrush}"/></StackPanel>
                             </Button>
-                            <ToggleButton x:Name="PresetActionsButton" Grid.Column="1" Content="&#x22EF;" FontSize="22" Width="42" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=PresetActionsPopup, Mode=TwoWay}" ToolTip="Actions for this preset" AutomationProperties.Name="Preset actions"/>
+                            <Button x:Name="DeleteSelectedPresetButton" Grid.Column="1" Command="{Binding DeletePresetCommand}" Width="42" Margin="0,0,8,0" Cursor="Hand"
+                                    ToolTip="Delete this preset" AutomationProperties.Name="Delete selected preset">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="8">
+                                            <Path x:Name="Glyph" Data="M3,5 H17 M7,5 V2 H13 V5 M5,5 V18 H15 V5 M8,8 V15 M12,8 V15" Width="16" Height="16" Stretch="Uniform"
+                                                  Stroke="{DynamicResource WolfDangerBrush}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Chrome" Property="Background" Value="#26FF5555"/>
+                                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfDangerBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <ToggleButton x:Name="PresetActionsButton" Grid.Column="2" Content="&#x22EF;" FontSize="22" Width="42" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=PresetActionsPopup, Mode=TwoWay}" ToolTip="Actions for this preset" AutomationProperties.Name="Preset actions"/>
                             <Popup x:Name="PresetActionsPopup" PlacementTarget="{Binding ElementName=PresetActionsButton}" Placement="Top" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                 <Border Width="230" Padding="8" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="8">
                                     <StackPanel>

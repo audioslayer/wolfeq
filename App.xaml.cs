@@ -104,8 +104,11 @@ public partial class App : Application
         if (_viewModel?.HasUnsavedTrayEdits == true)
         {
             RestoreEditor();
-            if (MessageBox.Show(MainWindow, "You have unsaved changes. Quit WolfEQ and discard them?",
-                    "Quit WolfEQ", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
+            if (!WolfEQ.Views.WolfDialog.Confirm(MainWindow, new ConfirmationRequest(
+                    "Quit WolfEQ?",
+                    "You have unsaved changes. Quit WolfEQ and discard them?",
+                    "Quit and discard",
+                    IsDestructive: true)))
                 return;
         }
         IsExiting = true;

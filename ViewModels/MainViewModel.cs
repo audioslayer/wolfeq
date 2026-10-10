@@ -1009,6 +1009,17 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     public Func<string, string, bool>? ConfirmDialog { get; set; }
 
+    /// <summary>
+    /// Richer confirmation hook (custom button text, destructive styling). Preferred over
+    /// <see cref="ConfirmDialog"/> when set; null falls back to it.
+    /// </summary>
+    public Func<ConfirmationRequest, bool>? ConfirmationDialog { get; set; }
+
+    private bool Confirm(ConfirmationRequest request)
+        => ConfirmationDialog?.Invoke(request)
+           ?? ConfirmDialog?.Invoke(request.Title, request.Message)
+           ?? true;
+
     public bool CanUseDeviceVolumeControls => IsDeviceConnected && SelectedDeviceSupportsBleDeviceControls && !_isWritingDeviceVolume;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -1641,13 +1652,18 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             Status = UpdateStatus;
             AddLog(UpdateStatus);
 
-            var result = MessageBox.Show(
-                $"WolfEQ {update.Tag} is available. Download and install it now?",
-                "WolfEQ Update",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Information);
-
-            if (result != MessageBoxResult.Yes)
+            var install = ConfirmationDialog is { } ask
+                ? ask(new ConfirmationRequest(
+                    "Update available",
+                    $"WolfEQ {update.Tag} is available. Download and install it now?",
+                    "Install update",
+                    CancelText: "Not now"))
+                : MessageBox.Show(
+                    $"WolfEQ {update.Tag} is available. Download and install it now?",
+                    "WolfEQ Update",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information) == MessageBoxResult.Yes;
+            if (!install)
             {
                 return;
             }
@@ -3774,12 +3790,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        var result = MessageBox.Show(
-            $"Delete \"{preset.Name}\" from WolfEQ?",
-            "Delete preset",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes)
+        var isOpen = ReferenceEquals(preset, SelectedPreset);
+        if (!Confirm(new ConfirmationRequest(
+                "Delete preset?",
+                $"\"{preset.Name}\" will be removed from your WolfEQ library. This can't be undone.",
+                "Delete",
+                IsDestructive: true,
+                Detail: isOpen ? "It's open in the editor; the next preset will open instead." : null)))
         {
             return;
         }

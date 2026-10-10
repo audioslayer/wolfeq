@@ -36,6 +36,34 @@ public partial class LibraryPanel : UserControl
 
     private void PresetAction_Click(object sender, RoutedEventArgs e) => PresetActionsPopup.IsOpen = false;
 
+    /// <summary>Row trash button: select that row, then run the normal confirmed delete.</summary>
+    private void RowDeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel model || sender is not FrameworkElement { DataContext: Models.EqPreset preset })
+        {
+            return;
+        }
+
+        model.LibrarySelection = preset;
+        if (model.DeletePresetCommand.CanExecute(null))
+        {
+            model.DeletePresetCommand.Execute(null);
+        }
+
+        e.Handled = true;
+    }
+
+    private void SavedPresetList_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Delete || DataContext is not MainViewModel model || !model.DeletePresetCommand.CanExecute(null))
+        {
+            return;
+        }
+
+        model.DeletePresetCommand.Execute(null);
+        e.Handled = true;
+    }
+
     private void PreviewView_Click(object sender, RoutedEventArgs e)
     {
         if (sender is RadioButton { Tag: string index } && int.TryParse(index, out var selectedIndex))

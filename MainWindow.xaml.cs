@@ -22,9 +22,8 @@ public partial class MainWindow : Window
 
         var viewModel = new MainViewModel
         {
-            ConfirmDialog = (title, message) =>
-                MessageBox.Show(this, message, title, MessageBoxButton.OKCancel, MessageBoxImage.Warning)
-                == MessageBoxResult.OK
+            ConfirmDialog = (title, message) => Views.WolfDialog.Confirm(this, new ConfirmationRequest(title, message)),
+            ConfirmationDialog = request => Views.WolfDialog.Confirm(this, request)
         };
         DataContext = viewModel;
 
