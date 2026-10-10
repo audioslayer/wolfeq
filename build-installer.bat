@@ -10,6 +10,8 @@ echo.
 rem Equalizer APO installer bundled for Windows System EQ (GPL-2.0, shipped unmodified).
 rem The exe is gitignored. It is downloaded when missing and must match the pinned SHA-256.
 rem Pinned hash: Chocolatey equalizerapo 1.4.2 checksum64, confirmed against the SourceForge download.
+rem APO_FILE must equal EqualizerApoInstallerFileName in WolfEQ.csproj and
+rem ApoProcessLauncher.PinnedInstallerFileName; only that exact file is bundled and launched.
 set "APO_VERSION=1.4.2"
 set "APO_FILE=EqualizerAPO-x64-%APO_VERSION%.exe"
 set "APO_DIR=%~dp0redist\EqualizerAPO"

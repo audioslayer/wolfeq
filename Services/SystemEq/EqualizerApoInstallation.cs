@@ -26,17 +26,20 @@ public sealed partial class EqualizerApoInstallation
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string, string?> _readText;
     private readonly Func<string, bool> _canWriteDirectory;
+    private readonly Func<string, bool> _directoryExists;
 
     public EqualizerApoInstallation(
         IRegistryReader registry,
         Func<string, bool>? fileExists = null,
         Func<string, string?>? readText = null,
-        Func<string, bool>? canWriteDirectory = null)
+        Func<string, bool>? canWriteDirectory = null,
+        Func<string, bool>? directoryExists = null)
     {
         _registry = registry;
         _fileExists = fileExists ?? File.Exists;
         _readText = readText ?? ReadTextOrNull;
         _canWriteDirectory = canWriteDirectory ?? CanWriteDirectory;
+        _directoryExists = directoryExists ?? Directory.Exists;
     }
 
     /// <summary>APO config folder from the registry (<c>ConfigPath</c>), or null.</summary>
@@ -49,6 +52,16 @@ public sealed partial class EqualizerApoInstallation
     public string? DeviceSelectorPath
         => InstallDirectory is { } install ? Path.Combine(install, "DeviceSelector.exe") : null;
 
+    /// <summary>
+    /// Full detection: registry, CLSIDs, the DLL, config.txt (Peace) and a write probe in the config folder.
+    /// This is comparatively expensive and touches APO's watched folder, so callers run it on refresh only,
+    /// never per apply.
+    /// </summary>
+    /// <remarks>
+    /// When APO is not really installed but its registry <c>ConfigPath</c> still exists on disk, the
+    /// not-installed status keeps <see cref="SystemEqBackendStatus.ConfigDirectory"/> and
+    /// <see cref="SystemEqBackendStatus.InstallDirectory"/> so removal can clean WolfEQ's leftovers there.
+    /// </remarks>
     public SystemEqBackendStatus GetStatus()
     {
         try
@@ -57,7 +70,7 @@ public sealed partial class EqualizerApoInstallation
             var config = ConfigDirectory;
             if (install is null || config is null)
             {
-                return SystemEqBackendStatus.NotInstalled("Equalizer APO is not installed.");
+                return NotInstalled("Equalizer APO is not installed.", install, config);
             }
 
             // The EqualizerAPO key survives uninstall, so require the DLL and a registered APO class.
@@ -65,8 +78,10 @@ public sealed partial class EqualizerApoInstallation
             var hasClsid = ApoClsids.Any(clsid => _registry.KeyExists(RegistryRoot.ClassesRoot, $@"CLSID\{clsid}"));
             if (!hasDll || !hasClsid)
             {
-                return SystemEqBackendStatus.NotInstalled(
-                    "Equalizer APO is not installed (only leftover settings from an earlier install were found).");
+                return NotInstalled(
+                    "Equalizer APO is not installed (only leftover settings from an earlier install were found).",
+                    install,
+                    config);
             }
 
             var writable = SafeCanWrite(config);
@@ -112,6 +127,12 @@ public sealed partial class EqualizerApoInstallation
     [GeneratedRegex(@"^[ \t]*Include[ \t]*:[ \t]*(?:[^\r\n#]*[\\/])?peace\.txt[ \t]*\r?$", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
     private static partial Regex PeaceIncludeRegex();
 
+    /// <summary>Not installed; carries the leftover folders only when the config folder is really on disk.</summary>
+    private SystemEqBackendStatus NotInstalled(string message, string? install, string? config)
+        => config is not null && SafeDirectoryExists(config)
+            ? new SystemEqBackendStatus(false, config, install, false, false, message)
+            : SystemEqBackendStatus.NotInstalled(message);
+
     private string? ReadPath(string valueName)
     {
         var value = _registry.GetValue(RegistryRoot.LocalMachine, ApoRegistryKey, valueName)?.Trim();
@@ -121,6 +142,12 @@ public sealed partial class EqualizerApoInstallation
     private bool SafeFileExists(string path)
     {
         try { return _fileExists(path); }
+        catch { return false; }
+    }
+
+    private bool SafeDirectoryExists(string path)
+    {
+        try { return _directoryExists(path); }
         catch { return false; }
     }
 
@@ -146,6 +173,8 @@ public sealed partial class EqualizerApoInstallation
             return false;
         }
 
+        // APO watches this folder, so the probe is a hidden-style .tmp name APO never includes, it is
+        // deleted on close, and it only runs from GetStatus (refresh), not on every apply.
         var probe = Path.Combine(directory, $".wolfeq-write-test-{Guid.NewGuid():N}.tmp");
         try
         {

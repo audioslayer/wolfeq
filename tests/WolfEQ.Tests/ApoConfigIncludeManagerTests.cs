@@ -142,6 +142,7 @@ public sealed class ApoConfigIncludeManagerTests
     [InlineData(new byte[] { 0xEF, 0xBB, 0xBF, 0x49, 0x6E, 0x63, 0xC3, 0xA9 })]
     [InlineData(new byte[] { 0xFF, 0xFE, 0x49, 0x00, 0x6E, 0x00 })]
     [InlineData(new byte[] { 0x23, 0x20, 0xE9, 0x74, 0xE9, 0x0D, 0x0A })] // Windows-1252 bytes, invalid UTF-8
+    [InlineData(new byte[] { 0xEF, 0xBB, 0xBF, 0x23, 0x20, 0xE9, 0x74, 0xE9, 0x0D, 0x0A })] // UTF-8 BOM, then invalid UTF-8
     public void DecodeEncodeRoundTripsBytesExactly(byte[] bytes)
     {
         var text = ApoConfigIncludeManager.DecodeConfig(bytes, out var encoding);
@@ -151,6 +152,19 @@ public sealed class ApoConfigIncludeManagerTests
         var ensured = ApoConfigIncludeManager.EncodeConfig(ApoConfigIncludeManager.EnsureBlock(text), encoding);
         var restored = ApoConfigIncludeManager.RemoveBlock(ApoConfigIncludeManager.DecodeConfig(ensured, out var again));
         Assert.Equal(bytes, ApoConfigIncludeManager.EncodeConfig(restored, again));
+    }
+
+    [Fact]
+    public void Utf8BomWithInvalidBytesFallsBackToLatin1AndKeepsBom()
+    {
+        byte[] bytes = [0xEF, 0xBB, 0xBF, 0x23, 0x20, 0xE9, 0xFF, 0x0D, 0x0A];
+
+        var text = ApoConfigIncludeManager.DecodeConfig(bytes, out var encoding);
+        var ensured = ApoConfigIncludeManager.EncodeConfig(ApoConfigIncludeManager.EnsureBlock(text), encoding);
+
+        byte[] expected = [0xEF, 0xBB, 0xBF, .. Encoding.ASCII.GetBytes(BlockCrlf), 0x23, 0x20, 0xE9, 0xFF, 0x0D, 0x0A];
+        Assert.Equal(ApoConfigIncludeManager.ConfigEncoding.Utf8BomLatin1, encoding);
+        Assert.Equal(expected, ensured);
     }
 
     [Fact]

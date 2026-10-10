@@ -46,14 +46,37 @@ public sealed class ApoProcessLauncherTests
 
     [Theory]
     [InlineData(0, ApoLaunchOutcome.Completed)]
-    [InlineData(1, ApoLaunchOutcome.RebootRequired)]
+    [InlineData(1, ApoLaunchOutcome.Cancelled)]
     [InlineData(2, ApoLaunchOutcome.Failed)]
+    [InlineData(3010, ApoLaunchOutcome.Failed)]
     [InlineData(-1, ApoLaunchOutcome.Failed)]
-    public async Task ExitCodes_MapToOutcomes(int exitCode, ApoLaunchOutcome expected)
+    public async Task InstallerExitCodes_FollowNsisMeaning(int exitCode, ApoLaunchOutcome expected)
     {
         var launcher = new ApoProcessLauncher((_, _) => Task.FromResult(exitCode), _ => true);
 
         Assert.Equal(expected, (await launcher.RunInstallerAsync(Installer)).Outcome);
+    }
+
+    [Fact]
+    public async Task InstallerExitOne_IsCalmCancelNotReboot()
+    {
+        var launcher = new ApoProcessLauncher((_, _) => Task.FromResult(1), _ => true);
+
+        var result = await launcher.RunInstallerAsync(Installer);
+
+        Assert.Equal(ApoLaunchOutcome.Cancelled, result.Outcome);
+        Assert.Equal("Equalizer APO setup was canceled, so nothing changed.", result.Message);
+    }
+
+    [Theory]
+    [InlineData(0, ApoLaunchOutcome.Completed)]
+    [InlineData(1, ApoLaunchOutcome.RebootRequired)]
+    [InlineData(2, ApoLaunchOutcome.Failed)]
+    [InlineData(-1, ApoLaunchOutcome.Failed)]
+    public async Task DeviceSelectorExitCodes_OneMeansReboot(int exitCode, ApoLaunchOutcome expected)
+    {
+        var launcher = new ApoProcessLauncher((_, _) => Task.FromResult(exitCode), _ => true);
+
         Assert.Equal(expected, (await launcher.RunDeviceSelectorAsync(DeviceSelector)).Outcome);
     }
 
@@ -73,24 +96,58 @@ public sealed class ApoProcessLauncherTests
     }
 
     [Fact]
-    public void FindBundledInstaller_PicksHighestVersion()
+    public void FindBundledInstaller_OnlyReturnsThePinnedFileName()
     {
         var root = Path.Combine(Path.GetTempPath(), "wolfeq-apo-launcher-" + Guid.NewGuid().ToString("N"));
         var folder = Path.Combine(root, "redist", "EqualizerAPO");
         try
         {
             Directory.CreateDirectory(folder);
-            foreach (var name in new[] { "EqualizerAPO-x64-1.4.2.exe", "EqualizerAPO-x64-1.10.0.exe", "EqualizerAPO-x64-1.3.exe", "EqualizerAPO-x86-9.9.9.exe" })
+            // Higher-versioned or look-alike files must never be preferred over the pinned, hash-checked one.
+            foreach (var name in new[] { "EqualizerAPO-x64-1.10.0.exe", "EqualizerAPO-x64-9.9.exe", "evil.exe" })
             {
                 File.WriteAllText(Path.Combine(folder, name), string.Empty);
             }
 
-            Assert.Equal(Path.Combine(folder, "EqualizerAPO-x64-1.10.0.exe"), ApoProcessLauncher.FindBundledInstaller(root));
+            Assert.Null(ApoProcessLauncher.FindBundledInstaller(root));
+
+            File.WriteAllText(Path.Combine(folder, ApoProcessLauncher.PinnedInstallerFileName), string.Empty);
+
+            Assert.Equal(
+                Path.Combine(folder, ApoProcessLauncher.PinnedInstallerFileName),
+                ApoProcessLauncher.FindBundledInstaller(root));
         }
         finally
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void PinnedInstallerName_MatchesCsprojAndBuildScript()
+    {
+        var repo = FindRepoRoot();
+        var csproj = File.ReadAllText(Path.Combine(repo, "WolfEQ.csproj"));
+        var script = File.ReadAllText(Path.Combine(repo, "build-installer.bat"));
+
+        Assert.Contains($"<EqualizerApoInstallerFileName>{ApoProcessLauncher.PinnedInstallerFileName}</EqualizerApoInstallerFileName>", csproj);
+        Assert.DoesNotContain(@"redist\EqualizerAPO\*", csproj);
+        Assert.Matches(@"set ""APO_VERSION=1\.4\.2""", script);
+        Assert.Contains(@"set ""APO_FILE=EqualizerAPO-x64-%APO_VERSION%.exe""", script);
+        Assert.Equal("EqualizerAPO-x64-1.4.2.exe", ApoProcessLauncher.PinnedInstallerFileName);
+    }
+
+    private static string FindRepoRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "WolfEQ.csproj")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        throw new InvalidOperationException("WolfEQ.csproj was not found above the test output folder.");
     }
 
     [Fact]

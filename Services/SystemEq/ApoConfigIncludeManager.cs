@@ -29,7 +29,9 @@ public static class ApoConfigIncludeManager
         Utf16LeBom,
         Utf16BeBom,
         // Not valid UTF-8 (for example an ANSI comment); Latin-1 round-trips every byte unchanged.
-        Latin1
+        Latin1,
+        // UTF-8 BOM followed by bytes that are not valid UTF-8; the BOM is kept, the rest round-trips as Latin-1.
+        Utf8BomLatin1
     }
 
     private readonly record struct Line(string Content, string Ending);
@@ -70,8 +72,8 @@ public static class ApoConfigIncludeManager
         return builder.ToString();
     }
 
-    /// <summary>True when the canonical block sits at the top and no stray fragments exist elsewhere.</summary>
-    public static bool HasBlock(string configText)
+    /// <summary>True when the canonical block sits at the top and no stray fragments exist elsewhere (test helper).</summary>
+    internal static bool HasBlock(string configText)
         => string.Equals(EnsureBlock(configText), configText, StringComparison.Ordinal);
 
     public static string GetConfigPath(string configDirectory) => Path.Combine(configDirectory, ConfigFileName);
@@ -86,8 +88,17 @@ public static class ApoConfigIncludeManager
 
         if (span.StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }))
         {
-            encoding = ConfigEncoding.Utf8Bom;
-            return StrictUtf8.GetString(span[3..]);
+            try
+            {
+                var text = StrictUtf8.GetString(span[3..]);
+                encoding = ConfigEncoding.Utf8Bom;
+                return text;
+            }
+            catch (DecoderFallbackException)
+            {
+                encoding = ConfigEncoding.Utf8BomLatin1;
+                return Encoding.Latin1.GetString(span[3..]);
+            }
         }
 
         if (span.StartsWith(new byte[] { 0xFF, 0xFE }))
@@ -125,6 +136,7 @@ public static class ApoConfigIncludeManager
             ConfigEncoding.Utf16LeBom => [0xFF, 0xFE, .. Encoding.Unicode.GetBytes(text)],
             ConfigEncoding.Utf16BeBom => [0xFE, 0xFF, .. Encoding.BigEndianUnicode.GetBytes(text)],
             ConfigEncoding.Latin1 => Encoding.Latin1.GetBytes(text),
+            ConfigEncoding.Utf8BomLatin1 => [0xEF, 0xBB, 0xBF, .. Encoding.Latin1.GetBytes(text)],
             _ => StrictUtf8.GetBytes(text)
         };
     }

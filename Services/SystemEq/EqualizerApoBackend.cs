@@ -8,34 +8,63 @@ namespace WolfEQ.Services.SystemEq;
 /// Applies the editor EQ through Equalizer APO by writing WolfEQ.txt and keeping WolfEQ's block in
 /// config.txt (KTD2-KTD7). Calls are serialized; files are only rewritten when their bytes change.
 /// </summary>
+/// <remarks>
+/// Detection is expensive (registry, CLSIDs, a write probe inside APO's watched folder), so the status from
+/// the last detection is cached and reused by <see cref="ApplyAsync"/>. <see cref="GetStatusAsync"/> and
+/// <see cref="RemoveAsync"/> always detect afresh; apply only detects when nothing is cached yet, or after a
+/// filesystem failure invalidated the cache.
+/// </remarks>
 public sealed class EqualizerApoBackend : IEqOutputBackend
 {
     private const int ErrorSharingViolation = 32;
     private const int ErrorLockViolation = 33;
 
     private readonly Func<CancellationToken, Task<SystemEqBackendStatus>> _statusProvider;
+    private readonly Func<string, bool> _canWriteDirectory;
     private readonly int _maxAttempts;
     private readonly TimeSpan _retryDelay;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
+    // Last detection result; null means "detect on the next apply".
+    private volatile SystemEqBackendStatus? _cachedStatus;
+
     /// <param name="statusProvider">APO detection; supplies the config folder to write into.</param>
     /// <param name="maxAttempts">Attempts per file operation when APO briefly holds the file (KTD7).</param>
     /// <param name="retryDelay">Delay between attempts; the default spreads 5 attempts over about 200 ms.</param>
+    /// <param name="canWriteDirectory">
+    /// Fresh write probe used only after access was denied on every attempt, to tell a locked-down folder
+    /// (Blocked) from a transient denial such as antivirus or a pending delete (Failed). Injectable for tests.
+    /// </param>
     public EqualizerApoBackend(
         Func<CancellationToken, Task<SystemEqBackendStatus>> statusProvider,
         int maxAttempts = 5,
-        TimeSpan? retryDelay = null)
+        TimeSpan? retryDelay = null,
+        Func<string, bool>? canWriteDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(statusProvider);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxAttempts, 1);
 
         _statusProvider = statusProvider;
+        _canWriteDirectory = canWriteDirectory ?? ProbeDirectoryWritable;
         _maxAttempts = maxAttempts;
         _retryDelay = retryDelay ?? TimeSpan.FromMilliseconds(50);
     }
 
-    public Task<SystemEqBackendStatus> GetStatusAsync(CancellationToken cancellationToken = default)
-        => _statusProvider(cancellationToken);
+    /// <summary>Always runs detection, and caches the result for later applies.</summary>
+    public async Task<SystemEqBackendStatus> GetStatusAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var status = await _statusProvider(cancellationToken).ConfigureAwait(false);
+            _cachedStatus = status;
+            return status;
+        }
+        catch
+        {
+            _cachedStatus = null;
+            throw;
+        }
+    }
 
     public async Task<SystemEqApplyResult> ApplyAsync(
         EqPreset preset,
@@ -54,17 +83,25 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
         string? configDirectory = null;
         try
         {
-            var status = await ReadStatusAsync(cancellationToken).ConfigureAwait(false);
+            // Warm cache: no registry reads and no probe files, only the config folder check below.
+            var status = _cachedStatus ?? await ReadStatusAsync(cancellationToken).ConfigureAwait(false);
             if (status is null)
             {
                 return new SystemEqApplyResult(SystemEqApplyOutcome.Failed, "Couldn't check Equalizer APO.");
             }
 
-            if (!status.IsInstalled || !ConfigDirectoryExists(status.ConfigDirectory))
+            if (!status.IsInstalled)
             {
                 return new SystemEqApplyResult(
                     SystemEqApplyOutcome.NotInstalled,
                     string.IsNullOrWhiteSpace(status.Message) ? "Equalizer APO is not installed." : status.Message);
+            }
+
+            if (!ConfigDirectoryExists(status.ConfigDirectory))
+            {
+                // The folder vanished (uninstall, moved ConfigPath): detect again next time.
+                _cachedStatus = null;
+                return new SystemEqApplyResult(SystemEqApplyOutcome.NotInstalled, "Equalizer APO's config folder is missing.");
             }
 
             configDirectory = status.ConfigDirectory!;
@@ -85,13 +122,10 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
                     SystemEqApplyOutcome.Applied,
                     guids.Count == 1 ? "EQ applied to 1 output." : $"EQ applied to {guids.Count} outputs.");
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException)
+        catch (Exception ex) when (IsFileSystemFailure(ex))
         {
-            return BlockedResult(configDirectory);
-        }
-        catch (IOException ex)
-        {
-            return new SystemEqApplyResult(SystemEqApplyOutcome.Failed, $"Couldn't update Equalizer APO's config: {ex.Message}");
+            _cachedStatus = null;
+            return FileSystemFailure(ex, configDirectory);
         }
         finally
         {
@@ -105,13 +139,15 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
         string? configDirectory = null;
         try
         {
+            // Removal is rare and must find leftovers, so it always detects afresh.
             var status = await ReadStatusAsync(cancellationToken).ConfigureAwait(false);
             if (status is null)
             {
                 return new SystemEqApplyResult(SystemEqApplyOutcome.Failed, "Couldn't check Equalizer APO.");
             }
 
-            // Leftover config folders are cleaned too, even when APO itself is gone.
+            // Leftover config folders are cleaned too, even when APO itself is gone: detection still
+            // reports their ConfigDirectory with IsInstalled = false.
             if (!ConfigDirectoryExists(status.ConfigDirectory))
             {
                 return new SystemEqApplyResult(SystemEqApplyOutcome.Applied, "Nothing to remove from Equalizer APO.");
@@ -134,17 +170,14 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
             }
 
             var includePath = ApoConfigIncludeManager.GetIncludePath(configDirectory);
-            await RetryAsync(() => File.Delete(includePath), cancellationToken).ConfigureAwait(false);
+            await RetryAsync(() => File.Delete(includePath), cancellationToken, retryAccessDenied: true).ConfigureAwait(false);
 
             return new SystemEqApplyResult(SystemEqApplyOutcome.Applied, "Removed WolfEQ from Equalizer APO.");
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException)
+        catch (Exception ex) when (IsFileSystemFailure(ex))
         {
-            return BlockedResult(configDirectory);
-        }
-        catch (IOException ex)
-        {
-            return new SystemEqApplyResult(SystemEqApplyOutcome.Failed, $"Couldn't update Equalizer APO's config: {ex.Message}");
+            _cachedStatus = null;
+            return FileSystemFailure(ex, configDirectory);
         }
         finally
         {
@@ -156,11 +189,14 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
     {
         try
         {
-            return await _statusProvider(cancellationToken).ConfigureAwait(false);
+            var status = await _statusProvider(cancellationToken).ConfigureAwait(false);
+            _cachedStatus = status;
+            return status;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Detection failures are reported as a result; the editor must keep working.
+            _cachedStatus = null;
             return null;
         }
     }
@@ -168,12 +204,91 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
     private static bool ConfigDirectoryExists(string? configDirectory)
         => !string.IsNullOrWhiteSpace(configDirectory) && Directory.Exists(configDirectory);
 
+    // ArgumentException covers DecoderFallbackException/EncoderFallbackException from config.txt text.
+    private static bool IsFileSystemFailure(Exception ex)
+        => ex is UnauthorizedAccessException or SecurityException or IOException or ArgumentException;
+
+    /// <summary>
+    /// Maps a write failure. Access denied is only <see cref="SystemEqApplyOutcome.Blocked"/> when it is
+    /// persistent: one of our files is marked read-only, or the folder fails a fresh write probe. Anything
+    /// else (antivirus holding the file, a pending delete) is a transient Failed, so the caller keeps going.
+    /// </summary>
+    private SystemEqApplyResult FileSystemFailure(Exception ex, string? configDirectory)
+        => ex switch
+        {
+            SecurityException => BlockedResult(configDirectory),
+            UnauthorizedAccessException when IsGenuinelyNotWritable(configDirectory) => BlockedResult(configDirectory),
+            UnauthorizedAccessException => new SystemEqApplyResult(
+                SystemEqApplyOutcome.Failed,
+                "Another program briefly held Equalizer APO's config, so this change wasn't saved. Try again."),
+            ArgumentException => new SystemEqApplyResult(
+                SystemEqApplyOutcome.Failed,
+                "Couldn't read Equalizer APO's config.txt (unexpected text encoding), so it was left unchanged."),
+            _ => new SystemEqApplyResult(SystemEqApplyOutcome.Failed, $"Couldn't update Equalizer APO's config: {ex.Message}")
+        };
+
+    private bool IsGenuinelyNotWritable(string? configDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(configDirectory))
+        {
+            return true;
+        }
+
+        try
+        {
+            return IsReadOnlyFile(ApoConfigIncludeManager.GetConfigPath(configDirectory))
+                || IsReadOnlyFile(ApoConfigIncludeManager.GetIncludePath(configDirectory))
+                || !_canWriteDirectory(configDirectory);
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static bool IsReadOnlyFile(string path)
+        => File.Exists(path) && File.GetAttributes(path).HasFlag(FileAttributes.ReadOnly);
+
+    /// <summary>
+    /// Creates and deletes a dot-prefixed .tmp file, a name APO never includes. Runs only after access was
+    /// denied on every retry, never on a normal apply.
+    /// </summary>
+    private static bool ProbeDirectoryWritable(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        var probe = Path.Combine(directory, $".wolfeq-write-test-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose))
+            {
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            try { if (File.Exists(probe)) File.Delete(probe); } catch { }
+        }
+    }
+
     private static SystemEqApplyResult BlockedResult(string? configDirectory)
         => new(
             SystemEqApplyOutcome.Blocked,
             $"Windows won't let WolfEQ write to the Equalizer APO config folder ({configDirectory ?? "unknown"}). "
             + "Check that the folder and its files aren't read-only or locked down, then try again.");
 
+    /// <summary>
+    /// Reads config.txt once per apply and rewrites it only when the block is missing or damaged; this read
+    /// is what lets the config watcher repair a block another tool removed.
+    /// </summary>
     private async Task EnsureConfigBlockAsync(string configDirectory, CancellationToken cancellationToken)
     {
         var configPath = ApoConfigIncludeManager.GetConfigPath(configDirectory);
@@ -231,7 +346,9 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
                 stream.Flush(flushToDisk: true);
             }
 
-            await RetryAsync(() => File.Move(temporaryPath, path, overwrite: true), cancellationToken).ConfigureAwait(false);
+            // Access denied on the replace is often transient (antivirus scan, delete pending), so retry it too.
+            await RetryAsync(
+                () => File.Move(temporaryPath, path, overwrite: true), cancellationToken, retryAccessDenied: true).ConfigureAwait(false);
         }
         finally
         {
@@ -249,15 +366,18 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
         }
     }
 
-    private Task RetryAsync(Action action, CancellationToken cancellationToken)
+    private Task RetryAsync(Action action, CancellationToken cancellationToken, bool retryAccessDenied = false)
         => RetryAsync<object?>(() =>
         {
             action();
             return null;
-        }, cancellationToken);
+        }, cancellationToken, retryAccessDenied);
 
-    /// <summary>Retries only sharing/lock violations (APO reading the file); other failures surface at once.</summary>
-    private async Task<T> RetryAsync<T>(Func<T> operation, CancellationToken cancellationToken)
+    /// <summary>
+    /// Retries sharing/lock violations (APO reading the file) and, when asked, access denied on the
+    /// replace/delete step, all within the same attempt budget. Other failures surface at once.
+    /// </summary>
+    private async Task<T> RetryAsync<T>(Func<T> operation, CancellationToken cancellationToken, bool retryAccessDenied = false)
     {
         for (var attempt = 1; ; attempt++)
         {
@@ -267,6 +387,10 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
                 return operation();
             }
             catch (IOException ex) when (attempt < _maxAttempts && IsSharingViolation(ex))
+            {
+                await Task.Delay(_retryDelay, cancellationToken).ConfigureAwait(false);
+            }
+            catch (UnauthorizedAccessException) when (retryAccessDenied && attempt < _maxAttempts)
             {
                 await Task.Delay(_retryDelay, cancellationToken).ConfigureAwait(false);
             }

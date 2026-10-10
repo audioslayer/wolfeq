@@ -17,12 +17,50 @@ public sealed class EqualizerApoInstallationTests
     public void LeftoverRegistryKeyWithoutDllOrClsid_IsNotInstalled()
     {
         var registry = new FakeRegistry().WithApoKey();
-        var installation = new EqualizerApoInstallation(registry, fileExists: _ => false, readText: _ => null, canWriteDirectory: _ => true);
+        var installation = new EqualizerApoInstallation(
+            registry, fileExists: _ => false, readText: _ => null, canWriteDirectory: _ => true, directoryExists: _ => false);
 
         var status = installation.GetStatus();
 
         Assert.False(status.IsInstalled);
         Assert.Contains("not installed", status.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(status.ConfigDirectory);
+    }
+
+    [Fact]
+    public void LeftoverConfigFolderOnDisk_IsNotInstalledButKeepsFoldersForCleanup()
+    {
+        var registry = new FakeRegistry().WithApoKey();
+        var probed = false;
+        var installation = new EqualizerApoInstallation(
+            registry,
+            fileExists: _ => false,
+            readText: _ => null,
+            canWriteDirectory: _ => probed = true,
+            directoryExists: path => string.Equals(path, ConfigPath, StringComparison.OrdinalIgnoreCase));
+
+        var status = installation.GetStatus();
+
+        Assert.False(status.IsInstalled);
+        Assert.Equal(ConfigPath, status.ConfigDirectory);
+        Assert.Equal(InstallPath, status.InstallDirectory);
+        Assert.False(status.IsConfigWritable);
+        Assert.False(probed);
+    }
+
+    [Fact]
+    public void LeftoverConfigPathOnlyInRegistry_StillCarriesConfigFolderWhenOnDisk()
+    {
+        var registry = new FakeRegistry()
+            .WithValue(RegistryRoot.LocalMachine, @"SOFTWARE\EqualizerAPO", "ConfigPath", ConfigPath);
+        var installation = new EqualizerApoInstallation(
+            registry, fileExists: _ => false, readText: _ => null, canWriteDirectory: _ => true, directoryExists: _ => true);
+
+        var status = installation.GetStatus();
+
+        Assert.False(status.IsInstalled);
+        Assert.Equal(ConfigPath, status.ConfigDirectory);
+        Assert.Null(status.InstallDirectory);
     }
 
     [Fact]
@@ -205,7 +243,8 @@ public sealed class EqualizerApoInstallationTests
             registry,
             fileExists: path => string.Equals(path, Path.Combine(InstallPath, "EqualizerAPO.dll"), StringComparison.OrdinalIgnoreCase),
             readText: path => string.Equals(path, Path.Combine(ConfigPath, "config.txt"), StringComparison.OrdinalIgnoreCase) ? configText : null,
-            canWriteDirectory: _ => canWrite);
+            canWriteDirectory: _ => canWrite,
+            directoryExists: _ => false);
 
     private sealed class FakeRegistry : IRegistryReader
     {
