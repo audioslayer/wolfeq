@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -114,8 +115,21 @@ public sealed class IntegrationSettingsTests
         model.EditorSession.NotifySavedToLibrary();
         Assert.All(slots, b => Assert.True(b.IsEnabled));
         Assert.Contains(Descendants(content).OfType<TextBlock>(), t => t.Text == model.AppVersionText);
+        // Tray options stay reachable, tucked under a collapsed disclosure.
+        var trayOptions = Descendants(content).OfType<System.Windows.Controls.Primitives.ToggleButton>().Single(t => t.Name == "TrayOptionsToggle");
+        Assert.False(trayOptions.IsChecked == true);
         Assert.Contains(Descendants(content).OfType<CheckBox>(), c => Equals(c.Content, "Close to tray"));
         Assert.Contains(Descendants(content).OfType<CheckBox>(), c => Equals(c.Content, "Minimize to tray"));
+        // The hint has its own row above the slot list (never overlapping it).
+        model.EditorSession.NotifyEdit();
+        content.Measure(new Size(368, 1200));
+        content.Arrange(new Rect(0, 0, 368, content.DesiredSize.Height));
+        content.UpdateLayout();
+        var hint = Descendants(content).OfType<FrameworkElement>().Single(e => e.Name == "HintRow");
+        Assert.Equal(Visibility.Visible, hint.Visibility);
+        var hintBottom = hint.TransformToVisual(content).Transform(new Point(0, hint.ActualHeight)).Y;
+        Assert.All(slots, b => Assert.True(b.TransformToVisual(content).Transform(new Point(0, 0)).Y >= hintBottom));
+        model.EditorSession.NotifySavedToLibrary();
 
         // State notifications can invalidate the ScrollViewer measure after the
         // first arrange. Finish layout before capturing its complete surface.
@@ -128,9 +142,27 @@ public sealed class IntegrationSettingsTests
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var output = File.Create(Path.Combine(AppContext.BaseDirectory, "tray-flyout.png"))) encoder.Save(output);
 
-        buttons.Single(b => Equals(b.Content, "Open editor")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        buttons.Single(b => Equals(b.Content, "Settings")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        buttons.Single(b => Equals(b.Content, "Quit")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        // Short work area with tray options open: the body scrolls, the footer stays pinned.
+        trayOptions.IsChecked = true;
+        content.Measure(new Size(368, 380));
+        content.Arrange(new Rect(0, 0, 368, 380));
+        content.UpdateLayout();
+        var optionsPanel = Descendants(content).OfType<FrameworkElement>().Single(e => e.Name == "TrayOptionsPanel");
+        Assert.Equal(Visibility.Visible, optionsPanel.Visibility);
+        Assert.True(optionsPanel.ActualHeight > 0, "Tray options must have room when expanded.");
+        var optionsBottom = optionsPanel.TransformToVisual(content).Transform(new Point(0, optionsPanel.ActualHeight)).Y;
+        Assert.True(optionsBottom <= content.ActualHeight, "The footer must keep its full height; the body scrolls instead.");
+        var shortBitmap = new RenderTargetBitmap(368, 380, 96, 96, PixelFormats.Pbgra32);
+        shortBitmap.Render(content);
+        var shortEncoder = new PngBitmapEncoder();
+        shortEncoder.Frames.Add(BitmapFrame.Create(shortBitmap));
+        using (var output = File.Create(Path.Combine(AppContext.BaseDirectory, "tray-flyout-short.png"))) shortEncoder.Save(output);
+        trayOptions.IsChecked = false;
+        Assert.Equal(Visibility.Collapsed, optionsPanel.Visibility);
+
+        buttons.Single(b => AutomationProperties.GetName(b) == "Open editor").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        buttons.Single(b => AutomationProperties.GetName(b) == "Settings").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        buttons.Single(b => AutomationProperties.GetName(b) == "Quit").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.True(opened);
         Assert.True(settingsOpened);
         Assert.True(quit);

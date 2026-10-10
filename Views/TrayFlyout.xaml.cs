@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using WolfEQ.Models;
 using WolfEQ.Services;
 using WolfEQ.ViewModels;
 
@@ -15,6 +17,8 @@ public partial class TrayFlyout : Window
     private readonly TrayPanelState _state;
     private readonly Action _openEditor, _openSettings, _quit;
     private bool _disposing;
+    private IntPtr _handle;
+    private NativeRect? _work;
 
     public TrayFlyout(MainViewModel vm, Action openEditor, Action openSettings, Action quit)
     {
@@ -25,6 +29,8 @@ public partial class TrayFlyout : Window
         _state = new TrayPanelState(vm);
         DataContext = _state;
         Closed += (_, _) => _state.Dispose();
+        // Expanding "Tray options" or a longer hint grows the window; keep it on screen.
+        SizeChanged += (_, _) => { if (IsVisible && _work is { } work && _handle != IntPtr.Zero) Position(_handle, work); };
     }
 
     public void DisposeFlyout()
@@ -42,11 +48,13 @@ public partial class TrayFlyout : Window
     public void ShowNearTray()
     {
         _state.Refresh();
+        TrayOptionsToggle.IsChecked = false;
         GetCursorPos(out var cursor);
         var monitor = MonitorFromPoint(cursor, 2);
         var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
         if (!GetMonitorInfo(monitor, ref info))
         {
+            _work = null;
             Show();
             Activate();
             return;
@@ -54,6 +62,8 @@ public partial class TrayFlyout : Window
         // Move the native window to the tray's monitor before measuring it; WPF then
         // applies that monitor's DPI. Keep the final bounds within its work area.
         var handle = new WindowInteropHelper(this).EnsureHandle();
+        _handle = handle;
+        _work = info.Work;
         SetWindowPos(handle, IntPtr.Zero, info.Work.Right - 380, info.Work.Bottom - 650, 0, 0, 0x0015);
         Show();
         FitWorkArea(info.Work);
@@ -91,6 +101,13 @@ public partial class TrayFlyout : Window
         if (sender is System.Windows.Controls.Button { Tag: int slot })
             await _state.SwitchAsync(slot);
     }
+    private void OnQuickPresetClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: TrayPresetState preset })
+            _state.OpenPreset(preset.Preset);
+    }
+    private void OnTrayOptionsToggled(object sender, RoutedEventArgs e)
+        => TrayOptionsPanel.Visibility = TrayOptionsToggle.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     private void OnOpenEditor(object sender, RoutedEventArgs e) { Hide(); _openEditor(); }
     private void OnOpenSettings(object sender, RoutedEventArgs e) { Hide(); _openSettings(); }
     private void OnQuit(object sender, RoutedEventArgs e) { Hide(); _quit(); }
@@ -120,14 +137,57 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
     public MainViewModel Vm { get; }
     public TrayPreferences Preferences => TrayPreferences.Current;
     public ObservableCollection<TraySlotState> Slots { get; } = [];
+    public ObservableCollection<TrayPresetState> QuickPresets { get; } = [];
+    public bool HasNoQuickPresets => QuickPresets.Count == 0;
     public bool IsWorking => _switching || !Vm.IntegrationControlsEnabled;
     public bool CanSwitch => !IsWorking && !Vm.EditorSession.WouldReplaceUnsavedEdits;
     public string ConnectionSummary => $"{Vm.SelectedDeviceProfile.DisplayName} / {Vm.ConnectionText}";
+
+    public string DeviceTitle => !Vm.IsSystemEqSelected && !string.IsNullOrWhiteSpace(Vm.DeviceNickname)
+        ? Vm.DeviceNickname.Trim()
+        : Vm.SelectedDeviceProfile.DisplayLabel;
+
+    /// <summary>The confirmed hardware slot when known, else the editor's target slot.</summary>
+    private DeviceUserPresetOption? ActiveSlot
+        => Vm.DeviceUserPresets.FirstOrDefault(p => p.PresetId == Vm.TrayConfirmedPresetId) ?? Vm.SelectedDeviceUserPreset;
+
+    public string NowTitle
+    {
+        get
+        {
+            if (Vm.IsSystemEqSelected) return Vm.SelectedPreset?.Name ?? "Custom EQ";
+            var slot = ActiveSlot;
+            if (slot is null) return "No preset";
+            return string.IsNullOrWhiteSpace(slot.LocalEqName) ? slot.SlotLabel : slot.LocalEqName!;
+        }
+    }
+
+    public string NowSubtitle
+    {
+        get
+        {
+            if (Vm.IsSystemEqSelected)
+            {
+                // The device row already shows the System EQ status line; say what this is.
+                return Vm.EditorSession.WouldReplaceUnsavedEdits ? "Unsaved changes in the editor"
+                    : Vm.SystemEqBypassed ? "EQ is off. Turn it on to hear it."
+                    : Vm.SelectedPreset is { } preset && Vm.Presets.Contains(preset) ? $"From your library · {preset.Category}"
+                    : "Editor content";
+            }
+            var slot = ActiveSlot;
+            if (slot is null) return Vm.ConnectionText;
+            var where = !Vm.IsDeviceConnected ? "Device not connected"
+                : Vm.TrayConfirmedPresetId == slot.PresetId ? "Active on device"
+                : "Editor target";
+            return string.IsNullOrWhiteSpace(slot.LocalEqName) ? where : $"{slot.SlotLabel} · {where}";
+        }
+    }
+
     public string Message => _switching ? _progress
         : _result ?? (Vm.EditorSession.WouldReplaceUnsavedEdits
-            ? "Save or discard your editor changes before switching profiles."
-            : !Vm.IsDeviceConnected ? "Connect your saved USB device to switch profiles. Open Settings to choose a device."
-            : IsWorking ? "Device busy. Your profiles will be ready shortly."
+            ? "Save or discard editor changes to switch presets."
+            : !Vm.IsDeviceConnected ? "Connect your device to switch presets."
+            : IsWorking ? "Device busy. Presets will be ready shortly."
             : string.Empty);
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -137,6 +197,7 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
         Vm.PropertyChanged += OnVmChanged;
         Vm.EditorSession.Changed += OnEditorChanged;
         Vm.DeviceUserPresets.CollectionChanged += OnSlotsChanged;
+        Vm.Presets.CollectionChanged += OnPresetsChanged;
         RebuildSlots();
     }
 
@@ -150,16 +211,32 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
         Refresh();
     }
     private void OnEditorChanged() => Refresh();
-    private void OnSlotsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RebuildSlots();
+    private void OnSlotsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildSlots();
+    private void OnPresetsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Refresh();
     private void RebuildSlots()
     {
         Slots.Clear();
         foreach (var slot in Vm.DeviceUserPresets) Slots.Add(new TraySlotState(slot));
         Refresh();
     }
+
+    /// <summary>Syncs the quick-preset rows with the VM list; only rebuilds when the set or order changed.</summary>
+    private void SyncQuickPresets()
+    {
+        var next = Vm.TrayQuickPresets;
+        if (!next.SequenceEqual(QuickPresets.Select(row => row.Preset))
+            || QuickPresets.Any(row => row.IsFavorite != row.Preset.IsFavorite))
+        {
+            QuickPresets.Clear();
+            foreach (var preset in next) QuickPresets.Add(new TrayPresetState(preset));
+        }
+        foreach (var row in QuickPresets) row.Update(Vm.SelectedPreset);
+    }
+
     public void Refresh()
     {
         foreach (var slot in Slots) slot.Update(Vm.TrayConfirmedPresetId);
+        SyncQuickPresets();
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
     }
     public async Task SwitchAsync(int slot)
@@ -167,31 +244,42 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
         if (!CanSwitch) return;
         _switching = true;
         _result = null;
-        _progress = $"Checking your device for profile {slot}...";
+        _progress = $"Checking your device for preset {slot}...";
         Refresh();
         try
         {
             var result = await Vm.ExecuteAutomationAsync(new AutomationRequest(Slot: slot));
             _result = result.Message;
         }
-        catch (Exception ex) { _result = $"Profile unchanged or unconfirmed: {ex.Message}"; }
+        catch (Exception ex) { _result = $"Preset unchanged or unconfirmed: {ex.Message}"; }
         finally { _switching = false; Refresh(); }
     }
+
+    /// <summary>Opens a quick preset in the editor; System EQ applies it automatically.</summary>
+    public void OpenPreset(EqPreset preset)
+    {
+        Vm.TryOpenTrayQuickPreset(preset);
+        Refresh();
+    }
+
     public void Dispose()
     {
         Vm.PropertyChanged -= OnVmChanged;
         Vm.EditorSession.Changed -= OnEditorChanged;
         Vm.DeviceUserPresets.CollectionChanged -= OnSlotsChanged;
+        Vm.Presets.CollectionChanged -= OnPresetsChanged;
     }
 }
 
 internal sealed class TraySlotState(DeviceUserPresetOption option) : INotifyPropertyChanged
 {
+    private bool HasName => !string.IsNullOrWhiteSpace(option.LocalEqName);
     public int Slot => option.Slot;
-    public string Label => option.SlotLabel + (IsActive ? " \u00B7 Active" : "");
-    public string ToolTip => $"{Label}\n{Caption}";
+    public string Title => HasName ? option.LocalEqName! : option.SlotLabel;
+    public string Subtitle => HasName ? option.SlotLabel : "Saved on device";
+    public string Label => option.SlotLabel + (IsActive ? " · Active" : "");
+    public string ToolTip => HasName ? $"{Label}\n{option.LocalEqName}" : Label;
     public bool IsActive { get; private set; }
-    public string Caption => option.LocalEqSubtitle;
     public event PropertyChangedEventHandler? PropertyChanged;
     public void Update(byte? activePreset)
     {
@@ -199,5 +287,23 @@ internal sealed class TraySlotState(DeviceUserPresetOption option) : INotifyProp
         if (active == IsActive) return;
         IsActive = active;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
+}
+
+internal sealed class TrayPresetState(EqPreset preset) : INotifyPropertyChanged
+{
+    public EqPreset Preset => preset;
+    public string Name => preset.Name;
+    public bool IsFavorite { get; } = preset.IsFavorite;
+    public string IconName => IsFavorite ? "Heart" : "SlidersHorizontal";
+    public string Subtitle => IsFavorite ? $"Favorite · {preset.Category}" : preset.Category;
+    public bool IsCurrent { get; private set; }
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public void Update(EqPreset? current)
+    {
+        var isCurrent = ReferenceEquals(current, preset);
+        if (isCurrent == IsCurrent) return;
+        IsCurrent = isCurrent;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCurrent)));
     }
 }
