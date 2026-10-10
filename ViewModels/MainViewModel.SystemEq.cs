@@ -136,7 +136,8 @@ public sealed partial class MainViewModel
         OpenApoDeviceSelectorCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(_systemEq.RunDeviceSelector, isInstaller: false));
         RemoveSystemEqFromApoCommand = new AsyncRelayCommand(RemoveSystemEqFromApoAsync);
 
-        DeviceProfiles.Add(SystemEqProfiles.WindowsSystemEq);
+        // First in the picker: it works with any output, FiiO hardware follows.
+        DeviceProfiles.Insert(0, SystemEqProfiles.WindowsSystemEq);
 
         if (_systemEqSettings.Selected)
         {

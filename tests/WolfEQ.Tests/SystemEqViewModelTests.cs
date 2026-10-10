@@ -465,6 +465,20 @@ public sealed class SystemEqViewModelTests : IDisposable
 }
 
 /// <summary>Temp settings/library paths plus fake System EQ services shared by System EQ VM tests.</summary>
+
+public sealed class SystemEqPickerOrderTests
+{
+    [Fact]
+    public void WindowsSystemEqIsFirstInTheDevicePicker()
+    {
+        using var rig = new SystemEqTestRig();
+        var model = rig.CreateModel();
+
+        Assert.Same(SystemEqProfiles.WindowsSystemEq, model.DeviceProfiles[0]);
+        Assert.Single(model.DeviceProfiles, profile => SystemEqProfiles.IsSystemEq(profile));
+    }
+}
+
 internal sealed class SystemEqTestRig : IDisposable
 {
     public static readonly SystemEqBackendStatus InstalledStatus =
