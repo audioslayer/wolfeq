@@ -96,7 +96,10 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private int _editGeneration;
     private Dictionary<int, SlotLightingProfileData> _slotLightingProfiles = [];
 
-    public MainViewModel(LocalPresetLibraryService? localLibraryService = null)
+    public MainViewModel(
+        LocalPresetLibraryService? localLibraryService = null,
+        SystemEqServices? systemEqServices = null,
+        string? systemEqSettingsPath = null)
     {
         _localLibraryService = localLibraryService ?? new LocalPresetLibraryService();
         Presets = new ObservableCollection<EqPreset>(LoadStartupPresets());
@@ -286,6 +289,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         WriteLibraryPresetToSlotCommand = new AsyncRelayCommand(WriteLibraryPresetToSlotAsync, () => LibrarySelection is not null && CanExecuteWriteToDevice());
         LoadOnlineProfileIntoEditorCommand = new AsyncRelayCommand(LoadOnlineProfileIntoEditorAsync, () => SelectedGitHubProfile is not null);
         WriteOnlineProfileToSlotCommand = new AsyncRelayCommand(WriteOnlineProfileToSlotAsync, () => SelectedGitHubProfile is not null && CanExecuteWriteToDevice());
+        InitializeSystemEq(systemEqServices, systemEqSettingsPath);
     }
 
     public ObservableCollection<EqPreset> Presets { get; }
@@ -353,7 +357,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
             // R22 + R19: a manual profile switch while connected loads the new device's
             // active slot (the editor was just reset, so the guarded load proceeds).
-            if (IsDeviceConnected)
+            if (IsDeviceConnected && !IsSystemEqSelected)
             {
                 _ = RunGuardedConnectLoadAsync();
             }
@@ -1088,6 +1092,11 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task RunGuardedConnectLoadAsync()
     {
+        if (IsSystemEqSelected)
+        {
+            return;
+        }
+
         if (!SelectedDeviceProfile.SupportsEqReadback)
         {
             Status = $"{SelectedDeviceProfile.DisplayName} is connected and ready for USER-slot writes; automatic EQ readback is not supported.";
@@ -3037,6 +3046,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private void ApplyDeviceProfile(FiioDeviceProfile value)
     {
+        var wasSystemEq = IsSystemEqSelected;
         _deviceService.SelectedProfile = value;
         SetField(ref _selectedDeviceProfile, value, nameof(SelectedDeviceProfile));
         RebuildDeviceUserPresets(value);
@@ -3054,6 +3064,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsK13R2RSelected));
         LoadFromSlotCommand.RaiseCanExecuteChanged();
         RaiseDeviceControlsCanExecuteChanged();
+        OnDeviceProfileAppliedForSystemEq(wasSystemEq);
     }
 
     /// <summary>
@@ -4489,7 +4500,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void QueueLiveDevicePreampSync()
     {
-        if (_isLoadingPreset)
+        if (_isLoadingPreset || IsSystemEqSelected)
         {
             return;
         }
@@ -4524,7 +4535,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void QueueLiveDeviceBandSync(int bandNumber)
     {
-        if (_isLoadingPreset || bandNumber < 1 || bandNumber > SelectedDeviceProfile.BandCount)
+        if (_isLoadingPreset || IsSystemEqSelected || bandNumber < 1 || bandNumber > SelectedDeviceProfile.BandCount)
         {
             return;
         }
@@ -4559,6 +4570,11 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void QueueLiveDeviceEqSync()
     {
+        if (IsSystemEqSelected)
+        {
+            return;
+        }
+
         if (!K13HardwareEqIoEnabled)
         {
             LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
@@ -4601,6 +4617,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private async Task FlushLiveDeviceEqSyncAsync()
     {
+        if (IsSystemEqSelected)
+        {
+            _pendingLivePreampSync = false;
+            _pendingLiveBandNumbers.Clear();
+            return;
+        }
+
         if (!K13HardwareEqIoEnabled)
         {
             LiveDeviceEqSyncStatus = "Local edit mode - hardware EQ writes are disabled";
@@ -5396,6 +5419,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void SelectDetectedDeviceProfile(FiioDeviceProfile profile, HidDeviceCandidate? candidate)
     {
+        // R2: FiiO detection never switches a user out of Windows System EQ.
+        if (IsSystemEqSelected)
+        {
+            NoteFiioDetectedInSystemEq(profile);
+            return;
+        }
+
         if (!ReferenceEquals(_selectedDeviceProfile, profile))
         {
             // R22 guard: an auto-detected different device also resets the editor.
@@ -5537,7 +5567,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             _pendingLiveBandNumbers.Clear();
         }
 
-        ConnectionText = connected ? "Connected" : "Disconnected";
+        ConnectionText = IsSystemEqSelected ? SystemEqStatusText : connected ? "Connected" : "Disconnected";
         LiveDeviceEqSyncStatus = connected
             ? SelectedDeviceProfile.SupportsLiveEqWrites
                 ? LiveDeviceEqSyncEnabled
