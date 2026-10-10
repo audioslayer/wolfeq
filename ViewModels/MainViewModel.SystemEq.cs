@@ -684,7 +684,7 @@ public sealed partial class MainViewModel
     private async Task RunApoLauncherCoreAsync(Func<Task<ApoLaunchResult>> launch, bool isInstaller)
     {
         _systemEqNotice = isInstaller
-            ? "Waiting for Equalizer APO setup to finish..."
+            ? "Getting Equalizer APO setup ready. Approve the Windows prompt, then finish the setup..."
             : "Waiting for the Equalizer APO device selector to close...";
         UpdateSystemEqStatus();
 

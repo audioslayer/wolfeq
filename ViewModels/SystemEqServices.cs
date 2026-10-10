@@ -46,14 +46,29 @@ public sealed record SystemEqServices(
             new WindowsAudioEndpointCatalog(),
             installation.GetEndpointStatus,
             FiioEndpointMatcher.IsFiioEndpoint,
-            () => ApoProcessLauncher.FindBundledInstaller(AppContext.BaseDirectory) is { } installer
-                ? launcher.RunInstallerAsync(installer)
-                : Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.NotFound,
-                    "The bundled Equalizer APO installer is missing. Reinstall WolfEQ or install Equalizer APO manually.")),
+            () => RunInstallerAsync(launcher, new ApoInstallerDownloader()),
             () => installation.DeviceSelectorPath is { } selector
                 ? launcher.RunDeviceSelectorAsync(selector)
                 : Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.NotFound,
                     "Equalizer APO's device selector was not found. Install Equalizer APO first.")));
+    }
+
+    /// <summary>
+    /// Runs the bundled installer when it is present and verified; otherwise downloads the
+    /// official pinned installer, verifies its SHA-256, and runs that.
+    /// </summary>
+    internal static async Task<ApoLaunchResult> RunInstallerAsync(ApoProcessLauncher launcher, ApoInstallerDownloader downloader)
+    {
+        var bundled = ApoProcessLauncher.FindBundledInstaller(AppContext.BaseDirectory);
+        if (bundled is not null && await ApoInstallerDownloader.MatchesPinnedHashAsync(bundled))
+        {
+            return await launcher.RunInstallerAsync(bundled);
+        }
+
+        var (downloaded, message) = await downloader.GetVerifiedInstallerAsync();
+        return downloaded is null
+            ? new ApoLaunchResult(ApoLaunchOutcome.Failed, message)
+            : await launcher.RunInstallerAsync(downloaded);
     }
 }
 
