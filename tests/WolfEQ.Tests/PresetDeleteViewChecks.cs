@@ -30,11 +30,12 @@ internal static class PresetDeleteViewChecks
         dialog.Close();
 
         var library = new LibraryPanel { DataContext = model };
-        StudioViewChecks.Layout(library, 460, 1000);
+        model.LibraryTab = MainViewModel.LibraryTabMine;
+        StudioViewChecks.Layout(library, 860, 820);
         var list = (ListBox)library.FindName("SavedPresetList");
         model.LibrarySelection = model.Presets[0];
-        StudioViewChecks.Layout(library, 460, 1000);
-        StudioViewChecks.Render(library, 460, 1000, "studio-library-delete");
+        StudioViewChecks.Layout(library, 860, 820);
+        StudioViewChecks.Render(library, 860, 820, "studio-library-delete");
         Assert.Null(library.FindName("DeleteSelectedPresetButton"));
         var shownRowButtons = StudioViewChecks.Descendants(list).OfType<Button>()
             .Where(button => button.Name == "RowDeleteButton" && button.Visibility == Visibility.Visible)
@@ -45,25 +46,21 @@ internal static class PresetDeleteViewChecks
         VerifyImportExport(model);
     }
 
-    /// <summary>Import / Export: tabbed rows, and every import/export command is still reachable.</summary>
+    /// <summary>Import / Export menus in the library header still reach every import/export command.</summary>
     private static void VerifyImportExport(MainViewModel model)
     {
         var library = new LibraryPanel { DataContext = model };
-        StudioViewChecks.Layout(library, 460, 1000);
-        StudioViewChecks.Descendants(library).OfType<Expander>().Single(e => Equals(e.Header, "Import / export")).IsExpanded = true;
-        StudioViewChecks.Layout(library, 460, 1000);
+        StudioViewChecks.Layout(library, 860, 820);
         var importRows = (FrameworkElement)library.FindName("ImportRows");
         var exportRows = (FrameworkElement)library.FindName("ExportRows");
-        Assert.Equal(Visibility.Visible, importRows.Visibility);
-        Assert.Equal(Visibility.Collapsed, exportRows.Visibility);
-        StudioViewChecks.Render(library, 460, 1000, "studio-library-import");
+        foreach (var popupName in new[] { "ImportPopup", "ExportPopup" })
+        {
+            var child = (FrameworkElement)((System.Windows.Controls.Primitives.Popup)library.FindName(popupName)).Child;
+            child.DataContext = model;
+            StudioViewChecks.Layout(child, 440, 420);
+        }
 
-        ((RadioButton)library.FindName("ExportModeChip")).IsChecked = true;
-        StudioViewChecks.Layout(library, 460, 1000);
-        Assert.Equal(Visibility.Collapsed, importRows.Visibility);
-        Assert.Equal(Visibility.Visible, exportRows.Visibility);
-        StudioViewChecks.Render(library, 460, 1000, "studio-library-export");
-
+        StudioViewChecks.Render(exportRows, 420, 420, "studio-library-export-menu");
         var commands = StudioViewChecks.Descendants(importRows).Concat(StudioViewChecks.Descendants(exportRows))
             .OfType<Button>().Select(button => button.Command).Where(command => command is not null).ToHashSet();
         foreach (var expected in new[]

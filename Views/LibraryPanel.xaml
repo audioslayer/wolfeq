@@ -5,10 +5,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:WolfEQ.Controls"
              xmlns:models="clr-namespace:WolfEQ.Models"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d"
-             d:DesignWidth="460"
+             d:DesignWidth="860"
              d:DesignHeight="820"
-             Width="460"
+             Width="860"
              Foreground="{DynamicResource WolfTextBrush}">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -28,21 +29,23 @@
         </Style>
         <!-- Copied from MainWindow resources; views keep their own template copies. -->
         <DataTemplate x:Key="LibraryPresetListItemTemplate" DataType="{x:Type models:EqPreset}">
-            <Grid Margin="4,3">
+            <Grid Margin="2,3">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Name}"
+                <controls:EqCurveThumbnail Grid.RowSpan="2" Bands="{Binding Bands}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Name}"
                            FontSize="13"
                            FontWeight="SemiBold"
                            TextTrimming="CharacterEllipsis"/>
                 <!-- Row delete: shown on hover or when the row is selected. -->
-                <Button x:Name="RowDeleteButton" Grid.Column="1" Grid.RowSpan="2" Click="RowDeleteButton_Click"
+                <Button x:Name="RowDeleteButton" Grid.Column="2" Grid.RowSpan="2" Click="RowDeleteButton_Click"
                         Width="30" Height="30" Margin="8,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
                         ToolTip="Delete preset" AutomationProperties.Name="Delete preset">
                     <Button.Template>
@@ -69,7 +72,7 @@
                         </Style>
                     </Button.Style>
                 </Button>
-                <DockPanel Grid.Row="1" Margin="0,3,0,0">
+                <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,3,0,0">
                     <TextBlock Text="{Binding Category}"
                                Style="{StaticResource TinyLabel}"
                                DockPanel.Dock="Left"/>
@@ -81,11 +84,15 @@
         </DataTemplate>
 
         <DataTemplate x:Key="OnlineProfileListItemTemplate">
-            <Grid Margin="4,3">
+            <Grid Margin="2,5">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding Name}"
                            FontSize="13"
                            FontWeight="SemiBold"
@@ -95,8 +102,81 @@
                            Style="{StaticResource TinyLabel}"
                            TextTrimming="CharacterEllipsis"
                            Margin="0,3,0,0"/>
+                <!-- Provider badge: AutoEq green, OPRA cyan. -->
+                <Border Grid.Column="1" Grid.RowSpan="2" VerticalAlignment="Center" Margin="10,0,0,0" CornerRadius="9" BorderThickness="1" Padding="7,1">
+                    <Border.Style><Style TargetType="Border"><Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/><Style.Triggers><DataTrigger Binding="{Binding Provider}" Value="OPRA"><Setter Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                    <TextBlock Text="{Binding Provider}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=Border}}"/>
+                </Border>
             </Grid>
         </DataTemplate>
+
+        <controls:StringEqualsConverter x:Key="StringEquals"/>
+        <x:Array x:Key="OnlineSourceOptions" Type="{x:Type sys:String}">
+            <sys:String>All</sys:String>
+            <sys:String>AutoEQ</sys:String>
+            <sys:String>OPRA</sys:String>
+        </x:Array>
+
+        <!-- Small pill chips for category and source filters (ListBox items). -->
+        <Style x:Key="FilterChipList" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ItemsPanel"><Setter.Value><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></Setter.Value></Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Margin" Value="0,0,6,6"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Chip" CornerRadius="999" BorderThickness="1" BorderBrush="{DynamicResource WolfLineBrush}" Background="Transparent" Padding="10,3">
+                                        <ContentPresenter TextElement.FontSize="11.5" TextElement.Foreground="{DynamicResource WolfMutedBrush}"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/></Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Chip" Property="Background" Value="{DynamicResource WolfGreenBrush}"/>
+                                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                            <Setter Property="TextElement.Foreground" Value="{DynamicResource WolfGreenContrastBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Library tab (My Library / Favorites / Discover online): text with a green underline. -->
+        <Style x:Key="LibraryTab" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+                <Border x:Name="Rail" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="12,8,12,10">
+                    <ContentPresenter VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
+                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+
+        <!-- Fact tile in the detail pane. -->
+        <Style x:Key="FactTile" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
 
         <!-- Compact row action for the Import / Export list. -->
         <Style x:Key="IoActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -160,357 +240,40 @@
     </UserControl.Resources>
 
     <Border Style="{StaticResource OverlayPanelBorder}">
-        <Grid Margin="16">
+        <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 1. Header: title, preset count, close -->
-            <Grid Grid.Row="0" Margin="2,0,0,14">
+            <!-- 1. Header: title, counts, Import / Export menus, close -->
+            <Grid Grid.Row="0" Margin="18,16,16,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="36"
-                        Height="36"
-                        Background="{DynamicResource WolfAccentHoverBrush}"
-                        BorderBrush="{DynamicResource WolfLineSoftBrush}"
-                        BorderThickness="1"
-                        CornerRadius="9">
-                    <controls:PhosphorIcon IconName="Folder"
-                                           IconSize="18"
-                                           IconBrush="{DynamicResource WolfGreenBrush}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"/>
+                <Border Width="36" Height="36" Background="{DynamicResource WolfAccentHoverBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="9">
+                    <controls:PhosphorIcon IconName="Folder" IconSize="18" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" Margin="11,0,12,0" VerticalAlignment="Center">
-                    <TextBlock Text="Preset library"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding FilteredPresetCount, StringFormat={}{0} presets ready to load}"
-                               Style="{StaticResource DimText}"
-                               Margin="0,3,0,0"/>
-                </StackPanel>
-                <Button x:Name="CloseButton"
-                        Grid.Column="2"
-                        Style="{StaticResource OverlayCloseButton}"
-                        VerticalAlignment="Center"
-                        ToolTip="Close the library"
-                        Click="CloseButton_Click">
-                    <Path Width="11"
-                          Height="11"
-                          Data="M 1,1 L 10,10 M 10,1 L 1,10"
-                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
-                          StrokeThickness="1.6"
-                          StrokeStartLineCap="Round"
-                          StrokeEndLineCap="Round"/>
-                </Button>
-            </Grid>
-
-            <!-- 2. Library source navigation -->
-            <Border Grid.Row="1"
-                    Margin="0,0,0,12"
-                    Padding="3"
-                    Background="Transparent"
-                    BorderBrush="{DynamicResource WolfLineBrush}"
-                    BorderThickness="0,0,0,1"
-                    CornerRadius="0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <RadioButton x:Name="MyLibrarySourceChip"
-                             Style="{StaticResource SourceChip}"
-                             GroupName="LibrarySource"
-                             IsChecked="True"
-                             Margin="0,0,2,0">
-                    <StackPanel Orientation="Horizontal">
-                        <controls:PhosphorIcon IconName="Folder"
-                                               IconSize="16"
-                                               IconBrush="{DynamicResource WolfGreenBrush}"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,8,0"/>
-                        <StackPanel>
-                            <TextBlock Text="My Library" FontWeight="SemiBold"/>
-                            <TextBlock Text="Saved profiles" Style="{StaticResource TinyLabel}" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton x:Name="OnlineSourceChip"
-                             Grid.Column="1"
-                             Style="{StaticResource SourceChip}"
-                             GroupName="LibrarySource"
-                             Margin="2,0,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <controls:PhosphorIcon IconName="Cloud"
-                                               IconSize="16"
-                                               IconBrush="{DynamicResource WolfCyanBrush}"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,8,0"/>
-                        <StackPanel>
-                            <TextBlock Text="Discover Online" FontWeight="SemiBold"/>
-                            <TextBlock Text="AutoEQ + OPRA" Style="{StaticResource TinyLabel}" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-                </RadioButton>
-            </Grid>
-            </Border>
-
-            <!-- Compact local-library toolbar; online search keeps its own controls. -->
-            <Grid Grid.Row="2" Margin="0,0,0,12"
-                  Visibility="{Binding IsChecked, ElementName=MyLibrarySourceChip, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid>
-                    <TextBox x:Name="LibrarySearchBox" Text="{Binding ProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Height="36" FontSize="12" Padding="32,0,10,0" Background="{DynamicResource WolfShellBrush}"
-                             BorderBrush="{DynamicResource WolfLineBrush}" AutomationProperties.Name="Search saved presets" ToolTip="Filter saved presets"/>
-                    <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0" IsHitTestVisible="False"/>
-                    <TextBlock Text="Search presets" FontSize="12" Margin="32,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=LibrarySearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
-                </Grid>
-                <Button Grid.Column="1" Command="{Binding CreateFlatPresetCommand}" Style="{StaticResource QuietButton}"
-                        Height="36" Margin="8,0,0,0" Padding="12,0" Background="{DynamicResource WolfAccentHoverBrush}"
-                        BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" ToolTip="Create a new flat preset" AutomationProperties.Name="New preset">
-                    <StackPanel Orientation="Horizontal">
-                        <Path Data="M0,6 H12 M6,0 V12" Width="12" Height="12" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                        <TextBlock Text="New" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-            </Grid>
-            <Border Grid.Row="2"
-                    Margin="0,0,0,10"
-                    Padding="12"
-                    Background="{DynamicResource WolfShellBrush}"
-                    BorderBrush="{DynamicResource WolfLineSoftBrush}"
-                    BorderThickness="1"
-                    CornerRadius="10"
-                  Visibility="{Binding IsChecked, ElementName=OnlineSourceChip, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <Border Width="30" Height="30" Background="{DynamicResource WolfAccentHoverBrush}" CornerRadius="7" Margin="0,0,9,0">
-                            <controls:PhosphorIcon IconName="MagnifyingGlass"
-                                                   IconSize="15"
-                                                   IconBrush="{DynamicResource WolfCyanBrush}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"/>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Find your headphones" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock Text="Search community measurements and tunings"
-                                       Style="{StaticResource DimText}"
-                                       Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="OnlineSearchBox"
-                                 Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,8,0"
-                                 KeyDown="OnlineSearchBox_KeyDown"
-                                 AutomationProperties.Name="Search online headphone profiles"
-                                 ToolTip="Search AutoEQ and OPRA headphone presets"/>
-                        <Button Grid.Column="1"
-                                Content="Search"
-                                Command="{Binding SearchGitHubProfilesCommand}"
-                                Style="{StaticResource FiioButton}"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- 4. My Library source -->
-            <Grid Grid.Row="3"
-                  Visibility="{Binding IsChecked, ElementName=MyLibrarySourceChip, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <ListBox Grid.Row="1"
-                         ItemsSource="{Binding FilteredPresets}"
-                         SelectedItem="{Binding LibrarySelection}"
-                         x:Name="SavedPresetList" IsSynchronizedWithCurrentItem="False"
-                         KeyDown="SavedPresetList_KeyDown"
-                         ItemTemplate="{StaticResource LibraryPresetListItemTemplate}"
-                         MinHeight="120"/>
-                <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                    <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
-                        <DataTrigger Binding="{Binding HasItems, ElementName=SavedPresetList}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
-                    </Style.Triggers></Style></StackPanel.Style>
-                    <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="24" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                    <TextBlock Text="No presets found" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Try another search or create a preset." Style="{StaticResource DimText}" Margin="0,5,0,0"/>
+                    <TextBlock Text="Preset library" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Presets.Count, StringFormat={}{0} saved presets · AutoEq and OPRA online}" Style="{StaticResource DimText}" Margin="0,3,0,0"/>
                 </StackPanel>
 
-                <Border x:Name="LibrarySelectionActions" Grid.Row="2" Visibility="{Binding HasItems, ElementName=SavedPresetList, Converter={StaticResource BooleanToVisibilityConverter}}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,12,0,0">
-                    <StackPanel>
-                        <TextBlock Text="{Binding LibrarySelection.Name, TargetNullValue=Select a preset}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="2,0,0,10"/>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Button x:Name="OpenPresetButton" Click="OpenPresetButton_Click" Margin="0,0,8,0" Padding="12,10">
-
-                                <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SavePresetButton}"><Style.Triggers><DataTrigger Binding="{Binding LibrarySelection}" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></Button.Style>
-                                <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="17" IconBrush="{DynamicResource WolfGreenContrastBrush}" Margin="0,0,8,0"/><TextBlock Text="Open in editor" Foreground="{DynamicResource WolfGreenContrastBrush}"/></StackPanel>
-                            </Button>
-                            <ToggleButton x:Name="PresetActionsButton" Grid.Column="1" Width="42" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=PresetActionsPopup, Mode=TwoWay}" ToolTip="Actions for this preset" AutomationProperties.Name="Preset actions">
-                                <!-- Drawn dots: the U+22EF glyph clipped to two dots at this size. -->
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Ellipse Width="4" Height="4" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
-                                    <Ellipse Width="4" Height="4" Margin="3,0" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
-                                    <Ellipse Width="4" Height="4" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
-                                </StackPanel>
-                            </ToggleButton>
-                            <Popup x:Name="PresetActionsPopup" PlacementTarget="{Binding ElementName=PresetActionsButton}" Placement="Top" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                <Border Width="230" Padding="8" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="8">
-                                    <StackPanel>
-                                        <Button Command="{Binding DuplicatePresetCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M5,2 H18 V15 H5 Z M2,5 V18 H15" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Duplicate preset" Foreground="{DynamicResource WolfTextBrush}"/></StackPanel></Button>
-                                        <Button Command="{Binding WriteLibraryPresetToSlotCommand}" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M10,2 V13 M5,8 L10,13 L15,8 M3,14 V18 H17 V14" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Write to device slot" Foreground="{DynamicResource WolfTextBrush}"/></StackPanel></Button>
-                                    </StackPanel>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-            <!-- 5. Online source -->
-            <Grid Grid.Row="3"
-                  Visibility="{Binding IsChecked, ElementName=OnlineSourceChip, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <ListBox Grid.Row="0"
-                         ItemsSource="{Binding GitHubProfiles}"
-                         SelectedItem="{Binding SelectedGitHubProfile}"
-                         ItemTemplate="{StaticResource OnlineProfileListItemTemplate}"
-                         MinHeight="150"/>
-
-                <TextBlock Grid.Row="1"
-                           Text="{Binding GitHubProfileStatus}"
-                           Style="{StaticResource DimText}"
-                           TextTrimming="CharacterEllipsis"
-                           Margin="2,8,0,8"/>
-
-                <Border Grid.Row="2"
-                        Background="{DynamicResource WolfPanel2Brush}"
-                        BorderBrush="{DynamicResource WolfLineSoftBrush}"
-                        BorderThickness="1"
-                        CornerRadius="10"
-                        Padding="0">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <DockPanel Margin="8,0,12,0">
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <RadioButton x:Name="PreviewCurveChoice" Content="Curve" GroupName="OnlinePreviewView" Style="{StaticResource PreviewViewChoice}" IsChecked="{Binding IsSelected, ElementName=PreviewCurveTab, Mode=OneWay}" Tag="0" Click="PreviewView_Click"/>
-                                <RadioButton x:Name="PreviewTableChoice" Content="Table" GroupName="OnlinePreviewView" Style="{StaticResource PreviewViewChoice}" IsChecked="{Binding IsSelected, ElementName=PreviewTableTab, Mode=OneWay}" Tag="1" Click="PreviewView_Click"/>
-                            </StackPanel>
-                            <TextBlock Text="{Binding GitHubPreviewPreset.PreampDb, StringFormat=Preamp {0:+0.0;-0.0;0.0} dB, TargetNullValue=Select a profile}" Style="{StaticResource TinyLabel}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <TabControl x:Name="OnlinePreviewTabs" Grid.Row="1" Height="190" SelectedIndex="0" BorderThickness="0" Background="Transparent" Padding="0">
-                            <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
-                            <TabItem x:Name="PreviewCurveTab" Header="Curve">
-                                <controls:EqResponseGraphControl Bands="{Binding GitHubPreviewPreset.Bands}" PreampDb="{Binding GitHubPreviewPreset.PreampDb, TargetNullValue=0}" IsInteractive="False" MinGainDb="-12" MaxGainDb="12" MinHeight="0"/>
-                            </TabItem>
-                            <TabItem x:Name="PreviewTableTab" Header="Table">
-                                <DataGrid x:Name="OnlinePreviewTable" ItemsSource="{Binding GitHubPreviewPreset.Bands}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeColumns="False" CanUserResizeRows="False" HeadersVisibility="Column" RowHeaderWidth="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource WolfLineBrush}" BorderThickness="0" Background="{DynamicResource WolfPanelBrush}" RowBackground="{DynamicResource WolfPanelBrush}" AlternatingRowBackground="{DynamicResource WolfShellBrush}" FontSize="11" RowHeight="29" ColumnHeaderHeight="28" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Margin="5,0" AutomationProperties.Name="Online preset band settings">
-                                    <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="MinHeight" Value="0"/><Setter Property="Height" Value="29"/></Style></DataGrid.RowStyle>
-                                    <DataGrid.Resources><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="4,0"/></Style></DataGrid.Resources>
-                                    <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="{DynamicResource WolfPanel2Brush}"/><Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/><Setter Property="Padding" Value="4"/><Setter Property="BorderThickness" Value="0"/></Style></DataGrid.ColumnHeaderStyle>
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="28"/>
-                                        <DataGridTemplateColumn Header="State" Width="48" SortMemberPath="Enabled"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock VerticalAlignment="Center" Margin="4,0"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="On"/><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/><Style.Triggers><DataTrigger Binding="{Binding Enabled}" Value="False"><Setter Property="Text" Value="Off"/><Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="Filter" Binding="{Binding FilterType}" Width="95"/>
-                                        <DataGridTextColumn Header="Hz" Binding="{Binding FrequencyHz, StringFormat={}{0:N0}}" Width="80"/>
-                                        <DataGridTextColumn Header="dB" Binding="{Binding GainDb, StringFormat={}{0:+0.0;-0.0;0.0}}" Width="65"/>
-                                        <DataGridTextColumn Header="Q" Binding="{Binding Q, StringFormat={}{0:F2}}" Width="62"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </TabItem>
-                        </TabControl>
-                    </Grid>
-                </Border>
-
-                <StackPanel Grid.Row="3" Margin="0,10,0,0">
-                    <TextBlock Text="Profiles are saved to My Library before they are opened or written."
-                               Style="{StaticResource DimText}"
-                               Margin="2,0,0,7"/>
-                    <Button Command="{Binding ImportGitHubProfileCommand}"
-                            Style="{StaticResource FiioButton}"
-                            Margin="0,0,0,6"
-                            ToolTip="Download this profile without replacing the current editor curve">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <controls:PhosphorIcon IconName="Plus"
-                                                   IconSize="14"
-                                                   IconBrush="{DynamicResource WolfGreenBrush}"
-                                                   Margin="0,0,7,0"/>
-                            <TextBlock Text="Save to My Library" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <UniformGrid>
-                        <UniformGrid.Style>
-                            <Style TargetType="UniformGrid">
-                                <Setter Property="Columns" Value="2"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsSystemEqSelected}" Value="True"><Setter Property="Columns" Value="1"/></DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </UniformGrid.Style>
-                        <Button Content="Open in editor"
-                                Command="{Binding LoadOnlineProfileIntoEditorCommand}"
-                                Style="{StaticResource QuietButton}"
-                                ToolTip="Save this profile and open it in the editor"/>
-                        <Button Content="Write to current slot"
-                                Command="{Binding WriteOnlineProfileToSlotCommand}"
-                                Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Style="{StaticResource AccentButton}"
-                                ToolTip="Save this profile and write it to the selected device slot"/>
-                    </UniformGrid>
-                </StackPanel>
-            </Grid>
-
-            <!-- 6. Single import/export cluster (R18) -->
-            <Expander Grid.Row="4"
-                      Header="Import / export"
-                      Foreground="{DynamicResource WolfMutedBrush}"
-                      Margin="0,12,0,0">
-                <StackPanel Margin="0,8,0,0">
-                    <!-- Import / Export switch, same chip look as My Library / Discover Online. -->
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <RadioButton x:Name="ImportModeChip" Style="{StaticResource SourceChip}" GroupName="IoMode" IsChecked="True" MinHeight="36" AutomationProperties.Name="Import">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <controls:PhosphorIcon IconName="Plus" IconSize="14" IconBrush="{DynamicResource WolfGreenBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                                <TextBlock Text="Import" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </RadioButton>
-                        <RadioButton x:Name="ExportModeChip" Grid.Column="1" Style="{StaticResource SourceChip}" GroupName="IoMode" MinHeight="36" Margin="2,0,0,0" AutomationProperties.Name="Export">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <controls:PhosphorIcon IconName="ArrowRight" IconSize="14" IconBrush="{DynamicResource WolfCyanBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                                <TextBlock Text="Export" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </RadioButton>
-                    </Grid>
-
-                    <StackPanel x:Name="ImportRows" Visibility="{Binding IsChecked, ElementName=ImportModeChip, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <TextBlock Text="Imported presets are added to My Library." Style="{StaticResource TinyLabel}" Margin="2,0,0,8"/>
+                <ToggleButton x:Name="ImportMenuButton" Grid.Column="2" Style="{StaticResource StudioMenuToggle}" Margin="0,0,6,0" MinHeight="34"
+                              IsChecked="{Binding IsOpen, ElementName=ImportPopup, Mode=TwoWay}" ToolTip="Import presets from files or the clipboard" AutomationProperties.Name="Import">
+                    <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="Plus" IconSize="13" IconBrush="{DynamicResource WolfGreenBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Import" Foreground="{DynamicResource WolfTextBrush}" FontWeight="SemiBold"/></StackPanel>
+                </ToggleButton>
+                <Popup x:Name="ImportPopup" PlacementTarget="{Binding ElementName=ImportMenuButton}" Placement="Bottom" HorizontalOffset="-300" VerticalOffset="6"
+                       StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <Border Width="420" Padding="12" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" Effect="{StaticResource WolfComboShadow}" Margin="0,0,10,10">
+                        <StackPanel x:Name="ImportRows">
+                            <TextBlock Text="Import" FontWeight="SemiBold" Margin="2,0,0,2"/>
+                            <TextBlock Text="Imported presets are added to My Library." Style="{StaticResource TinyLabel}" Margin="2,0,0,10"/>
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -522,8 +285,8 @@
                                     <TextBlock Text=".txt filters from Peace, AutoEq, or APO" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Open file" Command="{Binding ImportApoFromFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import an Equalizer APO or Peace .txt file"/>
-                                    <Button Content="Paste" Command="{Binding ImportApoFromClipboardCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import Equalizer APO text from the clipboard"/>
+                                    <Button Content="Open file" Command="{Binding ImportApoFromFileCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Import an Equalizer APO or Peace .txt file"/>
+                                    <Button Content="Paste" Command="{Binding ImportApoFromClipboardCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Import Equalizer APO text from the clipboard"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -538,7 +301,7 @@
                                     <TextBlock Text=".xml presets from the FiiO Control app" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Open file" Command="{Binding ImportFiioXmlFromFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import a FiiO .xml preset"/>
+                                    <Button Content="Open file" Command="{Binding ImportFiioXmlFromFileCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Import a FiiO .xml preset"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -553,7 +316,7 @@
                                     <TextBlock Text="A single preset shared from WolfEQ (.json)" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Open file" Command="{Binding ImportJsonFromFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import a WolfEQ preset .json file"/>
+                                    <Button Content="Open file" Command="{Binding ImportJsonFromFileCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Import a WolfEQ preset .json file"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -568,17 +331,27 @@
                                     <TextBlock Text="Adds every preset from a WolfEQ backup" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Open file" Command="{Binding ImportLibraryJsonCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import a whole WolfEQ library backup"/>
+                                    <Button Content="Open file" Command="{Binding ImportLibraryJsonCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Import a whole WolfEQ library backup"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
-                    </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Popup>
 
-                    <StackPanel x:Name="ExportRows" Visibility="{Binding IsChecked, ElementName=ExportModeChip, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <TextBlock Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,0,0,8">
-                            <Run Text="Exports the preset open in the editor:"/>
-                            <Run Text="{Binding SelectedPreset.Name, Mode=OneWay, TargetNullValue='open a preset first'}" Foreground="{DynamicResource WolfTextBrush}"/>
-                        </TextBlock>
+                <ToggleButton x:Name="ExportMenuButton" Grid.Column="3" Style="{StaticResource StudioMenuToggle}" Margin="0,0,10,0" MinHeight="34"
+                              IsChecked="{Binding IsOpen, ElementName=ExportPopup, Mode=TwoWay}" ToolTip="Export or back up presets" AutomationProperties.Name="Export">
+                    <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="ArrowRight" IconSize="13" IconBrush="{DynamicResource WolfCyanBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Export" Foreground="{DynamicResource WolfTextBrush}" FontWeight="SemiBold"/></StackPanel>
+                </ToggleButton>
+                <Popup x:Name="ExportPopup" PlacementTarget="{Binding ElementName=ExportMenuButton}" Placement="Bottom" HorizontalOffset="-320" VerticalOffset="6"
+                       StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <Border Width="420" Padding="12" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" Effect="{StaticResource WolfComboShadow}" Margin="0,0,10,10">
+                        <StackPanel x:Name="ExportRows">
+                            <TextBlock Text="Export" FontWeight="SemiBold" Margin="2,0,0,2"/>
+                            <TextBlock Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,0,0,10">
+                                <Run Text="Exports the preset open in the editor:"/>
+                                <Run Text="{Binding SelectedPreset.Name, Mode=OneWay, TargetNullValue='open a preset first'}" Foreground="{DynamicResource WolfTextBrush}"/>
+                            </TextBlock>
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -590,8 +363,8 @@
                                     <TextBlock Text="For Peace, APO, or sharing as text" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Save file" Command="{Binding ExportApoToFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Save the open preset as an Equalizer APO .txt file"/>
-                                    <Button Content="Copy" Command="{Binding ExportApoToClipboardCommand}" Style="{StaticResource IoActionButton}" ToolTip="Copy the open preset as Equalizer APO text"/>
+                                    <Button Content="Save file" Command="{Binding ExportApoToFileCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Save the open preset as an Equalizer APO .txt file"/>
+                                    <Button Content="Copy" Command="{Binding ExportApoToClipboardCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Copy the open preset as Equalizer APO text"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -606,7 +379,7 @@
                                     <TextBlock Text="For the FiiO Control app (.xml)" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Save file" Command="{Binding ExportFiioXmlToFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Save the open preset as a FiiO .xml file"/>
+                                    <Button Content="Save file" Command="{Binding ExportFiioXmlToFileCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Save the open preset as a FiiO .xml file"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -621,7 +394,7 @@
                                     <TextBlock Text="Share this preset with another WolfEQ (.json)" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Save file" Command="{Binding ExportJsonToFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Save the open preset as a WolfEQ .json file"/>
+                                    <Button Content="Save file" Command="{Binding ExportJsonToFileCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Save the open preset as a WolfEQ .json file"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -636,7 +409,7 @@
                                     <TextBlock Text="Every preset in your library, one file" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Save file" Command="{Binding ExportLibraryJsonCommand}" Style="{StaticResource IoActionButton}" ToolTip="Back up your whole WolfEQ library"/>
+                                    <Button Content="Save file" Command="{Binding ExportLibraryJsonCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Back up your whole WolfEQ library"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -651,13 +424,212 @@
                                     <TextBlock Text="Readable summary of the current EQ" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Content="Copy" Command="{Binding CopyTuningReportCommand}" Style="{StaticResource IoActionButton}" ToolTip="Copy a readable tuning report to the clipboard"/>
+                                    <Button Content="Copy" Command="{Binding CopyTuningReportCommand}" Style="{StaticResource IoActionButton}" Click="IoAction_Click" ToolTip="Copy a readable tuning report to the clipboard"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
-                    </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
+                <Button x:Name="CloseButton" Grid.Column="4" Style="{StaticResource OverlayCloseButton}" VerticalAlignment="Center" ToolTip="Close the library" Click="CloseButton_Click">
+                    <Path Width="11" Height="11" Data="M 1,1 L 10,10 M 10,1 L 1,10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                </Button>
+            </Grid>
+
+            <!-- 2. Tabs -->
+            <Border Grid.Row="1" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,0,0,1" Padding="14,0">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton x:Name="MyLibrarySourceChip" Style="{StaticResource LibraryTab}" GroupName="LibraryTabs" Content="My Library"
+                                 IsChecked="{Binding LibraryTab, Converter={StaticResource StringEquals}, ConverterParameter=Mine}"/>
+                    <RadioButton x:Name="FavoritesSourceChip" Style="{StaticResource LibraryTab}" GroupName="LibraryTabs" Content="Favorites"
+                                 IsChecked="{Binding LibraryTab, Converter={StaticResource StringEquals}, ConverterParameter=Favorites}"/>
+                    <RadioButton x:Name="OnlineSourceChip" Style="{StaticResource LibraryTab}" GroupName="LibraryTabs" Content="Discover online"
+                                 IsChecked="{Binding LibraryTab, Converter={StaticResource StringEquals}, ConverterParameter=Online}"/>
                 </StackPanel>
-            </Expander>
+            </Border>
+
+            <!-- 3. Split body: list on the left, preview and actions on the right -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="360"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: search, filters, results -->
+                <Border BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,0,1,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Local tools (My Library, Favorites) -->
+                        <StackPanel Margin="14,14,14,8" Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Grid>
+                                    <TextBox x:Name="LibrarySearchBox" Text="{Binding ProfileSearchText, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="32,0,10,0"
+                                             AutomationProperties.Name="Search saved presets" ToolTip="Filter saved presets"/>
+                                    <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="11,0,0,0" IsHitTestVisible="False"/>
+                                    <TextBlock Text="Search presets" Margin="32,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" IsHitTestVisible="False">
+                                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=LibrarySearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <Button Grid.Column="1" Command="{Binding CreateFlatPresetCommand}" Style="{StaticResource QuietButton}" Height="38" Margin="8,0,0,0" Padding="12,0"
+                                        Background="{DynamicResource WolfAccentHoverBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" ToolTip="Create a new flat preset" AutomationProperties.Name="New preset">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="M0,6 H12 M6,0 V12" Width="12" Height="12" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                        <TextBlock Text="New" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <ListBox x:Name="CategoryChips" Style="{StaticResource FilterChipList}" Margin="0,10,0,0" ItemsSource="{Binding LibraryCategoryChips}" SelectedItem="{Binding SelectedProfileCategory}"
+                                     AutomationProperties.Name="Preset category"
+                                     Visibility="{Binding IsChecked, ElementName=MyLibrarySourceChip, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+
+                        <!-- Online tools (Discover online) -->
+                        <StackPanel Margin="14,14,14,8" Visibility="{Binding IsOnlineLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Grid>
+                                    <TextBox x:Name="OnlineSearchBox" Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="32,0,10,0"
+                                             KeyDown="OnlineSearchBox_KeyDown" AutomationProperties.Name="Search online headphone profiles" ToolTip="Search AutoEq and OPRA headphone presets"/>
+                                    <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="11,0,0,0" IsHitTestVisible="False"/>
+                                    <TextBlock Text="Headphone name, e.g. Ananda" Margin="32,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" IsHitTestVisible="False">
+                                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=OnlineSearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <Button Grid.Column="1" Content="Search" Command="{Binding SearchGitHubProfilesCommand}" Style="{StaticResource FiioButton}" Height="38" Margin="8,0,0,0"/>
+                            </Grid>
+                            <ListBox x:Name="OnlineSourceChips" Style="{StaticResource FilterChipList}" Margin="0,10,0,0" ItemsSource="{StaticResource OnlineSourceOptions}" SelectedItem="{Binding OnlineSourceFilter}"
+                                     AutomationProperties.Name="Online source"/>
+                            <TextBlock Text="{Binding GitHubProfileStatus}" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Saved presets (My Library and Favorites share the filtered view) -->
+                        <ListBox x:Name="SavedPresetList" Grid.Row="1" Margin="8,0,8,8" ItemsSource="{Binding FilteredPresets}" SelectedItem="{Binding LibrarySelection}"
+                                 IsSynchronizedWithCurrentItem="False" KeyDown="SavedPresetList_KeyDown" MouseDoubleClick="SavedPresetList_MouseDoubleClick"
+                                 ItemTemplate="{StaticResource LibraryPresetListItemTemplate}" BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Saved presets"
+                                 Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" Margin="20">
+                            <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
+                                <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding HasItems, ElementName=SavedPresetList}" Value="False"/><Condition Binding="{Binding IsLocalLibraryTab}" Value="True"/></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible"/></MultiDataTrigger>
+                            </Style.Triggers></Style></StackPanel.Style>
+                            <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="24" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                            <TextBlock Text="No presets found" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Try another search, or star presets to see them in Favorites." Style="{StaticResource DimText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/>
+                        </StackPanel>
+
+                        <!-- Online results -->
+                        <ListBox x:Name="OnlineProfileList" Grid.Row="1" Margin="8,0,8,8" ItemsSource="{Binding FilteredGitHubProfiles}" SelectedItem="{Binding SelectedGitHubProfile}"
+                                 IsSynchronizedWithCurrentItem="False" ItemTemplate="{StaticResource OnlineProfileListItemTemplate}" BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Online results"
+                                 Visibility="{Binding IsOnlineLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" Margin="24">
+                            <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
+                                <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding HasItems, ElementName=OnlineProfileList}" Value="False"/><Condition Binding="{Binding IsOnlineLibraryTab}" Value="True"/></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible"/></MultiDataTrigger>
+                            </Style.Triggers></Style></StackPanel.Style>
+                            <controls:PhosphorIcon IconName="Headphones" IconSize="26" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                            <TextBlock Text="Find your headphones" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Search AutoEq and OPRA for community measurements and tunings, for example Ananda, HD 600 or Sundara." Style="{StaticResource DimText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Right: preview and actions for the selected preset -->
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="18,16,18,12">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,2,0,0">
+                                    <RadioButton x:Name="PreviewCurveChoice" GroupName="LibraryPreview" Style="{StaticResource PreviewViewChoice}" IsChecked="True" Content="Curve" Tag="0" Click="PreviewView_Click"/>
+                                    <RadioButton x:Name="PreviewTableChoice" GroupName="LibraryPreview" Style="{StaticResource PreviewViewChoice}" Content="Bands" Tag="1" Click="PreviewView_Click"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock x:Name="DetailTitle" Text="{Binding LibraryDetailTitle}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding LibraryDetailSubtitle}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <Border Margin="0,14,0,0" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="12" Padding="6">
+                                <TabControl x:Name="OnlinePreviewTabs" Height="270" SelectedIndex="0" BorderThickness="0" Background="Transparent" Padding="0">
+                                    <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
+                                    <TabItem x:Name="PreviewCurveTab" Header="Curve">
+                                        <controls:EqResponseGraphControl x:Name="LibraryPreviewGraph" Bands="{Binding LibraryDetailPreset.Bands}" PreampDb="{Binding LibraryDetailPreset.PreampDb, TargetNullValue=0}" IsInteractive="False" MinGainDb="-12" MaxGainDb="12" MinHeight="0"/>
+                                    </TabItem>
+                                    <TabItem x:Name="PreviewTableTab" Header="Bands">
+                                        <DataGrid x:Name="OnlinePreviewTable" ItemsSource="{Binding LibraryDetailPreset.Bands}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeColumns="False" CanUserResizeRows="False" HeadersVisibility="Column" RowHeaderWidth="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource WolfLineBrush}" BorderThickness="0" Background="{DynamicResource WolfBgBrush}" RowBackground="{DynamicResource WolfBgBrush}" AlternatingRowBackground="{DynamicResource WolfShellBrush}" FontSize="12" RowHeight="29" ColumnHeaderHeight="28" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Preset band settings">
+                                            <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="MinHeight" Value="0"/><Setter Property="Height" Value="29"/></Style></DataGrid.RowStyle>
+                                            <DataGrid.Resources><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="6,0"/></Style></DataGrid.Resources>
+                                            <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="{DynamicResource WolfPanel2Brush}"/><Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/><Setter Property="Padding" Value="6,4"/><Setter Property="BorderThickness" Value="0"/></Style></DataGrid.ColumnHeaderStyle>
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="34"/>
+                                                <DataGridTemplateColumn Header="State" Width="56" SortMemberPath="Enabled"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock VerticalAlignment="Center" Margin="6,0"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="On"/><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/><Style.Triggers><DataTrigger Binding="{Binding Enabled}" Value="False"><Setter Property="Text" Value="Off"/><Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                                                <DataGridTextColumn Header="Filter" Binding="{Binding FilterType, Converter={StaticResource EqFilterTypeName}}" Width="*"/>
+                                                <DataGridTextColumn Header="Hz" Binding="{Binding FrequencyHz, StringFormat={}{0:N0}}" Width="80"/>
+                                                <DataGridTextColumn Header="Gain" Binding="{Binding GainDb, StringFormat={}{0:+0.0;-0.0;0.0}}" Width="70"/>
+                                                <DataGridTextColumn Header="Q" Binding="{Binding Q, StringFormat={}{0:F2}}" Width="60"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </TabItem>
+                                </TabControl>
+                            </Border>
+
+                            <!-- Facts -->
+                            <UniformGrid Columns="4" Margin="0,12,-8,0">
+                                <Border Style="{StaticResource FactTile}"><StackPanel><TextBlock Text="PREAMP" Style="{StaticResource TinyLabel}"/><TextBlock Text="{Binding LibraryDetailPreset.PreampDb, StringFormat={}{0:+0.0;-0.0;0.0} dB, TargetNullValue=—, FallbackValue=—}" FontWeight="SemiBold" Margin="0,3,0,0"/></StackPanel></Border>
+                                <Border Style="{StaticResource FactTile}"><StackPanel><TextBlock Text="FILTERS" Style="{StaticResource TinyLabel}"/><TextBlock Text="{Binding LibraryDetailFilterCount}" FontWeight="SemiBold" Margin="0,3,0,0"/></StackPanel></Border>
+                                <Border Style="{StaticResource FactTile}"><StackPanel><TextBlock Text="{Binding SelectedDeviceProfile.BandCount, StringFormat=FITS {0}-BAND}" Style="{StaticResource TinyLabel}"/>
+                                    <TextBlock Text="{Binding LibraryDetailFitText}" FontWeight="SemiBold" Margin="0,3,0,0">
+                                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource WolfWarningBrush}"/><Style.Triggers><DataTrigger Binding="{Binding LibraryDetailFits}" Value="True"><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                    </TextBlock></StackPanel></Border>
+                                <Border Style="{StaticResource FactTile}"><StackPanel><TextBlock Text="SOURCE" Style="{StaticResource TinyLabel}"/>
+                                    <TextBlock FontWeight="SemiBold" Margin="0,3,0,0" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="{Binding LibraryDetailPreset.SourceName, FallbackValue=—}"/><Style.Triggers><DataTrigger Binding="{Binding IsOnlineLibraryTab}" Value="True"><Setter Property="Text" Value="{Binding SelectedGitHubProfile.Provider, FallbackValue=—}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                    </TextBlock></StackPanel></Border>
+                            </UniformGrid>
+
+                            <TextBlock Text="Online presets are saved to My Library before they are opened or written." Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,12,0,0"
+                                       Visibility="{Binding IsOnlineLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Actions -->
+                    <Border x:Name="LibrarySelectionActions" Grid.Row="1" Background="{DynamicResource WolfShellBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,1,0,0" Padding="18,12">
+                        <Grid>
+                            <!-- Saved preset actions -->
+                            <DockPanel LastChildFill="False" Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Button x:Name="OpenPresetButton" Click="OpenPresetButton_Click" Padding="16,9" Margin="0,0,8,0" ToolTip="Open this preset in the editor">
+                                    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SavePresetButton}"><Style.Triggers><DataTrigger Binding="{Binding LibrarySelection}" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                                    <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="16" IconBrush="{DynamicResource WolfGreenContrastBrush}" Margin="0,0,8,0"/><TextBlock Text="Open in editor" Foreground="{DynamicResource WolfGreenContrastBrush}"/></StackPanel>
+                                </Button>
+                                <Button Content="Duplicate" Command="{Binding DuplicatePresetCommand}" Padding="14,9" Margin="0,0,8,0" ToolTip="Make a copy of this preset"/>
+                                <Button Content="Write to USER slot" Command="{Binding WriteLibraryPresetToSlotCommand}" Padding="14,9" ToolTip="Write this preset to the selected device slot"
+                                        Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                <Button DockPanel.Dock="Right" Content="Delete" Command="{Binding DeletePresetCommand}" Style="{StaticResource QuietButton}" Foreground="{DynamicResource WolfDangerBrush}" Padding="12,9" ToolTip="Delete this preset" AutomationProperties.Name="Delete preset"/>
+                            </DockPanel>
+                            <!-- Online preset actions -->
+                            <DockPanel LastChildFill="False" Visibility="{Binding IsOnlineLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Button Command="{Binding LoadOnlineProfileIntoEditorCommand}" Style="{StaticResource SavePresetButton}" Padding="16,9" Margin="0,0,8,0" ToolTip="Save this profile and open it in the editor">
+                                    <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="16" IconBrush="{DynamicResource WolfGreenContrastBrush}" Margin="0,0,8,0"/><TextBlock Text="Open in editor" Foreground="{DynamicResource WolfGreenContrastBrush}"/></StackPanel>
+                                </Button>
+                                <Button Command="{Binding ImportGitHubProfileCommand}" Padding="14,9" Margin="0,0,8,0" ToolTip="Save this profile to My Library">
+                                    <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="Plus" IconSize="13" IconBrush="{DynamicResource WolfGreenBrush}" Margin="0,0,7,0"/><TextBlock Text="Save to My Library"/></StackPanel>
+                                </Button>
+                                <Button Content="Write to USER slot" Command="{Binding WriteOnlineProfileToSlotCommand}" Padding="14,9" ToolTip="Save this profile and write it to the selected device slot"
+                                        Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            </DockPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
         </Grid>
     </Border>
 </UserControl>

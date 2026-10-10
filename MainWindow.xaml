@@ -75,7 +75,7 @@
                                 Margin="0"
                                 Visibility="Collapsed">
                 <views:LibraryPanel.RenderTransform>
-                    <TranslateTransform X="492"/>
+                    <TranslateTransform X="880"/>
                 </views:LibraryPanel.RenderTransform>
             </views:LibraryPanel>
             <views:SettingsPopover x:Name="SettingsHost"

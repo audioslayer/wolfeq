@@ -34,7 +34,19 @@ public partial class LibraryPanel : UserControl
             CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void PresetAction_Click(object sender, RoutedEventArgs e) => PresetActionsPopup.IsOpen = false;
+    // Import / Export menu rows open file dialogs; close the menu first so it isn't left floating.
+    private void IoAction_Click(object sender, RoutedEventArgs e)
+    {
+        ImportPopup.IsOpen = false;
+        ExportPopup.IsOpen = false;
+    }
+
+    // Double-clicking a saved preset opens it, like the Open in editor button.
+    private void SavedPresetList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject source && ItemsControl.ContainerFromElement(SavedPresetList, source) is ListBoxItem)
+            OpenPresetButton_Click(sender, e);
+    }
 
     /// <summary>Row trash button: select that row, then run the normal confirmed delete.</summary>
     private void RowDeleteButton_Click(object sender, RoutedEventArgs e)

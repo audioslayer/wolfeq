@@ -190,6 +190,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         InitializeIntegrations();
         InitializeSettingsSummaries();
         InitializeConnectionStatus();
+        InitializeLibraryBrowser();
         LoadSlotLightingProfiles();
         Bands = _selectedPreset.Bands;
         WatchBands(Bands);

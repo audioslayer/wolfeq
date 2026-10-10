@@ -1179,7 +1179,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         return geometry;
     }
 
-    private static double EstimateGain(double frequency, IEnumerable<EqBand> bands)
+    internal static double EstimateGain(double frequency, IEnumerable<EqBand> bands)
     {
         var sum = 0.0;
         foreach (var band in bands)
