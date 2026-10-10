@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -20,14 +19,19 @@ public sealed partial class MainViewModel
     private SystemEqServices _systemEq = null!;
     private SystemEqSettings _systemEqSettings = null!;
     private DispatcherTimer _systemEqApplyTimer = null!;
-    private ObservableCollection<EqBand>? _systemEqWatchedBands;
-    private readonly HashSet<EqBand> _systemEqHookedBands = [];
+    private readonly SemaphoreSlim _systemEqAutomationGate = new(1, 1);
     private SystemEqState _systemEqState = SystemEqState.NotSelected;
     private SystemEqBackendStatus? _systemEqBackendStatus;
     private bool _isEqualizerApoInstalled;
     private bool _systemEqApplyPending;
-    private bool _systemEqApplyInFlight;
     private bool _systemEqApplyHalted;
+    // Startup without a persisted lastApplied: APO keeps its previous file until the user
+    // changes something, so refreshes and config.txt repairs must not write the editor.
+    private bool _systemEqHoldStartupApply;
+    private bool _isInitializingSystemEq;
+    private bool _systemEqLaunchInFlight;
+    private int _systemEqRefreshGeneration;
+    private Task<SystemEqApplyResult?> _systemEqApplyLoop = Task.FromResult<SystemEqApplyResult?>(null);
     private bool _systemEqRebootPending;
     private bool _isLeavingSystemEqForRemoval;
     private bool _isRebuildingSystemEqEndpoints;
@@ -55,6 +59,7 @@ public sealed partial class MainViewModel
 
             _systemEqSettings.Bypassed = value;
             SaveSystemEqSettings();
+            ClearSystemEqNotice();
             OnPropertyChanged();
             UpdateSystemEqStatus();
             QueueSystemEqApply();
@@ -108,6 +113,9 @@ public sealed partial class MainViewModel
     /// <summary>True while an editor change is waiting for the debounce to reach the backend.</summary>
     internal bool HasPendingSystemEqApply => _systemEqApplyPending;
 
+    /// <summary>The latest detection/endpoint refresh (tests await it; automation waits for it).</summary>
+    internal Task SystemEqRefreshTask => _systemEqRefreshTask;
+
     /// <summary>
     /// Ctor tail: wires services, settings, the debounce pipeline and commands, then restores a
     /// persisted System EQ choice before any FiiO auto-detect runs (KTD9).
@@ -123,23 +131,82 @@ public sealed partial class MainViewModel
         _systemEqApplyTimer.Tick += SystemEqApplyTimerOnTick;
 
         ToggleSystemEqBypassCommand = new RelayCommand(() => SystemEqBypassed = !SystemEqBypassed);
-        RefreshSystemEqEndpointsCommand = new AsyncRelayCommand(RefreshSystemEqAsync);
+        RefreshSystemEqEndpointsCommand = new AsyncRelayCommand(StartSystemEqRefresh);
         InstallEqualizerApoCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(_systemEq.RunInstaller, isInstaller: true));
         OpenApoDeviceSelectorCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(_systemEq.RunDeviceSelector, isInstaller: false));
         RemoveSystemEqFromApoCommand = new AsyncRelayCommand(RemoveSystemEqFromApoAsync);
 
         DeviceProfiles.Add(SystemEqProfiles.WindowsSystemEq);
-        WatchSystemEqBands();
-        PropertyChanged += SystemEqOnOwnPropertyChanged;
 
         if (_systemEqSettings.Selected)
         {
-            ApplyDeviceProfile(SystemEqProfiles.WindowsSystemEq);
-            DeviceSelectionStatus = $"Using {SystemEqProfiles.WindowsSystemEq.DisplayLabel}.";
-            SetConnectionState(IsDeviceConnected);
+            _isInitializingSystemEq = true;
+            try
+            {
+                // Re-apply what Windows last received, not whatever the library opened with.
+                var lastApplied = _systemEqSettings.LastApplied?.ToPreset();
+                var restoredLibraryPreset = lastApplied is not null && RestoreSystemEqEditorContent(lastApplied);
+                _systemEqHoldStartupApply = lastApplied is null;
+                SwitchDeviceProfile(SystemEqProfiles.WindowsSystemEq);
+                if (lastApplied is not null && !restoredLibraryPreset)
+                {
+                    // Not in the library: guard it like any other unsaved editor content.
+                    EditorSession.NotifyEdit();
+                }
+            }
+            finally
+            {
+                _isInitializingSystemEq = false;
+            }
         }
 
         UpdateSystemEqStatus();
+    }
+
+    /// <summary>
+    /// Loads a persisted System EQ curve into the editor. A library preset with the same name
+    /// and curve is selected (the normal library-open path); anything else becomes detached
+    /// editor content. Returns true when a library preset was selected.
+    /// </summary>
+    private bool RestoreSystemEqEditorContent(EqPreset snapshot)
+    {
+        var match = Presets.FirstOrDefault(preset =>
+            string.Equals(preset.Name.Trim(), snapshot.Name.Trim(), StringComparison.Ordinal)
+            && Math.Abs(preset.PreampDb - snapshot.PreampDb) < 0.005
+            && preset.Bands.Count == snapshot.Bands.Count
+            && preset.Bands.Zip(snapshot.Bands).All(pair => BandsMatch(pair.First, pair.Second)));
+        if (match is not null)
+        {
+            LibrarySelection = match;
+            SelectPresetInternal(match);
+            EditorSession.NotifyLoadedFromLibrary();
+            // Startup selection, not a user change to the saved library state.
+            _savedSelectedPreset = SelectedPreset;
+            IsProfileLibraryDirty = false;
+            return true;
+        }
+
+        DetachEditorFromLibrary();
+        _isLoadingPreset = true;
+        try
+        {
+            UnwatchBands(Bands);
+            Bands = new ObservableCollection<EqBand>(snapshot.Bands.Select(band => band.Clone()));
+            WatchBands(Bands);
+            PreampDb = snapshot.PreampDb;
+        }
+        finally
+        {
+            _isLoadingPreset = false;
+        }
+
+        OnPropertyChanged(nameof(Bands));
+        OnPropertyChanged(nameof(DeviceBandEditorTitle));
+        OnPropertyChanged(nameof(BandCardWidth));
+        OnPropertyChanged(nameof(SupportsK13PresetTools));
+        RefreshHeadroomProperties();
+        ResetEditHistory();
+        return false;
     }
 
     /// <summary>Called at the end of <see cref="ApplyDeviceProfile"/> for every profile switch.</summary>
@@ -164,7 +231,13 @@ public sealed partial class MainViewModel
             _systemEqSettings.Selected = true;
             SaveSystemEqSettings();
             _systemEqApplyHalted = false;
-            _systemEqRefreshTask = RefreshSystemEqAsync();
+            if (!_isInitializingSystemEq)
+            {
+                // The user picked System EQ: the editor is what they want applied.
+                _systemEqHoldStartupApply = false;
+            }
+
+            StartSystemEqRefresh();
             return;
         }
 
@@ -172,6 +245,7 @@ public sealed partial class MainViewModel
         // harmless (header-only WolfEQ.txt). Only "Remove from Equalizer APO" removes it.
         _systemEqSettings.Selected = false;
         SaveSystemEqSettings();
+        _systemEqRefreshGeneration++;
         StopSystemEqConfigWatcher();
         _systemEqApplyTimer.Stop();
         _systemEqApplyPending = false;
@@ -183,7 +257,7 @@ public sealed partial class MainViewModel
             _ = WriteSystemEqBypassOnLeaveAsync(BuildEditorPresetSnapshot());
         }
 
-        ConnectionText = IsDeviceConnected ? "Connected" : "Disconnected";
+        // The caller's SetConnectionState restores the hardware connection text.
         UpdateSystemEqStatus();
     }
 
@@ -210,96 +284,30 @@ public sealed partial class MainViewModel
         UpdateSystemEqStatus();
     }
 
-    #region Editor watch + debounce
-
-    private void SystemEqOnOwnPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (!ReferenceEquals(Bands, _systemEqWatchedBands))
-        {
-            WatchSystemEqBands();
-            QueueSystemEqApply();
-            return;
-        }
-
-        if (e.PropertyName is nameof(PreampDb))
-        {
-            QueueSystemEqApply();
-        }
-    }
-
-    private void WatchSystemEqBands()
-    {
-        if (_systemEqWatchedBands is { } previous)
-        {
-            previous.CollectionChanged -= SystemEqBandsOnCollectionChanged;
-        }
-
-        foreach (var band in _systemEqHookedBands)
-        {
-            band.PropertyChanged -= SystemEqBandOnPropertyChanged;
-        }
-
-        _systemEqHookedBands.Clear();
-        _systemEqWatchedBands = Bands;
-        Bands.CollectionChanged += SystemEqBandsOnCollectionChanged;
-        foreach (var band in Bands)
-        {
-            HookSystemEqBand(band);
-        }
-    }
-
-    private void HookSystemEqBand(EqBand band)
-    {
-        if (_systemEqHookedBands.Add(band))
-        {
-            band.PropertyChanged += SystemEqBandOnPropertyChanged;
-        }
-    }
-
-    private void SystemEqBandsOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.Action == NotifyCollectionChangedAction.Reset)
-        {
-            // Clear() does not report the removed items; re-hook the whole collection.
-            WatchSystemEqBands();
-        }
-        else
-        {
-            if (e.OldItems is not null)
-            {
-                foreach (EqBand band in e.OldItems)
-                {
-                    if (_systemEqHookedBands.Remove(band))
-                    {
-                        band.PropertyChanged -= SystemEqBandOnPropertyChanged;
-                    }
-                }
-            }
-
-            if (e.NewItems is not null)
-            {
-                foreach (EqBand band in e.NewItems)
-                {
-                    HookSystemEqBand(band);
-                }
-            }
-        }
-
-        QueueSystemEqApply();
-    }
-
-    private void SystemEqBandOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
-        => QueueSystemEqApply();
+    #region Debounce + apply
 
     /// <summary>
-    /// Debounces an editor snapshot to the backend. Unlike FiiO live sync this also runs during
-    /// <c>_isLoadingPreset</c>, because preset loads, reset and undo/redo must reach the output (R4).
+    /// Debounces an editor snapshot to the backend. The editor hooks in MainViewModel
+    /// (band/collection changes, preamp, Bands replacement) call this. Unlike FiiO live sync it
+    /// also runs during <c>_isLoadingPreset</c>, because preset loads, reset and undo/redo must
+    /// reach the output (R4, KTD8). <paramref name="isUserChange"/> is false for re-applies
+    /// (refresh, config.txt repair), which wait while the startup hold is active.
     /// </summary>
-    private void QueueSystemEqApply()
+    private void QueueSystemEqApply(bool isUserChange = true)
     {
         if (_systemEqApplyTimer is null || !IsSystemEqSelected || _systemEqApplyHalted)
         {
             return;
+        }
+
+        if (_systemEqHoldStartupApply)
+        {
+            if (!isUserChange || _isInitializingSystemEq)
+            {
+                return;
+            }
+
+            _systemEqHoldStartupApply = false;
         }
 
         _systemEqApplyPending = true;
@@ -322,7 +330,8 @@ public sealed partial class MainViewModel
 
     /// <summary>
     /// Sends the pending editor snapshot now (the debounce tick calls this; tests call it directly).
-    /// Returns null when nothing was pending or System EQ cannot apply.
+    /// Returns null when nothing was pending, an apply is already in flight (it re-checks the
+    /// pending flag when it finishes), or System EQ cannot apply.
     /// </summary>
     internal async Task<SystemEqApplyResult?> FlushSystemEqApplyAsync()
     {
@@ -333,14 +342,14 @@ public sealed partial class MainViewModel
             return null;
         }
 
-        if (!_systemEqApplyPending || _systemEqApplyInFlight)
+        if (!_systemEqApplyPending || !_systemEqApplyLoop.IsCompleted)
         {
-            // An in-flight apply re-checks the pending flag when it finishes.
             return null;
         }
 
+        var completion = new TaskCompletionSource<SystemEqApplyResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _systemEqApplyLoop = completion.Task;
         SystemEqApplyResult? last = null;
-        _systemEqApplyInFlight = true;
         try
         {
             while (_systemEqApplyPending && IsSystemEqSelected && !_systemEqApplyHalted)
@@ -349,45 +358,88 @@ public sealed partial class MainViewModel
                 last = await ApplySystemEqSnapshotAsync();
             }
         }
-        finally
+        catch (Exception ex)
         {
-            _systemEqApplyInFlight = false;
+            completion.TrySetException(ex);
+            throw;
         }
 
+        completion.TrySetResult(last);
         return last;
     }
 
-    /// <summary>Applies the current editor immediately (automation and explicit actions).</summary>
+    /// <summary>
+    /// Applies the current editor immediately (automation and explicit actions). When an apply
+    /// is already in flight this waits for that loop, which picks up the pending snapshot, and
+    /// returns its real outcome.
+    /// </summary>
     private async Task<SystemEqApplyResult> ApplySystemEqNowAsync()
     {
-        if (_systemEqApplyHalted)
+        if (!_systemEqApplyHalted && IsSystemEqSelected)
         {
-            var outcome = SystemEqState == SystemEqState.Blocked ? SystemEqApplyOutcome.Blocked : SystemEqApplyOutcome.NotInstalled;
-            return new SystemEqApplyResult(outcome, SystemEqStatusText);
+            _systemEqApplyPending = true;
+            var result = _systemEqApplyLoop.IsCompleted
+                ? await FlushSystemEqApplyAsync()
+                : await _systemEqApplyLoop;
+            if (result is not null)
+            {
+                return result;
+            }
         }
 
-        _systemEqApplyPending = true;
-        return await FlushSystemEqApplyAsync()
-               ?? new SystemEqApplyResult(SystemEqApplyOutcome.Failed, SystemEqStatusText);
+        var outcome = SystemEqState switch
+        {
+            SystemEqState.Blocked => SystemEqApplyOutcome.Blocked,
+            SystemEqState.NeedsInstall => SystemEqApplyOutcome.NotInstalled,
+            _ => SystemEqApplyOutcome.Failed
+        };
+        return new SystemEqApplyResult(outcome, SystemEqStatusText);
     }
 
     private async Task<SystemEqApplyResult> ApplySystemEqSnapshotAsync()
     {
+        var snapshot = BuildEditorPresetSnapshot();
+        var bypassed = SystemEqBypassed;
         SystemEqApplyResult result;
         try
         {
-            result = await _systemEq.Backend.ApplyAsync(
-                BuildEditorPresetSnapshot(),
-                SelectedSystemEqEndpointGuids(),
-                SystemEqBypassed);
+            result = await _systemEq.Backend.ApplyAsync(snapshot, SelectedSystemEqEndpointGuids(), bypassed);
         }
         catch (Exception ex)
         {
             result = new SystemEqApplyResult(SystemEqApplyOutcome.Failed, ex.Message);
         }
 
+        if (result.Succeeded && !bypassed && IsSystemEqSelected)
+        {
+            RememberSystemEqLastApplied(snapshot);
+        }
+
         HandleSystemEqApplyResult(result);
         return result;
+    }
+
+    /// <summary>Persists the curve Windows now has, so the next startup re-applies the same EQ.</summary>
+    private void RememberSystemEqLastApplied(EqPreset snapshot)
+    {
+        var applied = SystemEqAppliedSnapshot.FromPreset(snapshot);
+        if (_systemEqSettings.LastApplied is { } previous
+            && previous.Name == applied.Name
+            && previous.PreampDb.Equals(applied.PreampDb)
+            && previous.Bands.Count == applied.Bands.Count
+            && previous.Bands.Zip(applied.Bands).All(pair =>
+                pair.First.Number == pair.Second.Number
+                && pair.First.Enabled == pair.Second.Enabled
+                && pair.First.FilterType == pair.Second.FilterType
+                && pair.First.FrequencyHz == pair.Second.FrequencyHz
+                && pair.First.GainDb.Equals(pair.Second.GainDb)
+                && pair.First.Q.Equals(pair.Second.Q)))
+        {
+            return;
+        }
+
+        _systemEqSettings.LastApplied = applied;
+        SaveSystemEqSettings();
     }
 
     private void HandleSystemEqApplyResult(SystemEqApplyResult result)
@@ -395,6 +447,12 @@ public sealed partial class MainViewModel
         if (!IsSystemEqSelected)
         {
             return;
+        }
+
+        if (!result.Succeeded)
+        {
+            // Errors outrank a launcher notice (e.g. "setup was canceled").
+            ClearSystemEqNotice();
         }
 
         switch (result.Outcome)
@@ -431,12 +489,18 @@ public sealed partial class MainViewModel
 
     #region Detection + endpoints
 
-    /// <summary>Re-detects Equalizer APO, re-enumerates outputs, and moves the setup state machine.</summary>
+    private Task StartSystemEqRefresh() => _systemEqRefreshTask = RefreshSystemEqAsync();
+
+    /// <summary>
+    /// Re-detects Equalizer APO, re-enumerates outputs, and moves the setup state machine.
+    /// Overlapping refreshes are latest-wins: an older one stops at its next await.
+    /// </summary>
     private async Task RefreshSystemEqAsync()
     {
+        var generation = ++_systemEqRefreshGeneration;
         if (!IsSystemEqSelected)
         {
-            RebuildSystemEqEndpoints();
+            await RebuildSystemEqEndpointsAsync(generation);
             return;
         }
 
@@ -453,10 +517,14 @@ public sealed partial class MainViewModel
             status = SystemEqBackendStatus.NotInstalled(ex.Message);
         }
 
+        if (generation != _systemEqRefreshGeneration || !IsSystemEqSelected)
+        {
+            return;
+        }
+
         _systemEqBackendStatus = status;
         IsEqualizerApoInstalled = status.IsInstalled;
-        RebuildSystemEqEndpoints();
-        if (!IsSystemEqSelected)
+        if (!await RebuildSystemEqEndpointsAsync(generation) || !IsSystemEqSelected)
         {
             return;
         }
@@ -479,20 +547,30 @@ public sealed partial class MainViewModel
         SystemEqState = state;
         UpdateSystemEqConfigWatcher();
         UpdateSystemEqStatus();
-        QueueSystemEqApply();
+        QueueSystemEqApply(isUserChange: false);
     }
 
-    private void RebuildSystemEqEndpoints()
+    private readonly record struct SystemEqEndpointRow(AudioEndpointInfo Endpoint, bool IsFiio, ApoEndpointStatus Health);
+
+    /// <summary>
+    /// Enumerates outputs (MMDevice COM) and reads per-endpoint APO health (registry) off the UI
+    /// thread, then rebuilds <see cref="SystemEqEndpoints"/> on the caller's (UI) context.
+    /// Returns false when a newer refresh started meanwhile.
+    /// </summary>
+    private async Task<bool> RebuildSystemEqEndpointsAsync(int generation)
     {
-        IReadOnlyList<AudioEndpointInfo> endpoints;
-        try
+        var services = _systemEq;
+        var (rows, error) = services.QueryEndpointsInline
+            ? QuerySystemEqEndpoints(services)
+            : await Task.Run(() => QuerySystemEqEndpoints(services));
+        if (generation != _systemEqRefreshGeneration)
         {
-            endpoints = _systemEq.Catalog.GetRenderEndpoints();
+            return false;
         }
-        catch (Exception ex)
+
+        if (error is not null)
         {
-            AddLog($"Windows outputs could not be listed: {ex.Message}");
-            endpoints = [];
+            AddLog($"Windows outputs could not be listed: {error}");
         }
 
         _isRebuildingSystemEqEndpoints = true;
@@ -505,16 +583,8 @@ public sealed partial class MainViewModel
 
             SystemEqEndpoints.Clear();
             var selectedIds = new HashSet<string>(_systemEqSettings.EndpointIds, StringComparer.OrdinalIgnoreCase);
-            foreach (var endpoint in endpoints)
+            foreach (var (endpoint, isFiio, health) in rows)
             {
-                bool isFiio;
-                try { isFiio = _systemEq.IsFiioEndpoint(endpoint); }
-                catch { isFiio = false; }
-
-                ApoEndpointStatus health;
-                try { health = _systemEq.GetEndpointStatus(endpoint.Guid); }
-                catch { health = new ApoEndpointStatus(false, false); }
-
                 var option = new SystemEqEndpointOption(
                     endpoint.Id,
                     endpoint.Guid,
@@ -542,6 +612,36 @@ public sealed partial class MainViewModel
         }
 
         UpdateSystemEqStatus();
+        return true;
+    }
+
+    private static (IReadOnlyList<SystemEqEndpointRow> Rows, string? Error) QuerySystemEqEndpoints(SystemEqServices services)
+    {
+        IReadOnlyList<AudioEndpointInfo> endpoints;
+        try
+        {
+            endpoints = services.Catalog.GetRenderEndpoints();
+        }
+        catch (Exception ex)
+        {
+            return ([], ex.Message);
+        }
+
+        var rows = new List<SystemEqEndpointRow>(endpoints.Count);
+        foreach (var endpoint in endpoints)
+        {
+            bool isFiio;
+            try { isFiio = services.IsFiioEndpoint(endpoint); }
+            catch { isFiio = false; }
+
+            ApoEndpointStatus health;
+            try { health = services.GetEndpointStatus(endpoint.Guid); }
+            catch { health = new ApoEndpointStatus(false, false); }
+
+            rows.Add(new SystemEqEndpointRow(endpoint, isFiio, health));
+        }
+
+        return (rows, null);
     }
 
     private void SystemEqEndpointOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -559,6 +659,7 @@ public sealed partial class MainViewModel
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         SaveSystemEqSettings();
+        ClearSystemEqNotice();
         UpdateSystemEqStatus();
         QueueSystemEqApply();
     }
@@ -568,6 +669,19 @@ public sealed partial class MainViewModel
     #region Setup actions
 
     private async Task RunApoLauncherAsync(Func<Task<ApoLaunchResult>> launch, bool isInstaller)
+    {
+        _systemEqLaunchInFlight = true;
+        try
+        {
+            await RunApoLauncherCoreAsync(launch, isInstaller);
+        }
+        finally
+        {
+            _systemEqLaunchInFlight = false;
+        }
+    }
+
+    private async Task RunApoLauncherCoreAsync(Func<Task<ApoLaunchResult>> launch, bool isInstaller)
     {
         _systemEqNotice = isInstaller
             ? "Waiting for Equalizer APO setup to finish..."
@@ -595,18 +709,18 @@ public sealed partial class MainViewModel
                 return;
             case ApoLaunchOutcome.RebootRequired:
                 _systemEqRebootPending = true;
-                await RefreshSystemEqAsync();
+                await StartSystemEqRefresh();
                 return;
             case ApoLaunchOutcome.NotFound:
             case ApoLaunchOutcome.Failed:
-                await RefreshSystemEqAsync();
+                await StartSystemEqRefresh();
                 _systemEqNotice = string.IsNullOrWhiteSpace(result.Message)
                     ? "Equalizer APO setup could not be started."
                     : result.Message;
                 UpdateSystemEqStatus();
                 return;
             default:
-                await RefreshSystemEqAsync();
+                await StartSystemEqRefresh();
                 return;
         }
     }
@@ -656,6 +770,19 @@ public sealed partial class MainViewModel
 
     #region Status + warnings
 
+    /// <summary>
+    /// A launcher notice (setup canceled, waiting, failed) shows until the next meaningful change:
+    /// bypass, output ticks, an apply error, a refresh, or leaving System EQ. While a launcher is
+    /// still running its "waiting" text stays.
+    /// </summary>
+    private void ClearSystemEqNotice()
+    {
+        if (!_systemEqLaunchInFlight)
+        {
+            _systemEqNotice = null;
+        }
+    }
+
     private void UpdateSystemEqStatus()
     {
         if (_systemEqSettings is null)
@@ -698,10 +825,23 @@ public sealed partial class MainViewModel
             SystemEqState.Active when !SystemEqEndpoints.Any(endpoint => endpoint.IsSelected)
                 => "Pick an output to apply System EQ.",
             SystemEqState.Active when _systemEqApplyError is not null => $"Couldn't apply System EQ: {_systemEqApplyError}",
-            SystemEqState.Active => SystemEqEndpoints.Count(endpoint => endpoint.IsSelected) == 1
-                ? $"System EQ on {SystemEqEndpoints.First(endpoint => endpoint.IsSelected).Name}"
-                : $"System EQ on {SystemEqEndpoints.Count(endpoint => endpoint.IsSelected)} outputs",
+            SystemEqState.Active => BuildActiveSystemEqStatusText(),
             _ => "Windows System EQ is off."
+        };
+    }
+
+    /// <summary>Names only the ticked outputs Equalizer APO actually processes.</summary>
+    private string BuildActiveSystemEqStatusText()
+    {
+        var selected = SystemEqEndpoints.Where(endpoint => endpoint.IsSelected).ToList();
+        var reached = selected.Where(endpoint => endpoint.IsApoActive).ToList();
+        return reached.Count switch
+        {
+            0 => selected.Count == 1
+                ? "Equalizer APO isn't active on the selected output"
+                : "Equalizer APO isn't active on the selected outputs",
+            1 => $"System EQ on {reached[0].Name}",
+            _ => $"System EQ on {reached.Count} outputs"
         };
     }
 
@@ -735,6 +875,14 @@ public sealed partial class MainViewModel
             warnings.Add($"Audio enhancements are turned off for {disabled.Name}, so Equalizer APO can't process it.");
         }
 
+        if (SystemEqState == SystemEqState.Active)
+        {
+            foreach (var inactive in selected.Where(endpoint => !endpoint.IsApoActive && !endpoint.EnhancementsDisabled))
+            {
+                warnings.Add($"Equalizer APO isn't active on {inactive.Name}. Use Add outputs to enable it.");
+            }
+        }
+
         return string.Join(" ", warnings);
     }
 
@@ -761,30 +909,51 @@ public sealed partial class MainViewModel
             return new(1, "This command works in Windows System EQ mode. Select Windows System EQ in Settings first.");
         }
 
-        await _systemEqRefreshTask;
-
-        if (request.SystemEqBypass is { } bypass)
+        // Concurrent automation commands run one after another, never interleaved.
+        await _systemEqAutomationGate.WaitAsync();
+        try
         {
-            SystemEqBypassed = bypass switch
+            await _systemEqRefreshTask;
+            if (!IsSystemEqSelected)
             {
-                "on" => true,
-                "off" => false,
-                _ => !SystemEqBypassed
-            };
-            var bypassResult = await ApplySystemEqNowAsync();
-            return bypassResult.Succeeded
-                ? new(0, SystemEqBypassed ? "Windows System EQ bypass on." : "Windows System EQ bypass off.")
-                : new(1, $"Bypass saved, but it could not be applied: {bypassResult.Message}");
-        }
+                return new(1, "This command works in Windows System EQ mode. Select Windows System EQ in Settings first.");
+            }
 
-        var name = request.PresetName!.Trim();
+            return request.SystemEqBypass is { } bypass
+                ? await ExecuteSystemEqBypassAsync(bypass)
+                : await ExecuteSystemEqPresetAsync(request.PresetName!.Trim());
+        }
+        finally
+        {
+            _systemEqAutomationGate.Release();
+        }
+    }
+
+    private async Task<AutomationResult> ExecuteSystemEqBypassAsync(string bypass)
+    {
+        SystemEqBypassed = bypass switch
+        {
+            "on" => true,
+            "off" => false,
+            _ => !SystemEqBypassed
+        };
+        var result = await ApplySystemEqNowAsync();
+        return result.Succeeded
+            ? new(0, SystemEqBypassed ? "Windows System EQ bypass on." : "Windows System EQ bypass off.")
+            : new(1, $"Bypass saved, but it could not be applied: {result.Message}");
+    }
+
+    private async Task<AutomationResult> ExecuteSystemEqPresetAsync(string name)
+    {
         var preset = Presets.FirstOrDefault(candidate => string.Equals(candidate.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
         if (preset is null)
         {
             return new(1, $"No library preset is named \"{name}\".");
         }
 
-        if (!ReferenceEquals(preset, SelectedPreset) && EditorSession.WouldReplaceUnsavedEdits)
+        // Same rule as --slot: automation never replaces unsaved editor edits, including edits
+        // to the preset that is already open (they would otherwise be applied under its name).
+        if (EditorSession.WouldReplaceUnsavedEdits)
         {
             return new(3, "Preset not loaded: the editor has unsaved changes.");
         }

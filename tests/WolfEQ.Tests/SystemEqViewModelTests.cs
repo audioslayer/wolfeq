@@ -298,6 +298,151 @@ public sealed class SystemEqViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task StartupReappliesLastAppliedCurveInsteadOfFirstLibraryPreset()
+    {
+        var applied = SystemEqTestRig.Preset("Not In Library", gainDb: 3, preampDb: -3);
+        WriteSettings(selected: true, lastApplied: applied);
+
+        var model = _rig.CreateModel();
+        var firstLibraryPreset = model.Presets[0];
+        Assert.NotEqual(applied.Name, firstLibraryPreset.Name);
+        Assert.Equal(3, model.Bands[0].GainDb);
+        Assert.Equal(-3, model.PreampDb);
+        // Not a library preset: guarded like unsaved editor content.
+        Assert.True(model.EditorSession.WouldReplaceUnsavedEdits);
+
+        await model.FlushSystemEqApplyAsync();
+        var apply = Assert.Single(_rig.Backend.Applies);
+        Assert.Equal(3, apply.Preset.Bands[0].GainDb);
+        Assert.Equal(-3, apply.Preset.PreampDb);
+        Assert.DoesNotContain(_rig.Backend.Applies, recorded => recorded.Preset.Name == firstLibraryPreset.Name);
+    }
+
+    [Fact]
+    public async Task StartupSelectsTheLibraryPresetMatchingLastApplied()
+    {
+        var target = SystemEqTestRig.Preset("Second Preset", gainDb: 2, preampDb: -2);
+        new LocalPresetLibraryService(_rig.LibraryPath).Save(
+            [SystemEqTestRig.Preset("First Preset", gainDb: -1, preampDb: 0), target]);
+        WriteSettings(selected: true, lastApplied: target);
+
+        var model = _rig.CreateModel();
+        Assert.Equal(target.Name, model.SelectedPreset!.Name);
+        Assert.NotEqual(model.Presets[0].Name, model.SelectedPreset.Name);
+        Assert.False(model.EditorSession.WouldReplaceUnsavedEdits);
+
+        await model.FlushSystemEqApplyAsync();
+        var apply = Assert.Single(_rig.Backend.Applies);
+        Assert.Equal(target.Name, apply.Preset.Name);
+        Assert.Equal(target.PreampDb, apply.Preset.PreampDb);
+    }
+
+    [Fact]
+    public async Task StartupWithoutLastAppliedWritesNothingUntilTheUserEdits()
+    {
+        WriteSettings(selected: true, lastApplied: null);
+
+        var model = _rig.CreateModel();
+        Assert.True(model.IsSystemEqSelected);
+        Assert.Equal(SystemEqState.Active, model.SystemEqState);
+        Assert.False(model.HasPendingSystemEqApply);
+        Assert.Null(await model.FlushSystemEqApplyAsync());
+
+        model.RefreshSystemEqEndpointsCommand.Execute(null);
+        Assert.Null(await model.FlushSystemEqApplyAsync());
+        Assert.Empty(_rig.Backend.Applies);
+
+        model.Bands[1].GainDb = 2;
+        await model.FlushSystemEqApplyAsync();
+        Assert.Equal(2, Assert.Single(_rig.Backend.Applies).Preset.Bands[1].GainDb);
+    }
+
+    [Fact]
+    public async Task SuccessfulApplyPersistsLastAppliedButBypassDoesNot()
+    {
+        var model = await _rig.CreateSystemEqModelAsync();
+        model.Bands[0].GainDb = 6;
+        await model.FlushSystemEqApplyAsync();
+        Assert.Equal(6, SystemEqSettings.Load(_rig.SettingsPath).LastApplied!.Bands[0].GainDb);
+
+        model.SystemEqBypassed = true;
+        model.Bands[0].GainDb = -6;
+        await model.FlushSystemEqApplyAsync();
+        Assert.Equal(6, SystemEqSettings.Load(_rig.SettingsPath).LastApplied!.Bands[0].GainDb);
+    }
+
+    [Fact]
+    public async Task TickedOutputWithoutApoWarnsAndIsLeftOutOfStatus()
+    {
+        _rig.EndpointHealth["{22222222-2222-2222-2222-222222222222}"] = new ApoEndpointStatus(false, false);
+        var model = await _rig.CreateSystemEqModelAsync();
+        Assert.Equal(SystemEqState.Active, model.SystemEqState);
+
+        model.SystemEqEndpoints.Single(endpoint => endpoint.Id == K13Id).IsSelected = true;
+        Assert.Equal("System EQ on Headphones (USB Audio)", model.SystemEqStatusText);
+        Assert.Contains("Equalizer APO isn't active on Speakers (FiiO K13 R2R). Use Add outputs to enable it.", model.SystemEqWarningText);
+
+        model.SystemEqEndpoints.Single(endpoint => endpoint.Id == HeadphonesId).IsSelected = false;
+        Assert.Equal("Equalizer APO isn't active on the selected output", model.SystemEqStatusText);
+        Assert.True(model.HasSystemEqWarning);
+    }
+
+    [Fact]
+    public async Task BypassAndApplyErrorsReplaceACanceledLauncherNotice()
+    {
+        var model = await _rig.CreateSystemEqModelAsync();
+        _rig.DeviceSelectorResult = new ApoLaunchResult(ApoLaunchOutcome.Cancelled, "UAC canceled.");
+        model.OpenApoDeviceSelectorCommand.Execute(null);
+        Assert.Contains("canceled", model.SystemEqStatusText);
+
+        model.ToggleSystemEqBypassCommand.Execute(null);
+        Assert.Equal("System EQ bypassed", model.SystemEqStatusText);
+        model.ToggleSystemEqBypassCommand.Execute(null);
+        await model.FlushSystemEqApplyAsync();
+
+        model.OpenApoDeviceSelectorCommand.Execute(null);
+        Assert.Contains("canceled", model.SystemEqStatusText);
+        _rig.Backend.NextOutcome = SystemEqApplyOutcome.Failed;
+        model.Bands[0].GainDb = 1;
+        await model.FlushSystemEqApplyAsync();
+        Assert.StartsWith("Couldn't apply System EQ", model.SystemEqStatusText);
+    }
+
+    [Fact]
+    public async Task EndpointQueriesRunOffTheCallingThreadAndOverlappingRefreshesSettle()
+    {
+        _rig.InlineEndpointQueries = false;
+        using var gate = new ManualResetEventSlim(false);
+        _rig.Catalog.Gate = gate;
+        var model = _rig.CreateModel();
+
+        model.SelectedDeviceProfile = SystemEqProfiles.WindowsSystemEq;
+        var first = model.SystemEqRefreshTask;
+        model.RefreshSystemEqEndpointsCommand.Execute(null);
+        var latest = model.SystemEqRefreshTask;
+        Assert.NotSame(first, latest);
+        // Inline queries would have blocked on the gate inside the setter and finished.
+        Assert.False(first.IsCompleted);
+        Assert.False(latest.IsCompleted);
+        Assert.Empty(model.SystemEqEndpoints);
+
+        gate.Set();
+        await Task.WhenAll(first, latest);
+
+        Assert.Equal(2, model.SystemEqEndpoints.Count);
+        Assert.Equal(SystemEqState.Active, model.SystemEqState);
+    }
+
+    private void WriteSettings(bool selected, EqPreset? lastApplied)
+    {
+        var settings = SystemEqSettings.Load(_rig.SettingsPath);
+        settings.Selected = selected;
+        settings.EndpointIds = [HeadphonesId];
+        settings.LastApplied = lastApplied is null ? null : SystemEqAppliedSnapshot.FromPreset(lastApplied);
+        settings.Save();
+    }
+
+    [Fact]
     public void SettingsRoundTripUsesPlanJsonNames()
     {
         var settings = SystemEqSettings.Load(_rig.SettingsPath);
@@ -344,7 +489,11 @@ internal sealed class SystemEqTestRig : IDisposable
     public FakeEndpointCatalog Catalog { get; } = new();
     public Dictionary<string, ApoEndpointStatus> EndpointHealth { get; } = new(StringComparer.OrdinalIgnoreCase);
     public ApoLaunchResult InstallerResult { get; set; } = new(ApoLaunchOutcome.Completed, "Done.");
+    public ApoLaunchResult DeviceSelectorResult { get; set; } = new(ApoLaunchOutcome.Completed, "Done.");
     public int DeviceSelectorRuns { get; private set; }
+
+    /// <summary>Endpoint queries run inline by default so most tests stay synchronous.</summary>
+    public bool InlineEndpointQueries { get; set; } = true;
 
     public SystemEqServices Services => new(
         Backend,
@@ -355,8 +504,11 @@ internal sealed class SystemEqTestRig : IDisposable
         () =>
         {
             DeviceSelectorRuns++;
-            return Task.FromResult(new ApoLaunchResult(ApoLaunchOutcome.Completed, "Done."));
-        });
+            return Task.FromResult(DeviceSelectorResult);
+        })
+    {
+        QueryEndpointsInline = InlineEndpointQueries
+    };
 
     public MainViewModel CreateModel()
         => new(new LocalPresetLibraryService(LibraryPath), Services, SettingsPath);
@@ -414,18 +566,27 @@ internal sealed class FakeEqOutputBackend : IEqOutputBackend
     public int RemoveCount { get; private set; }
     public int StatusCalls { get; private set; }
 
+    /// <summary>One-shot gate: the next apply is recorded, then waits until the gate completes.</summary>
+    public TaskCompletionSource? ApplyGate { get; set; }
+
     public Task<SystemEqBackendStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
         StatusCalls++;
         return Task.FromResult(Status);
     }
 
-    public Task<SystemEqApplyResult> ApplyAsync(EqPreset preset, IReadOnlyList<string> endpointGuids, bool bypassed, CancellationToken cancellationToken = default)
+    public async Task<SystemEqApplyResult> ApplyAsync(EqPreset preset, IReadOnlyList<string> endpointGuids, bool bypassed, CancellationToken cancellationToken = default)
     {
         Applies.Add(new RecordedApply(preset, endpointGuids.ToList(), bypassed));
+        if (ApplyGate is { } gate)
+        {
+            ApplyGate = null;
+            await gate.Task;
+        }
+
         var outcome = NextOutcome
             ?? (bypassed ? SystemEqApplyOutcome.Bypassed : endpointGuids.Count == 0 ? SystemEqApplyOutcome.NoEndpoints : SystemEqApplyOutcome.Applied);
-        return Task.FromResult(new SystemEqApplyResult(outcome, outcome == SystemEqApplyOutcome.Blocked ? "Access denied." : "ok"));
+        return new SystemEqApplyResult(outcome, outcome == SystemEqApplyOutcome.Blocked ? "Access denied." : "ok");
     }
 
     public Task<SystemEqApplyResult> RemoveAsync(CancellationToken cancellationToken = default)
@@ -438,5 +599,11 @@ internal sealed class FakeEqOutputBackend : IEqOutputBackend
 internal sealed class FakeEndpointCatalog : IAudioEndpointCatalog
 {
     public List<AudioEndpointInfo> Endpoints { get; } = [];
-    public IReadOnlyList<AudioEndpointInfo> GetRenderEndpoints() => Endpoints;
+    public ManualResetEventSlim? Gate { get; set; }
+
+    public IReadOnlyList<AudioEndpointInfo> GetRenderEndpoints()
+    {
+        Gate?.Wait(TimeSpan.FromSeconds(10));
+        return Endpoints.ToList();
+    }
 }

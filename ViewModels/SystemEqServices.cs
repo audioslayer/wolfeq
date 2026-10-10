@@ -25,6 +25,12 @@ public sealed record SystemEqServices(
     /// <summary>Test hook: when set, <see cref="CreateDefault"/> returns this instead of the real services.</summary>
     internal static Func<SystemEqServices>? DefaultOverride { get; set; }
 
+    /// <summary>
+    /// Test hook: run endpoint enumeration and per-endpoint health reads on the caller's thread
+    /// instead of the thread pool, so fake-backed view-model tests stay synchronous.
+    /// </summary>
+    internal bool QueryEndpointsInline { get; init; }
+
     /// <summary>The real Equalizer APO services (registry detection, NAudio endpoints, elevated launchers).</summary>
     public static SystemEqServices CreateDefault()
     {

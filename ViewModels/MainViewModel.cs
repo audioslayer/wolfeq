@@ -302,7 +302,22 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<FiioDeviceProfile> DeviceProfiles { get; }
     public ObservableCollection<DeviceUserPresetOption> DeviceUserPresets { get; }
     public ObservableCollection<DeviceInputSourceOption> DeviceInputSources { get; }
-    public ObservableCollection<EqBand> Bands { get; private set; }
+    private ObservableCollection<EqBand> _bands = null!;
+    public ObservableCollection<EqBand> Bands
+    {
+        get => _bands;
+        private set
+        {
+            if (ReferenceEquals(_bands, value))
+            {
+                return;
+            }
+
+            _bands = value;
+            // Preset loads, detaches and resets replace the collection; System EQ applies them (KTD8).
+            QueueSystemEqApply();
+        }
+    }
     public ObservableCollection<AutoEqProfileIndexEntry> GitHubProfiles { get; }
     public ObservableCollection<WindowsAudioQuickOption> WindowsAudioQuickFormats { get; }
     public ObservableCollection<string> DeviceLog { get; }
@@ -351,9 +366,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
                 return;
             }
 
-            ApplyDeviceProfile(value);
-            DeviceSelectionStatus = $"Using {value.DisplayLabel}.";
-            SetConnectionState(IsDeviceConnected);
+            SwitchDeviceProfile(value);
 
             // R22 + R19: a manual profile switch while connected loads the new device's
             // active slot (the editor was just reset, so the guarded load proceeds).
@@ -3046,6 +3059,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// and a band-template rebuild when the new profile's band count differs.
     /// Shared by the manual picker and auto-detection.
     /// </summary>
+    /// <summary>Profile switch tail shared by the picker and the System EQ startup restore.</summary>
+    private void SwitchDeviceProfile(FiioDeviceProfile value)
+    {
+        ApplyDeviceProfile(value);
+        DeviceSelectionStatus = $"Using {value.DisplayLabel}.";
+        SetConnectionState(IsDeviceConnected);
+    }
+
     private void ApplyDeviceProfile(FiioDeviceProfile value)
     {
         var wasSystemEq = IsSystemEqSelected;
@@ -4476,6 +4497,9 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private void NotifyEditorContentEdited()
     {
+        // Band, collection and preamp hooks all land here. System EQ must also see loads,
+        // undo and reset (which run under _isLoadingPreset), so queue before the early return.
+        QueueSystemEqApply();
         if (_isLoadingPreset)
         {
             return;
