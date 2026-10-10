@@ -6,6 +6,7 @@
         AllowsTransparency="True" Background="Transparent" WindowStartupLocation="Manual"
         PreviewKeyDown="OnPreviewKeyDown" Deactivated="OnDeactivated">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <Style x:Key="TrayButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
             <Setter Property="Padding" Value="12,10"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
@@ -21,15 +22,27 @@
                         <Path Data="M0,18 L5,18 L9,7 L13,30 L18,0 L23,36 L28,12 L32,23 L37,18" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="3" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Canvas.Left="6.1" Canvas.Top="6.8"><Path.RenderTransform><ScaleTransform ScaleX="1.4" ScaleY="1.4"/></Path.RenderTransform></Path>
                     </Canvas>
                 </Viewbox>
-                <StackPanel Grid.Column="1"><TextBlock Text="WolfEQ" FontSize="20" FontWeight="Bold"/><TextBlock Text="Saved device profiles" FontSize="9" Foreground="{DynamicResource WolfCyanBrush}" Margin="0,3,0,0"/></StackPanel>
+                <StackPanel Grid.Column="1"><TextBlock Text="WolfEQ" FontSize="20" FontWeight="Bold"/><TextBlock FontSize="9" Foreground="{DynamicResource WolfCyanBrush}" Margin="0,3,0,0"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="Saved device profiles"/><Style.Triggers><DataTrigger Binding="{Binding Vm.IsSystemEqSelected}" Value="True"><Setter Property="Text" Value="Windows System EQ"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></StackPanel>
                 <TextBlock Grid.Column="2" Text="{Binding Vm.AppVersionText}" FontSize="10" VerticalAlignment="Top" Foreground="{DynamicResource WolfMutedBrush}"/>
             </Grid>
-            <Border Background="{DynamicResource WolfShellBrush}" CornerRadius="9" Padding="12" Margin="0,0,0,16">
+            <!-- System EQ mode: status + bypass replace the device card and slot grid. -->
+            <Border Background="{DynamicResource WolfShellBrush}" CornerRadius="9" Padding="12" Margin="0,0,0,16"
+                    Visibility="{Binding Vm.IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,10,0"><TextBlock Text="System EQ" FontSize="13" FontWeight="SemiBold"/><TextBlock Text="{Binding Vm.SystemEqStatusText}" Foreground="{DynamicResource WolfMutedBrush}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Bypass" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ToggleButton Style="{StaticResource BandPowerToggle}" IsChecked="{Binding Vm.SystemEqBypassed, Mode=TwoWay}" AutomationProperties.Name="Bypass System EQ" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <Border Background="{DynamicResource WolfShellBrush}" CornerRadius="9" Padding="12" Margin="0,0,0,16" Visibility="{Binding Vm.IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
                     <Ellipse Width="7" Height="7" Margin="0,0,10,0"><Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="{DynamicResource WolfDimBrush}"/><Style.Triggers><DataTrigger Binding="{Binding Vm.IsDeviceConnected}" Value="True"><Setter Property="Fill" Value="{DynamicResource WolfGreenBrush}"/></DataTrigger></Style.Triggers></Style></Ellipse.Style></Ellipse>
                     <StackPanel Grid.Column="1"><TextBlock Text="{Binding Vm.DeviceNickname}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding ConnectionSummary}" Foreground="{DynamicResource WolfMutedBrush}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
                 </Grid>
             </Border>
+            <StackPanel Visibility="{Binding Vm.IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
             <TextBlock Text="QUICK PROFILES" FontSize="10" Foreground="{DynamicResource WolfCyanBrush}" Margin="0,0,0,12"/>
             <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding Slots}">
@@ -42,10 +55,12 @@
                     </DataTemplate></ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-            <ProgressBar Height="2" IsIndeterminate="True" Foreground="{DynamicResource WolfCyanBrush}" Margin="0,5,0,8"><ProgressBar.Style><Style TargetType="ProgressBar"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsWorking}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></ProgressBar.Style></ProgressBar>
+            </StackPanel>
+            <ProgressBar Height="2" IsIndeterminate="True" Foreground="{DynamicResource WolfCyanBrush}" Margin="0,5,0,8"><ProgressBar.Style><Style TargetType="ProgressBar"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsWorking}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding Vm.IsSystemEqSelected}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></ProgressBar.Style></ProgressBar>
             <TextBlock Text="{Binding Message}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" TextWrapping="Wrap" MaxHeight="90" ToolTip="{Binding Message}" Margin="0,0,0,14" AutomationProperties.LiveSetting="Polite">
                 <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers>
                     <DataTrigger Binding="{Binding Message}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                    <DataTrigger Binding="{Binding Vm.IsSystemEqSelected}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                 </Style.Triggers></Style></TextBlock.Style>
             </TextBlock>
             <Border BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,1,0,0" Padding="0,13,0,0">
