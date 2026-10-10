@@ -6,7 +6,10 @@ namespace WolfEQ.Services;
 
 public static class BackgroundThemeService
 {
-    private static string PreferencePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WolfEQ", "background-theme.txt");
+    /// <summary>Test hook: keeps theme tests from writing the user's real preference.</summary>
+    internal static string? PreferencePathOverride { get; set; }
+
+    private static string PreferencePath => PreferencePathOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WolfEQ", "background-theme.txt");
     public static string CurrentMode => Application.Current?.TryFindResource("WolfBackgroundMode") as string ?? "Dark";
 
     public static string Load()
