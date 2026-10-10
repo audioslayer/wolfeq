@@ -3,14 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="clr-namespace:WolfEQ"
+             xmlns:views="clr-namespace:WolfEQ.Views"
              mc:Ignorable="d"
              d:DesignWidth="1280"
              d:DesignHeight="56"
              Foreground="{DynamicResource WolfTextBrush}">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
 
         <!-- Detect reads quiet while connected, accent-bordered while disconnected. -->
         <Style x:Key="DetectButton" TargetType="{x:Type Button}" BasedOn="{StaticResource QuietButton}">
@@ -26,17 +25,75 @@
         <Style x:Key="SlotMenuItem" TargetType="Button" BasedOn="{StaticResource QuietButton}">
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Padding" Value="12,9"/>
+        </Style>
+
+        <views:SameValueMultiConverter x:Key="SameValueMultiConverter"/>
+
+        <!-- Connection line + dot: green when working, amber when it needs a look, grey when idle. -->
+        <Style x:Key="ConnectionToneText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
             <Style.Triggers>
-                <DataTrigger Value="True"><DataTrigger.Binding>
-                    <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
-                        <Binding/>
-                        <Binding Path="DataContext.SelectedDeviceUserPreset" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
-                    </MultiBinding>
-                </DataTrigger.Binding>
-                    <Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
-                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
+                <DataTrigger Binding="{Binding ConnectionTone}" Value="Active"><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/></DataTrigger>
+                <DataTrigger Binding="{Binding ConnectionTone}" Value="Attention"><Setter Property="Foreground" Value="{DynamicResource WolfWarningBrush}"/></DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ConnectionToneDot" TargetType="Ellipse">
+            <Setter Property="Fill" Value="{DynamicResource WolfDimBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ConnectionTone}" Value="Active"><Setter Property="Fill" Value="{DynamicResource WolfGreenBrush}"/></DataTrigger>
+                <DataTrigger Binding="{Binding ConnectionTone}" Value="Attention"><Setter Property="Fill" Value="{DynamicResource WolfWarningBrush}"/></DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- USER slot rows: compact and full-contrast even while the device is unplugged
+             (a hint above the list explains why switching is unavailable). -->
+        <Style x:Key="SlotRowItem" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions><Condition Property="IsMouseOver" Value="True"/><Condition Property="IsEnabled" Value="True"/></MultiTrigger.Conditions>
+                        <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
+                    </MultiTrigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/></Trigger>
+                    <Trigger Property="IsEnabled" Value="False"><Setter Property="Cursor" Value="Arrow"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+
+        <!-- Slot title: the local EQ name when there is one, otherwise "USER n". -->
+        <Style x:Key="SlotTitleText" TargetType="TextBlock">
+            <Setter Property="Text" Value="{Binding LocalEqName}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding LocalEqName}" Value="{x:Null}"><Setter Property="Text" Value="{Binding SlotLabel}"/></DataTrigger>
+                <DataTrigger Binding="{Binding LocalEqName}" Value=""><Setter Property="Text" Value="{Binding SlotLabel}"/></DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Slot subtitle: "USER n" under a local name, otherwise a dim "No local name yet". -->
+        <Style x:Key="SlotSubtitleText" TargetType="TextBlock">
+            <Setter Property="Text" Value="{Binding SlotLabel}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Margin" Value="0,1,0,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding LocalEqName}" Value="{x:Null}"><Setter Property="Text" Value="{Binding LocalEqSubtitle}"/><Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/></DataTrigger>
+                <DataTrigger Binding="{Binding LocalEqName}" Value=""><Setter Property="Text" Value="{Binding LocalEqSubtitle}"/><Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/></DataTrigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
@@ -63,8 +120,8 @@
                           ToolTip="Switch device" AutomationProperties.Name="Switch device">
                 <StackPanel Orientation="Horizontal">
                     <Image x:Name="DeviceProductImage" Source="{Binding SelectedDeviceProfile.ProductImagePath}" Width="48" Height="38" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,14,0" VerticalAlignment="Center" AutomationProperties.Name="{Binding SelectedDeviceProfile.DisplayName}"/>
-                    <Ellipse x:Name="SyncStateDot" Width="9" Height="9" Fill="{DynamicResource WolfDimBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding SelectedDeviceProfile.DisplayLabel}" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="{Binding ConnectionText}" FontSize="12" Foreground="{DynamicResource WolfGreenBrush}" Margin="0,2,0,0"/></StackPanel>
+                    <Ellipse x:Name="SyncStateDot" Width="9" Height="9" Style="{StaticResource ConnectionToneDot}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding SelectedDeviceProfile.DisplayLabel}" FontWeight="SemiBold" FontSize="15"/><TextBlock x:Name="ConnectionStatusText" Text="{Binding ConnectionText}" FontSize="12" Style="{StaticResource ConnectionToneText}" Margin="0,2,0,0"/></StackPanel>
                     <Path Data="M0,0 L5,5 L10,0" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" Margin="22,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
             </ToggleButton>
@@ -121,37 +178,109 @@
                  stays bound to the confirmed slot, including after cancellation. -->
             <!-- Hardware only: Windows System EQ has no USER slots. -->
             <Grid Grid.Column="2" VerticalAlignment="Center" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ToggleButton x:Name="SlotMenuButton" Style="{StaticResource StudioMenuToggle}"
+                <ToggleButton x:Name="SlotMenuButton" Style="{StaticResource StudioMenuToggle}" Height="54" Padding="16,6"
+                              Background="{DynamicResource WolfPanel2Brush}" BorderBrush="{DynamicResource WolfLineBrush}"
                               IsChecked="{Binding IsOpen, ElementName=SlotPopup, Mode=TwoWay}"
-                              MinWidth="150" Height="54" Background="{DynamicResource WolfPanel2Brush}" AutomationProperties.Name="Choose USER slot" ToolTip="Switch saved device profile">
+                              MinWidth="150" AutomationProperties.Name="Choose USER slot" ToolTip="Switch saved device profile">
                     <StackPanel Orientation="Horizontal">
-                        <StackPanel Width="120" Margin="0,0,12,0" ToolTip="{Binding SelectedDeviceUserPreset.LocalEqSubtitle}">
-                            <TextBlock Text="{Binding SelectedDeviceUserPreset.SlotLabel, FallbackValue=Choose slot, TargetNullValue=Choose slot}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{Binding SelectedDeviceUserPreset.LocalEqSubtitle}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                        <StackPanel Width="132" VerticalAlignment="Center" ToolTip="{Binding SelectedDeviceUserPreset.LocalEqSubtitle}">
+                            <TextBlock x:Name="SlotMenuTitle" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="{Binding SelectedDeviceUserPreset.LocalEqName}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedDeviceUserPreset.LocalEqName, FallbackValue={x:Null}}" Value="{x:Null}"><Setter Property="Text" Value="{Binding SelectedDeviceUserPreset.SlotLabel, FallbackValue=Choose slot, TargetNullValue=Choose slot}"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding SelectedDeviceUserPreset.LocalEqName}" Value=""><Setter Property="Text" Value="{Binding SelectedDeviceUserPreset.SlotLabel}"/></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock x:Name="SlotMenuSubtitle" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="{Binding SelectedDeviceUserPreset.SlotLabel}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
+                                        <Style.Triggers>
+                                            <!-- Unnamed: the title already says "USER n", so the subtitle says what is missing. -->
+                                            <DataTrigger Binding="{Binding SelectedDeviceUserPreset.LocalEqName}" Value="{x:Null}"><Setter Property="Text" Value="{Binding SelectedDeviceUserPreset.LocalEqSubtitle}"/><Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding SelectedDeviceUserPreset.LocalEqName}" Value=""><Setter Property="Text" Value="{Binding SelectedDeviceUserPreset.LocalEqSubtitle}"/><Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
-                        <Path Data="M 0,0 L 4,4 L 8,0" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" VerticalAlignment="Center"/>
+                        <Path Data="M0,0 L5,5 L10,0" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" Margin="14,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </ToggleButton>
                 <Popup x:Name="SlotPopup" PlacementTarget="{Binding ElementName=SlotMenuButton}" Placement="Bottom"
                        StaysOpen="False" AllowsTransparency="True" VerticalOffset="6" Closed="SlotPopup_Closed"
                        DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                     <Border Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}"
-                            BorderThickness="1" CornerRadius="6" Padding="6" Width="240">
+                            BorderThickness="1" CornerRadius="10" Padding="6" Width="280" Effect="{StaticResource WolfComboShadow}" Margin="0,0,8,8">
                         <StackPanel>
-                            <TextBlock Text="SAVED DEVICE PROFILES" Style="{StaticResource TinyLabel}" Margin="12,8,12,6"/>
+                            <DockPanel Margin="10,8,10,6">
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedDeviceProfile.DisplayLabel}" Style="{StaticResource TinyLabel}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="150" Margin="12,0,0,0"/>
+                                <TextBlock Text="USER SLOTS" Style="{StaticResource TinyLabel}"/>
+                            </DockPanel>
+                            <TextBlock x:Name="SlotConnectHint" Text="Connect the device to switch slots." FontSize="11" Foreground="{DynamicResource WolfWarningBrush}" Margin="10,0,10,6" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDeviceConnected}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
                                 <ItemsControl x:Name="SlotItems" ItemsSource="{Binding DeviceUserPresets}">
                                     <ItemsControl.ItemTemplate><DataTemplate>
-                                        <Button Style="{StaticResource SlotMenuItem}" Click="SlotMenuItem_Click"
-                                                Command="{Binding DataContext.SwitchSlotCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
-                                            <StackPanel ToolTip="{Binding LocalEqSubtitle}">
-                                                <TextBlock Text="{Binding SlotLabel}" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{Binding LocalEqSubtitle}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
-                                            </StackPanel>
+                                        <Button Style="{StaticResource SlotRowItem}" Click="SlotMenuItem_Click"
+                                                Command="{Binding DataContext.SwitchSlotCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                                AutomationProperties.Name="{Binding SlotLabel}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <Border Width="24" Height="24" CornerRadius="5" Background="{DynamicResource WolfPanel2Brush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Slot}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" ToolTip="{Binding LocalEqSubtitle}">
+                                                    <TextBlock Style="{StaticResource SlotTitleText}"/>
+                                                    <TextBlock Style="{StaticResource SlotSubtitleText}"/>
+                                                </StackPanel>
+                                                <Path Grid.Column="2" Data="M0,5 L4,9 L12,0" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      VerticalAlignment="Center" Margin="10,0,4,0">
+                                                    <Path.Style>
+                                                        <Style TargetType="Path">
+                                                            <Setter Property="Visibility" Value="Hidden"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Value="True"><DataTrigger.Binding>
+                                                                    <MultiBinding Converter="{StaticResource SameValueMultiConverter}">
+                                                                        <Binding Path="PresetId"/>
+                                                                        <Binding Path="DataContext.SelectedDeviceUserPreset.PresetId" RelativeSource="{RelativeSource AncestorType=ItemsControl}"/>
+                                                                    </MultiBinding>
+                                                                </DataTrigger.Binding>
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Path.Style>
+                                                </Path>
+                                            </Grid>
                                         </Button>
                                     </DataTemplate></ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
+                            <StackPanel Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Border Height="1" Background="{DynamicResource WolfLineBrush}" Margin="6,6"/>
+                                <Button x:Name="NameSlotButton" Style="{StaticResource SlotRowItem}" Click="NameSlot_Click" AutomationProperties.Name="Name this slot">
+                                    <DockPanel>
+                                        <Path DockPanel.Dock="Right" Data="M0,0 L4,4 L0,8" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Name this slot..." FontSize="13" Foreground="{DynamicResource WolfTextBrush}"/>
+                                    </DockPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </Popup>
