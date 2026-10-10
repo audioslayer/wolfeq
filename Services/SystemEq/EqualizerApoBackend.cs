@@ -323,10 +323,18 @@ public sealed class EqualizerApoBackend : IEqOutputBackend
                 return null;
             }
 
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var buffer = new MemoryStream();
-            stream.CopyTo(buffer);
-            return buffer.ToArray();
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var buffer = new MemoryStream();
+                stream.CopyTo(buffer);
+                return buffer.ToArray();
+            }
+            catch (FileNotFoundException)
+            {
+                // Another tool (Peace) deleted and is recreating the file: treat it as missing.
+                return null;
+            }
         }, cancellationToken);
 
     /// <summary>

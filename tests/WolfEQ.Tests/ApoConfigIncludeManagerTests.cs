@@ -7,10 +7,10 @@ namespace WolfEQ.Tests;
 public sealed class ApoConfigIncludeManagerTests
 {
     private const string BlockCrlf =
-        "# >>> WolfEQ (managed) >>>\r\nDevice: all\r\nInclude: WolfEQ.txt\r\n# <<< WolfEQ <<<\r\n";
+        "# >>> WolfEQ (managed) >>>\r\nDevice: all\r\nInclude: WolfEQ.txt\r\nDevice: all\r\n# <<< WolfEQ <<<\r\n";
 
     private const string BlockLf =
-        "# >>> WolfEQ (managed) >>>\nDevice: all\nInclude: WolfEQ.txt\n# <<< WolfEQ <<<\n";
+        "# >>> WolfEQ (managed) >>>\nDevice: all\nInclude: WolfEQ.txt\nDevice: all\n# <<< WolfEQ <<<\n";
 
     private const string PeaceConfig =
         "Include: peace.txt\r\n";
@@ -66,7 +66,7 @@ public sealed class ApoConfigIncludeManagerTests
     [Fact]
     public void OrphanEndMarkerAndBodyAreRepaired()
     {
-        var text = "Include: peace.txt\r\nInclude: WolfEQ.txt\r\n# <<< WolfEQ <<<\r\nPreamp: -2 dB\r\n";
+        var text = "Include: peace.txt\r\nInclude: WolfEQ.txt\r\nDevice: all\r\n# <<< WolfEQ <<<\r\nPreamp: -2 dB\r\n";
 
         var repaired = ApoConfigIncludeManager.EnsureBlock(text);
 
@@ -174,5 +174,16 @@ public sealed class ApoConfigIncludeManagerTests
             ApoConfigIncludeManager.EnsureBlock(""), ApoConfigIncludeManager.ConfigEncoding.Utf8);
 
         Assert.Equal(Encoding.ASCII.GetBytes(BlockCrlf), bytes);
+    }
+
+    [Fact]
+    public void BlockFromAnOlderWolfEqIsUpgradedInPlace()
+    {
+        var oldBlock = "# >>> WolfEQ (managed) >>>\r\nDevice: all\r\nInclude: WolfEQ.txt\r\n# <<< WolfEQ <<<\r\nInclude: peace.txt\r\n";
+
+        var upgraded = ApoConfigIncludeManager.EnsureBlock(oldBlock);
+
+        Assert.Equal(BlockCrlf + "Include: peace.txt\r\n", upgraded);
+        Assert.Equal("Include: peace.txt\r\n", ApoConfigIncludeManager.RemoveBlock(upgraded));
     }
 }

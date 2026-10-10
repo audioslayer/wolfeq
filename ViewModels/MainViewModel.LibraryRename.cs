@@ -83,21 +83,8 @@ public sealed partial class MainViewModel
         Status = $"Renamed {oldName} to {trimmed}.";
         AddLog(Status);
 
-        // EqPreset has no change notifications; refreshing rebuilds the rows with the new name.
-        var selection = LibrarySelection;
-        RefreshProfileLibrary();
-        if (selection is not null && FilteredPresets.Cast<EqPreset>().Contains(selection))
-        {
-            LibrarySelection = selection;
-        }
-
-        if (ReferenceEquals(preset, SelectedPreset))
-        {
-            OnPropertyChanged(nameof(SelectedPreset));
-        }
-
-        RaiseLibraryDetailChanged();
-        QueueProfileAutosave();
+        RenameSystemEqLastApplied(oldName, trimmed);
+        NotifyLibraryPresetChanged(preset);
         return true;
     }
 }

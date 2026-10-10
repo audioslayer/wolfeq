@@ -18,6 +18,7 @@ public sealed partial class EqualizerApoInstallation
     // FxProperties value names: "{d04e05a6-...},N" hold the APO CLSIDs attached to the endpoint,
     // "{1da5d803-...},5" = 1 means "Disable all enhancements" is ticked (APO then never runs).
     private const string FxClsidPropertyKey = "{d04e05a6-594b-4fb6-a80d-01af5eed7d1d}";
+    private const string CompositeFxPropertyKey = "{d3993a3f-99c2-4402-b5ec-a92a0367664b}";
     private const string DisableEnhancementsValueName = "{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5";
 
     private static readonly string[] ApoClsids = [PreMixClsid, PostMixClsid];
@@ -107,10 +108,13 @@ public sealed partial class EqualizerApoInstallation
         try
         {
             var fxKey = $@"{RenderEndpointsKey}\{endpointGuid.Trim()}\FxProperties";
+            // Legacy FX keys hold the CLSID as a single string; newer composite FX keys hold a list
+            // (REG_MULTI_SZ, joined by the reader). Either way APO is active when its CLSID appears.
             var active = _registry.GetValueNames(RegistryRoot.LocalMachine, fxKey)
-                .Where(name => name.StartsWith(FxClsidPropertyKey + ",", StringComparison.OrdinalIgnoreCase))
-                .Select(name => _registry.GetValue(RegistryRoot.LocalMachine, fxKey, name)?.Trim())
-                .Any(value => value is not null && ApoClsids.Contains(value, StringComparer.OrdinalIgnoreCase));
+                .Where(name => name.StartsWith(FxClsidPropertyKey + ",", StringComparison.OrdinalIgnoreCase)
+                               || name.StartsWith(CompositeFxPropertyKey + ",", StringComparison.OrdinalIgnoreCase))
+                .Select(name => _registry.GetValue(RegistryRoot.LocalMachine, fxKey, name))
+                .Any(value => value is not null && ApoClsids.Any(clsid => value.Contains(clsid, StringComparison.OrdinalIgnoreCase)));
             var disabled = _registry.GetValue(RegistryRoot.LocalMachine, fxKey, DisableEnhancementsValueName)?.Trim() == "1";
             return new ApoEndpointStatus(active, disabled);
         }

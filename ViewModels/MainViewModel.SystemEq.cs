@@ -132,8 +132,9 @@ public sealed partial class MainViewModel
 
         ToggleSystemEqBypassCommand = new RelayCommand(() => SystemEqBypassed = !SystemEqBypassed);
         RefreshSystemEqEndpointsCommand = new AsyncRelayCommand(StartSystemEqRefresh);
-        InstallEqualizerApoCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(RunApoInstallerWithProgressAsync, isInstaller: true));
-        OpenApoDeviceSelectorCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(_systemEq.RunDeviceSelector, isInstaller: false));
+        // One elevated Equalizer APO tool at a time: each disables both buttons while it runs.
+        InstallEqualizerApoCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(RunApoInstallerWithProgressAsync, isInstaller: true), () => !_systemEqLaunchInFlight);
+        OpenApoDeviceSelectorCommand = new AsyncRelayCommand(() => RunApoLauncherAsync(_systemEq.RunDeviceSelector, isInstaller: false), () => !_systemEqLaunchInFlight);
         RemoveSystemEqFromApoCommand = new AsyncRelayCommand(RemoveSystemEqFromApoAsync);
 
         // First in the picker: it works with any output, FiiO hardware follows.
@@ -145,10 +146,12 @@ public sealed partial class MainViewModel
             try
             {
                 // Re-apply what Windows last received, not whatever the library opened with.
+                // Switch first: the profile switch resizes the editor to the profile's band
+                // count, which would otherwise trim or pad a restored 12-band curve.
                 var lastApplied = _systemEqSettings.LastApplied?.ToPreset();
-                var restoredLibraryPreset = lastApplied is not null && RestoreSystemEqEditorContent(lastApplied);
                 _systemEqHoldStartupApply = lastApplied is null;
                 SwitchDeviceProfile(SystemEqProfiles.WindowsSystemEq);
+                var restoredLibraryPreset = lastApplied is not null && RestoreSystemEqEditorContent(lastApplied);
                 if (lastApplied is not null && !restoredLibraryPreset)
                 {
                     // Not in the library: guard it like any other unsaved editor content.
@@ -411,8 +414,10 @@ public sealed partial class MainViewModel
             result = new SystemEqApplyResult(SystemEqApplyOutcome.Failed, ex.Message);
         }
 
-        if (result.Succeeded && !bypassed && IsSystemEqSelected)
+        if (result.Succeeded && IsSystemEqSelected)
         {
+            // Bypassed applies still carry the editor curve; remembering it keeps edits made
+            // while bypassed from being replaced by an older curve on restart.
             RememberSystemEqLastApplied(snapshot);
         }
 
@@ -421,6 +426,16 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>Persists the curve Windows now has, so the next startup re-applies the same EQ.</summary>
+    /// <summary>A renamed preset keeps matching the remembered curve, so restart restores it as that preset.</summary>
+    private void RenameSystemEqLastApplied(string oldName, string newName)
+    {
+        if (_systemEqSettings.LastApplied is { } last && string.Equals(last.Name, oldName, StringComparison.Ordinal))
+        {
+            last.Name = newName;
+            SaveSystemEqSettings();
+        }
+    }
+
     private void RememberSystemEqLastApplied(EqPreset snapshot)
     {
         var applied = SystemEqAppliedSnapshot.FromPreset(snapshot);
@@ -483,8 +498,33 @@ public sealed partial class MainViewModel
         UpdateSystemEqStatus();
     }
 
+    /// <summary>
+    /// GUIDs of every ticked output, including ones that were unplugged at the last refresh.
+    /// APO ignores Device: entries that aren't present, so a DAC plugged in later gets its EQ
+    /// straight away instead of after a manual Refresh.
+    /// </summary>
     private IReadOnlyList<string> SelectedSystemEqEndpointGuids()
-        => SystemEqEndpoints.Where(endpoint => endpoint.IsSelected).Select(endpoint => endpoint.Guid).ToList();
+    {
+        var guids = new List<string>();
+        foreach (var id in _systemEqSettings.EndpointIds)
+        {
+            if (WolfEQ.Services.SystemEq.WindowsAudioEndpointCatalog.TryParseEndpointGuid(id, out var guid)
+                && !guids.Contains(guid, StringComparer.OrdinalIgnoreCase))
+            {
+                guids.Add(guid);
+            }
+        }
+
+        foreach (var endpoint in SystemEqEndpoints.Where(endpoint => endpoint.IsSelected))
+        {
+            if (!guids.Contains(endpoint.Guid, StringComparer.OrdinalIgnoreCase))
+            {
+                guids.Add(endpoint.Guid);
+            }
+        }
+
+        return guids;
+    }
 
     #endregion
 
@@ -671,7 +711,13 @@ public sealed partial class MainViewModel
 
     private async Task RunApoLauncherAsync(Func<Task<ApoLaunchResult>> launch, bool isInstaller)
     {
+        if (_systemEqLaunchInFlight)
+        {
+            return;
+        }
+
         _systemEqLaunchInFlight = true;
+        RaiseApoLauncherCanExecute();
         try
         {
             await RunApoLauncherCoreAsync(launch, isInstaller);
@@ -679,7 +725,14 @@ public sealed partial class MainViewModel
         finally
         {
             _systemEqLaunchInFlight = false;
+            RaiseApoLauncherCanExecute();
         }
+    }
+
+    private void RaiseApoLauncherCanExecute()
+    {
+        (InstallEqualizerApoCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
+        (OpenApoDeviceSelectorCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private async Task RunApoLauncherCoreAsync(Func<Task<ApoLaunchResult>> launch, bool isInstaller)

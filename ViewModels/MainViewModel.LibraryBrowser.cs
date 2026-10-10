@@ -136,7 +136,15 @@ public sealed partial class MainViewModel
         Status = preset.IsFavorite ? $"Added {preset.Name} to Favorites." : $"Removed {preset.Name} from Favorites.";
         AddLog(Status);
 
-        // EqPreset has no change notifications; refreshing the view rebuilds the rows so stars update.
+        NotifyLibraryPresetChanged(preset);
+    }
+
+    /// <summary>
+    /// After a saved preset changes in place (favorite, rename): rebuild the rows (EqPreset has no
+    /// change notifications), keep the selection, refresh the preview, and write the library to disk.
+    /// </summary>
+    private void NotifyLibraryPresetChanged(EqPreset preset)
+    {
         var selection = LibrarySelection;
         RefreshProfileLibrary();
         if (selection is not null && FilteredPresets.Cast<EqPreset>().Contains(selection))
@@ -149,8 +157,13 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(SelectedPreset));
         }
 
+        OnPropertyChanged(nameof(Presets));
         RaiseLibraryDetailChanged();
-        QueueProfileAutosave();
+        if (!TrySaveProfileLibraryQuietly(out var saveError))
+        {
+            Status = $"Changed {preset.Name}, but the library could not be saved: {saveError}";
+            AddLog(Status);
+        }
     }
 
     public string LibraryDetailFilterCount => LibraryDetailPreset is { } p

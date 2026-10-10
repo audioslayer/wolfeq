@@ -96,6 +96,9 @@ public partial class WolfDialog : Window
             dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             dialog.SizeToContent = SizeToContent.WidthAndHeight;
             dialog.Scrim.Background = Brushes.Transparent;
+            // No visible owner (e.g. WolfEQ is in the tray): stay on top so it can't open behind other apps.
+            dialog.Topmost = true;
+            dialog.ShowActivated = true;
         }
 
         return dialog.ShowDialog() == true;

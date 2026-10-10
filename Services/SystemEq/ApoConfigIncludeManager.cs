@@ -50,7 +50,9 @@ public static class ApoConfigIncludeManager
 
         var builder = new StringBuilder(configText.Length + 96);
         builder.Append(bom);
-        foreach (var blockLine in new[] { StartMarker, DeviceLine, IncludeLine, EndMarker })
+        // Device: all again after the Include, so whatever follows in config.txt (Peace, hand-written
+        // filters) keeps applying to every output no matter what WolfEQ.txt selects.
+        foreach (var blockLine in new[] { StartMarker, DeviceLine, IncludeLine, DeviceLine, EndMarker })
         {
             builder.Append(blockLine).Append(ending);
         }
@@ -154,11 +156,17 @@ public static class ApoConfigIncludeManager
         {
             if (IsLine(lines[i], StartMarker))
             {
-                // Start marker, then up to the two body lines in order, then the end marker if present.
+                // Start marker, then the body lines in order (Device: all, Include, and the trailing
+                // Device: all added in 0.8; older blocks lack it), then the end marker if present.
                 managed[i] = true;
                 var j = i + 1;
                 if (j < lines.Count && IsDeviceAll(lines[j])) managed[j++] = true;
-                if (j < lines.Count && IsOurInclude(lines[j])) managed[j++] = true;
+                if (j < lines.Count && IsOurInclude(lines[j]))
+                {
+                    managed[j++] = true;
+                    if (j < lines.Count && IsDeviceAll(lines[j])) managed[j++] = true;
+                }
+
                 if (j < lines.Count && IsLine(lines[j], EndMarker)) managed[j++] = true;
                 i = j - 1;
             }
@@ -167,6 +175,7 @@ public static class ApoConfigIncludeManager
                 // Orphan end marker: its start was deleted, so take the body lines directly above it.
                 managed[i] = true;
                 var k = i - 1;
+                if (k >= 1 && !managed[k] && IsDeviceAll(lines[k]) && IsOurInclude(lines[k - 1])) managed[k--] = true;
                 if (k >= 0 && !managed[k] && IsOurInclude(lines[k])) managed[k--] = true;
                 if (k >= 0 && !managed[k] && IsDeviceAll(lines[k])) managed[k] = true;
             }

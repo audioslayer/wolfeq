@@ -54,7 +54,7 @@ public sealed class EqualizerApoBackendTests : IDisposable
         Assert.NotEqual(0xEF, bytes[0]);
         Assert.Equal(EqualizerApoConfigWriter.Build(preset, [GuidA, GuidB], false), Encoding.UTF8.GetString(bytes));
         Assert.Equal(
-            "# >>> WolfEQ (managed) >>>\r\nDevice: all\r\nInclude: WolfEQ.txt\r\n# <<< WolfEQ <<<\r\n",
+            "# >>> WolfEQ (managed) >>>\r\nDevice: all\r\nInclude: WolfEQ.txt\r\nDevice: all\r\n# <<< WolfEQ <<<\r\n",
             File.ReadAllText(ConfigPath));
         Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
     }
@@ -231,7 +231,7 @@ public sealed class EqualizerApoBackendTests : IDisposable
         await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
 
         Assert.Equal(
-            "# >>> WolfEQ (managed) >>>\r\nDevice: all\r\nInclude: WolfEQ.txt\r\n# <<< WolfEQ <<<\r\nInclude: peace.txt\r\n",
+            "# >>> WolfEQ (managed) >>>\r\nDevice: all\r\nInclude: WolfEQ.txt\r\nDevice: all\r\n# <<< WolfEQ <<<\r\nInclude: peace.txt\r\n",
             File.ReadAllText(ConfigPath));
     }
 

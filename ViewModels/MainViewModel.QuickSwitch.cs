@@ -63,7 +63,9 @@ public sealed partial class MainViewModel
             }
             else
             {
-                var result = await _deviceService.DetectUsbAsync();
+                // A separate service instance: DetectUsbAsync records what it matched on the
+                // instance, and the menu must never change the live connection's profile or path.
+                var result = await new FiioK13DeviceService().DetectUsbAsync();
                 candidates = FiioK13DeviceService.GetSelectableDevices(result.Candidates);
             }
 

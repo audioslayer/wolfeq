@@ -358,17 +358,36 @@ public sealed class SystemEqViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task SuccessfulApplyPersistsLastAppliedButBypassDoesNot()
+    public async Task SuccessfulApplyPersistsLastAppliedEvenWhileBypassed()
     {
         var model = await _rig.CreateSystemEqModelAsync();
         model.Bands[0].GainDb = 6;
         await model.FlushSystemEqApplyAsync();
         Assert.Equal(6, SystemEqSettings.Load(_rig.SettingsPath).LastApplied!.Bands[0].GainDb);
 
+        // Edits made while bypassed are the editor's curve too; restart must not roll them back.
         model.SystemEqBypassed = true;
         model.Bands[0].GainDb = -6;
         await model.FlushSystemEqApplyAsync();
-        Assert.Equal(6, SystemEqSettings.Load(_rig.SettingsPath).LastApplied!.Bands[0].GainDb);
+        Assert.Equal(-6, SystemEqSettings.Load(_rig.SettingsPath).LastApplied!.Bands[0].GainDb);
+    }
+
+    [Fact]
+    public async Task TickedOutputsStayTargetedWhileUnplugged()
+    {
+        var model = await _rig.CreateSystemEqModelAsync();
+        model.SystemEqEndpoints.Single(endpoint => endpoint.Id == K13Id).IsSelected = true;
+        await model.FlushSystemEqApplyAsync();
+
+        // The K13 disappears (unplugged) and the outputs are re-listed.
+        _rig.Catalog.Endpoints.RemoveAll(endpoint => endpoint.Id == K13Id);
+        model.RefreshSystemEqEndpointsCommand.Execute(null);
+        await model.SystemEqRefreshTask;
+        _rig.Backend.Applies.Clear();
+        model.Bands[0].GainDb = 3;
+        await model.FlushSystemEqApplyAsync();
+
+        Assert.Contains("{22222222-2222-2222-2222-222222222222}", _rig.Backend.Applies.Last().EndpointGuids, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
