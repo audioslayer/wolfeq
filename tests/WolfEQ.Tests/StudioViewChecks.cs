@@ -28,6 +28,10 @@ internal static class StudioViewChecks
         var bands = Descendants(editor).OfType<BandControls>().Single();
         ((Expander)bands.FindName("ControlsExpander")).IsExpanded = true;
         Render(content, 1640, 900, "studio-editor");
+        var bandSnapshot = (model.Bands[0].FrequencyHz, model.Bands[0].GainDb, model.Bands[0].Q);
+        EditorFieldViewChecks.Verify(editor, graph, model.Bands[0]);
+        (model.Bands[0].FrequencyHz, model.Bands[0].GainDb, model.Bands[0].Q) = bandSnapshot;
+        Layout(content, 1640, 900);
         Render(content, 1586, 992, "studio-reference-size");
         var eqLayer = (DrawingVisual)VisualTreeHelper.GetChild(graph, 1);
         var retainedEqDrawing = System.Windows.Markup.XamlWriter.Save(eqLayer.Drawing);

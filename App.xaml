@@ -1,6 +1,8 @@
 <Application x:Class="WolfEQ.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wolfControls="clr-namespace:WolfEQ.Controls"
+             xmlns:wolfModels="clr-namespace:WolfEQ.Models"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <Color x:Key="WolfBg">#0C1419</Color>
@@ -383,9 +385,9 @@
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
+            <Setter Property="Background" Value="{DynamicResource WolfBgBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfLineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CaretBrush" Value="{DynamicResource WolfCyanBrush}"/>
             <Setter Property="Padding" Value="9,6"/>
@@ -399,18 +401,17 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="7">
+                                CornerRadius="9">
                             <ScrollViewer x:Name="PART_ContentHost"
                                           Margin="{TemplateBinding Padding}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfMutedBrush}"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.42"/>
@@ -436,9 +437,9 @@
 
         <ControlTemplate x:Key="DarkComboToggle" TargetType="{x:Type ToggleButton}">
             <Border x:Name="Border"
-                    CornerRadius="7"
-                    Background="{DynamicResource WolfPanel2Brush}"
-                    BorderBrush="{DynamicResource WolfLineSoftBrush}"
+                    CornerRadius="9"
+                    Background="{DynamicResource WolfBgBrush}"
+                    BorderBrush="{DynamicResource WolfLineBrush}"
                     BorderThickness="1"
                     Padding="0">
                 <Grid>
@@ -449,7 +450,7 @@
                     <Border Grid.Column="1">
                         <Path x:Name="Arrow"
                               Data="M 0,0 L 5,5 L 10,0"
-                              Stroke="{DynamicResource WolfTextBrush}"
+                              Stroke="{DynamicResource WolfMutedBrush}"
                               StrokeThickness="1.5"
                               Fill="Transparent"
                               HorizontalAlignment="Center"
@@ -459,13 +460,13 @@
             </Border>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
-                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
-                    <Setter TargetName="Arrow" Property="Stroke" Value="{DynamicResource WolfGreenBrush}"/>
+                    <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/>
+                    <Setter TargetName="Arrow" Property="Stroke" Value="{DynamicResource WolfTextBrush}"/>
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
                     <Setter TargetName="Arrow" Property="Stroke" Value="{DynamicResource WolfGreenBrush}"/>
+                    <Setter TargetName="Arrow" Property="Data" Value="M 0,5 L 5,0 L 10,5"/>
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -506,12 +507,12 @@
                                 <Border x:Name="DropDownBorder"
                                         MinWidth="{TemplateBinding ActualWidth}"
                                         MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                                        CornerRadius="6"
+                                        CornerRadius="10"
                                         Background="{DynamicResource WolfPanelBrush}"
                                         BorderBrush="{DynamicResource WolfLineSoftBrush}"
                                         BorderThickness="1"
                                         Margin="0,6,0,0"
-                                        Padding="4"
+                                        Padding="5"
                                         Effect="{StaticResource WolfComboShadow}"
                                         SnapsToDevicePixels="True">
                                     <ScrollViewer SnapsToDevicePixels="True">
@@ -540,29 +541,31 @@
                                     CornerRadius="7"
                                     Background="{TemplateBinding Background}"
                                     Padding="{TemplateBinding Padding}">
-                                <ContentPresenter VerticalAlignment="Center"/>
+                                <DockPanel>
+                                    <Path x:Name="SelectedCheck"
+                                          DockPanel.Dock="Right"
+                                          Data="M 0,4 L 4,8 L 11,0"
+                                          Stroke="{DynamicResource WolfGreenBrush}"
+                                          StrokeThickness="1.8"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Margin="12,0,2,0"
+                                          VerticalAlignment="Center"
+                                          Visibility="Hidden"/>
+                                    <ContentPresenter VerticalAlignment="Center"/>
+                                </DockPanel>
                             </Border>
-                            <Border x:Name="SelectedRail"
-                                    Width="2"
-                                    Height="16"
-                                    Margin="3,0,0,0"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center"
-                                    Background="{DynamicResource WolfGreenBrush}"
-                                    CornerRadius="1"
-                                    Visibility="Collapsed"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource WolfLineBrush}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource WolfLineBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
-                                <Setter TargetName="SelectedRail" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="SelectedCheck" Property="Visibility" Value="Visible"/>
                                 <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -570,6 +573,81 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Style C field: dark inset well, green border while editing. Holds − value + and a unit tab. -->
+        <Style x:Key="WolfStepField" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource WolfBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfLineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Quiet − / + button inside a WolfStepField; not focusable so typing focus stays in the value. -->
+        <Style x:Key="WolfStepButton" TargetType="Button">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                            <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Unit tab on the right edge of a WolfStepField (Hz, dB). -->
+        <Style x:Key="WolfUnitTab" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfLineBrush}"/>
+            <Setter Property="BorderThickness" Value="1,0,0,0"/>
+            <Setter Property="CornerRadius" Value="0,8,8,0"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="MinWidth" Value="42"/>
+        </Style>
+        <Style x:Key="WolfUnitText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Filter types read as plain names ("Low shelf") in every dropdown and label. -->
+        <wolfControls:EqFilterTypeNameConverter x:Key="EqFilterTypeName"/>
+        <DataTemplate DataType="{x:Type wolfModels:EqFilterType}">
+            <TextBlock Text="{Binding Converter={StaticResource EqFilterTypeName}}"/>
+        </DataTemplate>
 
         <Style TargetType="Slider">
             <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>

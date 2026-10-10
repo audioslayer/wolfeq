@@ -190,11 +190,14 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Frequency" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <Border Grid.Column="1" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="5" Padding="10,0">
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="Hz" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                        <TextBox x:Name="FrequencyBox" Tag="Frequency" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.FrequencyHz, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Frequency"/>
-                                    </DockPanel>
+                                <Border Grid.Column="1" Style="{StaticResource WolfStepField}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Style="{StaticResource WolfStepButton}" Content="−" Tag="-1" Click="StripStepButton_Click" ToolTip="Decrease frequency (Shift for bigger steps)" AutomationProperties.Name="Decrease frequency"/>
+                                        <TextBox Grid.Column="1" HorizontalContentAlignment="Center" TextAlignment="Center" PreviewKeyDown="StripValueBox_PreviewKeyDown" PreviewMouseWheel="StripValueBox_PreviewMouseWheel" x:Name="FrequencyBox" Tag="Frequency" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.FrequencyHz, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Frequency"/>
+                                        <Button Grid.Column="2" Style="{StaticResource WolfStepButton}" Content="+" Tag="1" Click="StripStepButton_Click" ToolTip="Increase frequency (Shift for bigger steps)" AutomationProperties.Name="Increase frequency"/>
+                                        <Border Grid.Column="3" Style="{StaticResource WolfUnitTab}"><TextBlock Text="Hz" Style="{StaticResource WolfUnitText}"/></Border>
+                                    </Grid>
                                 </Border>
                             </Grid>
                             <Grid Grid.Column="3" Margin="12,0">
@@ -203,11 +206,14 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Gain" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <Border Grid.Column="1" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="5" Padding="10,0">
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="dB" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                        <TextBox x:Name="GainBox" Tag="Gain" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.GainDb, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:+0.0;-0.0;0.0}}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Gain"/>
-                                    </DockPanel>
+                                <Border Grid.Column="1" Style="{StaticResource WolfStepField}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Style="{StaticResource WolfStepButton}" Content="−" Tag="-1" Click="StripStepButton_Click" ToolTip="Decrease gain (Shift for bigger steps)" AutomationProperties.Name="Decrease gain"/>
+                                        <TextBox Grid.Column="1" HorizontalContentAlignment="Center" TextAlignment="Center" PreviewKeyDown="StripValueBox_PreviewKeyDown" PreviewMouseWheel="StripValueBox_PreviewMouseWheel" x:Name="GainBox" Tag="Gain" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.GainDb, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:+0.0;-0.0;0.0}}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Gain"/>
+                                        <Button Grid.Column="2" Style="{StaticResource WolfStepButton}" Content="+" Tag="1" Click="StripStepButton_Click" ToolTip="Increase gain (Shift for bigger steps)" AutomationProperties.Name="Increase gain"/>
+                                        <Border Grid.Column="3" Style="{StaticResource WolfUnitTab}"><TextBlock Text="dB" Style="{StaticResource WolfUnitText}"/></Border>
+                                    </Grid>
                                 </Border>
                             </Grid>
                             <Grid Grid.Column="4" Margin="12,0">
@@ -216,11 +222,13 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Q" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <Border Grid.Column="1" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="5" Padding="10,0">
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                        <TextBox x:Name="QBox" Tag="Q" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.Q, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:F2}}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Q"/>
-                                    </DockPanel>
+                                <Border Grid.Column="1" Style="{StaticResource WolfStepField}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Style="{StaticResource WolfStepButton}" Content="−" Tag="-1" Click="StripStepButton_Click" ToolTip="Decrease Q (Shift for bigger steps)" AutomationProperties.Name="Decrease Q"/>
+                                        <TextBox Grid.Column="1" HorizontalContentAlignment="Center" TextAlignment="Center" PreviewKeyDown="StripValueBox_PreviewKeyDown" PreviewMouseWheel="StripValueBox_PreviewMouseWheel" x:Name="QBox" Tag="Q" Background="Transparent" BorderThickness="0" MinHeight="42" Padding="0" FontSize="14" Text="{Binding SelectedBand.Q, ElementName=Graph, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:F2}}" KeyDown="StripValueBox_KeyDown" LostFocus="StripValueBox_LostFocus" AutomationProperties.Name="Q"/>
+                                        <Button Grid.Column="2" Style="{StaticResource WolfStepButton}" Content="+" Tag="1" Click="StripStepButton_Click" ToolTip="Increase Q (Shift for bigger steps)" AutomationProperties.Name="Increase Q"/>
+                                    </Grid>
                                 </Border>
                             </Grid>
                             <Border Grid.Column="5" Background="{DynamicResource WolfPanel2Brush}" CornerRadius="5" Margin="12,0,0,0" Padding="8">

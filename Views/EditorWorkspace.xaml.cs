@@ -71,6 +71,80 @@ public partial class EditorWorkspace : UserControl
         }
     }
 
+    /// <summary>− / + buttons beside a strip value: step the band in that field.</summary>
+    private void StripStepButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string dirText, Parent: Panel panel }
+            || !int.TryParse(dirText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var direction))
+        {
+            return;
+        }
+
+        var box = panel.Children.OfType<TextBox>().FirstOrDefault();
+        if (box is not null)
+        {
+            StepStripValue(box, direction, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+        }
+    }
+
+    // Up/Down arrows nudge the value (Shift for bigger steps) instead of moving the caret.
+    private void StripValueBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is TextBox box && e.Key is Key.Up or Key.Down)
+        {
+            StepStripValue(box, e.Key == Key.Up ? 1 : -1, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            box.SelectAll();
+            e.Handled = true;
+        }
+    }
+
+    // The wheel only steps a box the user is editing, so scrolling the page never changes a value.
+    private void StripValueBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is TextBox { IsKeyboardFocused: true } box && e.Delta != 0)
+        {
+            StepStripValue(box, e.Delta > 0 ? 1 : -1, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Steps the selected band's field: frequency by 1/12 octave (1/3 with Shift), gain by
+    /// 0.1 dB (1 dB), Q by 0.01 (0.1). Typed-but-uncommitted text is committed first, and the
+    /// result is clamped to the device profile's range like a typed value.
+    /// </summary>
+    private void StepStripValue(TextBox box, int direction, bool large)
+    {
+        if (Graph.SelectedBand is not EqBand band)
+        {
+            return;
+        }
+
+        if (box.IsKeyboardFocused)
+        {
+            CommitStripValue(box);
+        }
+
+        switch (box.Tag as string)
+        {
+            case "Frequency":
+            {
+                var next = (int)Math.Round(band.FrequencyHz * Math.Pow(2, direction * (large ? 1.0 / 3 : 1.0 / 12)));
+                if (next == band.FrequencyHz) next += direction;
+                band.FrequencyHz = (int)Math.Round(Math.Clamp(next, Graph.MinFrequencyHz, Graph.MaxFrequencyHz));
+                break;
+            }
+            case "Gain":
+                band.GainDb = Math.Clamp(Math.Round(band.GainDb + direction * (large ? 1.0 : 0.1), 1), Graph.MinGainDb, Graph.MaxGainDb);
+                break;
+            case "Q":
+                band.Q = Math.Clamp(Math.Round(band.Q + direction * (large ? 0.1 : 0.01), 2), Graph.MinQ, Graph.MaxQ);
+                break;
+        }
+
+        box.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+    }
+
     private void StripValueBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is TextBox box)
