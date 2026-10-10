@@ -11,3 +11,6 @@ MEMORY.md
 tools/
 *.user
 *.suo
+
+# Bundled Equalizer APO installer (downloaded and hash-checked by build-installer.bat)
+redist/EqualizerAPO/*.exe
