@@ -188,7 +188,7 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
 internal sealed class TraySlotState(DeviceUserPresetOption option) : INotifyPropertyChanged
 {
     public int Slot => option.Slot;
-    public string Label => option.SlotLabel + (IsActive ? " ? Active" : "");
+    public string Label => option.SlotLabel + (IsActive ? " \u00B7 Active" : "");
     public string ToolTip => $"{Label}\n{Caption}";
     public bool IsActive { get; private set; }
     public string Caption => option.LocalEqSubtitle;

@@ -104,6 +104,22 @@
 
                     <Expander Header="Device" Tag="Cpu" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="True" Margin="0,0,0,8">
  <StackPanel Margin="0,10,0,0">
+ <!-- Device picker stays visible in both modes so users can switch between FiiO and Windows System EQ. -->
+ <StackPanel Margin="0,0,0,12">
+ <ComboBox ItemsSource="{Binding DeviceProfiles}" SelectedItem="{Binding SelectedDeviceProfile}" TextSearch.TextPath="DisplayLabel" AutomationProperties.Name="Device">
+     <ComboBox.ItemTemplate>
+         <DataTemplate>
+             <StackPanel Orientation="Horizontal">
+                 <Image Source="{Binding ProductImagePath}" Width="40" Height="32" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,10,0"/>
+                 <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center"/>
+             </StackPanel>
+         </DataTemplate>
+     </ComboBox.ItemTemplate>
+ </ComboBox>
+ <TextBlock Text="{Binding DeviceProfileCapabilityText}" Style="{StaticResource DimText}" Margin="0,6,0,0"/>
+ <TextBlock Text="K13 PEQ: up to 192 kHz / 24-bit PCM. MQA is unavailable while EQ is active; switching EQ may briefly reconnect USB." Style="{StaticResource DimText}" Margin="0,6,0,0" Visibility="{Binding IsK13R2RSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+ </StackPanel>
+ <StackPanel Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
  <DockPanel Margin="0,0,0,10">
  <Button Command="{Binding ConnectCommand}" Style="{StaticResource QuietButton}" DockPanel.Dock="Right" ToolTip="Reconnect device" AutomationProperties.Name="Reconnect device" Width="30" Height="28" MinHeight="0" Padding="0" Margin="0">
  <Path Data="M16,6 A7,7 0 1 0 17,12 M16,1 V6 H11" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
@@ -171,22 +187,7 @@
                                 <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Link" Content="Save connection" DockPanel.Dock="Right" Command="{Binding SaveDeviceBindingCommand}" Padding="12,6" Margin="10,0,0,0"/>
                                 <TextBlock Text="Only these devices will be used." Style="{StaticResource DimText}" VerticalAlignment="Center" ToolTip="WolfEQ never falls back to another unit. If changing USB ports changes the device identity, select it again here."/>
                             </DockPanel>
-                        <Expander Header="Model &amp; compatibility" Margin="0,12,0,0">
- <StackPanel Margin="0,8,0,0">
- <ComboBox ItemsSource="{Binding DeviceProfiles}" SelectedItem="{Binding SelectedDeviceProfile}" TextSearch.TextPath="DisplayLabel">
-     <ComboBox.ItemTemplate>
-         <DataTemplate>
-             <StackPanel Orientation="Horizontal">
-                 <Image Source="{Binding ProductImagePath}" Width="40" Height="32" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,10,0"/>
-                 <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center"/>
-             </StackPanel>
-         </DataTemplate>
-     </ComboBox.ItemTemplate>
- </ComboBox>
- <TextBlock Text="{Binding DeviceProfileCapabilityText}" Style="{StaticResource DimText}" Margin="0,6,0,0"/>
- <TextBlock Text="K13 PEQ: up to 192 kHz / 24-bit PCM. MQA is unavailable while EQ is active; switching EQ may briefly reconnect USB." Style="{StaticResource DimText}" Margin="0,6,0,0" Visibility="{Binding IsK13R2RSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
- </StackPanel>
- </Expander></StackPanel></TabItem>
+                        </StackPanel></TabItem>
  <TabItem Tag="SlidersHorizontal" Header="Controls" Style="{StaticResource SettingsTab}"><StackPanel Margin="0,12,0,0">
  <DockPanel Margin="0,0,0,10">
  <Button Style="{StaticResource SettingsActionButton}" Tag="MagnifyingGlass" Content="Refresh" Command="{Binding ReadDeviceControlsCommand}" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
@@ -219,6 +220,117 @@
  <TextBlock Text="{Binding DeviceControlsStatus}" Style="{StaticResource DimText}" Margin="0,10,0,0"/>
  </StackPanel></TabItem>
  </TabControl>
+ </StackPanel>
+
+                            <!-- Windows System EQ card: replaces the hardware Connections/Controls tabs in System EQ mode. -->
+                            <Border x:Name="SystemEqCard"
+                                    Padding="13,12"
+                                    Background="{DynamicResource WolfShellBrush}"
+                                    BorderBrush="{DynamicResource WolfLineSoftBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Visibility="{Binding IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,12,0">
+                                            <TextBlock Text="System EQ" FontSize="14" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding SystemEqStatusText}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" ToolTip="Turn off WolfEQ's effect without losing your EQ">
+                                            <TextBlock Text="Bypass" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <ToggleButton Style="{StaticResource BandPowerToggle}" IsChecked="{Binding SystemEqBypassed, Mode=TwoWay}" AutomationProperties.Name="Bypass System EQ" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Setup steps, driven by SystemEqState. -->
+                                    <TextBlock Text="Checking Equalizer APO..." Margin="0,10,0,0">
+                                        <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource DimText}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="Checking"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                    </TextBlock>
+                                    <Border Margin="0,12,0,0">
+                                        <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SourceTileBorder}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="NeedsInstall"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                        <StackPanel>
+                                            <TextBlock Text="Install Equalizer APO" FontWeight="SemiBold"/>
+                                            <TextBlock Text="WolfEQ uses the free Equalizer APO engine to apply your EQ to Windows outputs. It isn't installed yet." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                            <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Cloud" Content="Install Equalizer APO" Command="{Binding InstallEqualizerApoCommand}" HorizontalAlignment="Left" Padding="12,6" Margin="0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Margin="0,12,0,0">
+                                        <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SourceTileBorder}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="NeedsDeviceSelection"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                        <StackPanel>
+                                            <TextBlock Text="Add your outputs" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Equalizer APO is installed but not on any output yet. Pick your outputs in its device selector." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                                            <Button Style="{StaticResource SettingsPrimaryButton}" Tag="SpeakerHigh" Content="Add outputs in Equalizer APO" Command="{Binding OpenApoDeviceSelectorCommand}" HorizontalAlignment="Left" Padding="12,6" Margin="0"/>
+                                            <TextBlock Text="Windows may need a restart before the EQ is heard." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Margin="0,12,0,0">
+                                        <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SourceTileBorder}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="Blocked"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                        <StackPanel>
+                                            <TextBlock Text="System EQ is paused" FontWeight="SemiBold" Foreground="{DynamicResource WolfWarningBrush}"/>
+                                            <TextBlock Text="{Binding SystemEqWarningText}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Double-EQ / enhancements warning. The Blocked step above already shows the reason. -->
+                                    <Border Padding="10,8" Margin="0,12,0,0" BorderBrush="{DynamicResource WolfWarningBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource WolfPanel2Brush}">
+                                        <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="{Binding HasSystemEqWarning, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="Blocked"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                        <TextBlock Text="{Binding SystemEqWarningText}" Foreground="{DynamicResource WolfWarningBrush}" FontSize="12" TextWrapping="Wrap"/>
+                                    </Border>
+
+                                    <!-- Endpoint picker -->
+                                    <DockPanel LastChildFill="True" Margin="0,14,0,8">
+                                        <Button Style="{StaticResource SettingsActionButton}" Tag="Plus" Content="Add outputs" DockPanel.Dock="Right" Command="{Binding OpenApoDeviceSelectorCommand}" Padding="10,4" MinHeight="28" Margin="6,0,0,0" ToolTip="Install Equalizer APO on more outputs"/>
+                                        <Button Style="{StaticResource SettingsActionButton}" Tag="MagnifyingGlass" Content="Refresh" DockPanel.Dock="Right" Command="{Binding RefreshSystemEqEndpointsCommand}" Padding="10,4" MinHeight="28" Margin="6,0,0,0" ToolTip="Look for outputs again"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Outputs" FontWeight="SemiBold"/>
+                                            <TextBlock Text="EQ applies only to ticked outputs." Style="{StaticResource DimText}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <ItemsControl x:Name="SystemEqEndpointList" ItemsSource="{Binding SystemEqEndpoints}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Top" Margin="0,1,8,0" AutomationProperties.Name="{Binding Name}" ToolTip="Apply EQ to this output"/>
+                                                        <StackPanel Grid.Column="1">
+                                                            <DockPanel LastChildFill="True">
+                                                                <Border DockPanel.Dock="Right" Background="{DynamicResource WolfAccentHoverBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                        Visibility="{Binding IsFiio, Converter={StaticResource BooleanToVisibilityConverter}}" ToolTip="FiiO device: its own EQ may stack with System EQ">
+                                                                    <TextBlock Text="FiiO" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource WolfGreenBrush}"/>
+                                                                </Border>
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                                                            </DockPanel>
+                                                            <TextBlock Text="{Binding Description}" Style="{StaticResource DimText}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                            <TextBlock Text="{Binding StatusText}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0">
+                                                                <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/><Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsApoActive}" Value="False"><Setter Property="Foreground" Value="{DynamicResource WolfWarningBrush}"/></DataTrigger>
+                                                                    <DataTrigger Binding="{Binding EnhancementsDisabled}" Value="True"><Setter Property="Foreground" Value="{DynamicResource WolfWarningBrush}"/></DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StatusText}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                                </Style.Triggers></Style></TextBlock.Style>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="No outputs found. Refresh, or add outputs in Equalizer APO." TextWrapping="Wrap" Margin="2,0,0,4">
+                                        <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource DimText}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=SystemEqEndpointList}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                    </TextBlock>
+
+                                    <Border Height="1" Background="{DynamicResource WolfLineSoftBrush}" Margin="0,8,0,6"/>
+                                    <Button Content="Remove from Equalizer APO" Command="{Binding RemoveSystemEqFromApoCommand}" Style="{StaticResource QuietButton}" HorizontalAlignment="Left" Padding="2,4" Margin="0" MinHeight="0" Cursor="Hand"
+                                            ToolTip="Remove WolfEQ's EQ from Equalizer APO. Other APO settings stay as they are."/>
+                                </StackPanel>
+                            </Border>
  </StackPanel>
  </Expander>
 
@@ -598,7 +710,8 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="Integrations" Tag="Keyboard" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,10">
+                    <!-- Stream Deck integration switches USER slots, so it is hardware-only. -->
+                    <Expander Header="Integrations" Tag="Keyboard" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,10" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Margin="4,10">
                             <TextBlock Text="Stream Deck" FontWeight="SemiBold" FontSize="14"/>
                             <TextBlock Text="Switch to an EQ already stored in a USER slot with one key press." Style="{StaticResource MutedText}" Margin="0,6,0,10"/>

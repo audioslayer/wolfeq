@@ -71,7 +71,8 @@
 
             <!-- Menu entries invoke the existing guarded switch command. Selection
                  stays bound to the confirmed slot, including after cancellation. -->
-            <Grid Grid.Column="2" VerticalAlignment="Center">
+            <!-- Hardware only: Windows System EQ has no USER slots. -->
+            <Grid Grid.Column="2" VerticalAlignment="Center" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <ToggleButton x:Name="SlotMenuButton" Style="{StaticResource StudioMenuToggle}"
                               IsChecked="{Binding IsOpen, ElementName=SlotPopup, Mode=TwoWay}"
                               MinWidth="150" Height="54" Background="{DynamicResource WolfPanel2Brush}" AutomationProperties.Name="Choose USER slot" ToolTip="Switch saved device profile">
@@ -111,8 +112,31 @@
             <TextBlock Grid.Column="3" Text="{Binding Bands.Count, StringFormat={}{0}-band PEQ}" Foreground="{DynamicResource WolfMutedBrush}" Margin="22,0" VerticalAlignment="Center"/>
             <TextBlock x:Name="SyncStateText" Grid.Column="4" Text="{Binding EditorSyncStatusText}" Visibility="Collapsed"/>
             <!-- 5. Live-sync toggle (only for profiles that support live EQ writes) -->
-            <StackPanel Grid.Column="5"
+            <!-- 5b. System EQ: bypass + compact status in the live-sync column. -->
+            <StackPanel x:Name="SystemEqDockPanel"
+                        Grid.Column="5"
                         Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0"
+                        Visibility="{Binding IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                <TextBlock Text="{Binding SystemEqStatusText}" FontSize="12"
+                           Foreground="{DynamicResource WolfMutedBrush}"
+                           MaxWidth="260" TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding SystemEqStatusText}"
+                           VerticalAlignment="Center" Margin="0,0,14,0"/>
+                <ToggleButton Style="{StaticResource BandPowerToggle}"
+                              IsChecked="{Binding SystemEqBypassed, Mode=TwoWay}"
+                              AutomationProperties.Name="Bypass System EQ"
+                              ToolTip="Turn off WolfEQ's effect without losing your EQ"
+                              VerticalAlignment="Center"
+                              Margin="0,0,7,0"/>
+                <TextBlock Text="Bypass" FontWeight="SemiBold"
+                           Foreground="{DynamicResource WolfMutedBrush}"
+                           FontSize="12"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+            <Grid Grid.Column="5" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="0,0,12,0"
                         Visibility="{Binding SelectedDeviceProfile.SupportsLiveEqWrites, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -143,6 +167,7 @@
                     </Grid>
                 </Button>
             </StackPanel>
+            </Grid>
 
             <!-- 6. Save to Library + Write; connection guidance stays in the Write tooltip. -->
             <StackPanel Grid.Column="6"
@@ -171,6 +196,7 @@
                     </Border>
                 </Popup>
                 <Button x:Name="WriteToDeviceButton" Command="{Binding WriteToDeviceCommand}"
+                        Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"
                         ToolTipService.ShowOnDisabled="True"
                         Style="{StaticResource SavePresetButton}" Height="54" MinWidth="190"
                         ToolTip="Write the editor's EQ to the device slot"

@@ -1,7 +1,7 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using WolfEQ.ViewModels;
@@ -25,6 +25,7 @@ public sealed class TrayIconService : IDisposable
     private bool _ignoreNextLeftUp;
     private NotifyIconData _data;
     private WindowState _restoreState = WindowState.Normal;
+    private readonly TrayTipSource _tipSource;
 
     public bool IsAvailable { get; private set; }
 
@@ -61,7 +62,8 @@ public sealed class TrayIconService : IDisposable
             Tip = "WolfEQ — quick profiles", Info = "", InfoTitle = ""
         };
         AddIcon();
-        viewModel.PropertyChanged += OnViewModelChanged;
+        _tipSource = new TrayTipSource(viewModel, UpdateTip);
+        UpdateTip();
     }
 
     public void RememberWindowState()
@@ -95,10 +97,12 @@ public sealed class TrayIconService : IDisposable
         }
     }
 
-    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
+    private void UpdateTip()
     {
-        if (_disposed || !IsAvailable || (e.PropertyName is not null && e.PropertyName != nameof(MainViewModel.ConnectionText))) return;
-        var tip = $"WolfEQ — {_viewModel.ConnectionText}";
+        if (_disposed || !IsAvailable) return;
+        var detail = _tipSource.Describe();
+        var tip = $"WolfEQ — {(string.IsNullOrWhiteSpace(detail) ? "quick profiles" : detail)}";
+        if (tip == _data.Tip) return;
         _data.Tip = tip.Length > 127 ? tip[..127] : tip;
         Shell_NotifyIcon(1, ref _data);
     }
@@ -155,13 +159,57 @@ public sealed class TrayIconService : IDisposable
         _disposed = true;
         _clickTimer.Stop();
         _clickTimer.Tick -= OnClickTimer;
-        _viewModel.PropertyChanged -= OnViewModelChanged;
+        _tipSource.Detach();
         Shell_NotifyIcon(2, ref _data);
         IsAvailable = false;
         _flyout.DisposeFlyout();
         _source.RemoveHook(WindowProc);
         _source.Dispose();
         if (_ownsIcon) DestroyIcon(_icon);
+    }
+
+    /// <summary>
+    /// Tracks the view-model state the tooltip shows (connection text in hardware mode;
+    /// System EQ status and bypass in System EQ mode) through bindings to the shared
+    /// contract property names, and calls back when any of them changes.
+    /// </summary>
+    private sealed class TrayTipSource : DependencyObject
+    {
+        private static readonly DependencyProperty ConnectionTextProperty = Register(nameof(MainViewModel.ConnectionText), typeof(string), null);
+        private static readonly DependencyProperty IsSystemEqProperty = Register("IsSystemEqSelected", typeof(bool), false);
+        private static readonly DependencyProperty StatusTextProperty = Register("SystemEqStatusText", typeof(string), null);
+        private static readonly DependencyProperty BypassedProperty = Register("SystemEqBypassed", typeof(bool), false);
+        private readonly Action _changed;
+        private bool _attached;
+
+        public TrayTipSource(MainViewModel viewModel, Action changed)
+        {
+            _changed = changed;
+            foreach (var property in new[] { ConnectionTextProperty, IsSystemEqProperty, StatusTextProperty, BypassedProperty })
+            {
+                // Each property is registered under its view-model name, which is also the binding path.
+                BindingOperations.SetBinding(this, property, new Binding(property.Name) { Source = viewModel, Mode = BindingMode.OneWay });
+            }
+            _attached = true;
+        }
+
+        public string Describe()
+        {
+            if (!(bool)GetValue(IsSystemEqProperty)) return (string?)GetValue(ConnectionTextProperty) ?? "";
+            if ((bool)GetValue(BypassedProperty)) return "System EQ bypassed";
+            var status = (string?)GetValue(StatusTextProperty);
+            return string.IsNullOrWhiteSpace(status) ? "Windows System EQ" : $"System EQ: {status}";
+        }
+
+        public void Detach()
+        {
+            _attached = false;
+            BindingOperations.ClearAllBindings(this);
+        }
+
+        private static DependencyProperty Register(string name, Type type, object? defaultValue)
+            => DependencyProperty.Register(name, type, typeof(TrayTipSource),
+                new PropertyMetadata(defaultValue, (d, _) => { if (d is TrayTipSource { _attached: true } source) source._changed(); }));
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

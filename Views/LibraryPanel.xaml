@@ -325,7 +325,7 @@
                                 <Border Width="230" Padding="8" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="8">
                                     <StackPanel>
                                         <Button Command="{Binding DuplicatePresetCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M5,2 H18 V15 H5 Z M2,5 V18 H15" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Duplicate preset" Foreground="{DynamicResource WolfTextBrush}"/></StackPanel></Button>
-                                        <Button Command="{Binding WriteLibraryPresetToSlotCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M10,2 V13 M5,8 L10,13 L15,8 M3,14 V18 H17 V14" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Write to device slot" Foreground="{DynamicResource WolfTextBrush}"/></StackPanel></Button>
+                                        <Button Command="{Binding WriteLibraryPresetToSlotCommand}" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M10,2 V13 M5,8 L10,13 L15,8 M3,14 V18 H17 V14" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Write to device slot" Foreground="{DynamicResource WolfTextBrush}"/></StackPanel></Button>
                                         <Border Height="1" Background="{DynamicResource WolfLineBrush}" Margin="4,6"/>
                                         <Button Command="{Binding DeletePresetCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M3,5 H17 M7,5 V2 H13 V5 M5,5 V18 H15 V5 M8,8 V15 M12,8 V15" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfDangerBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Delete preset" Foreground="{DynamicResource WolfDangerBrush}"/></StackPanel></Button>
                                     </StackPanel>
@@ -416,13 +416,22 @@
                             <TextBlock Text="Save to My Library" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <UniformGrid Columns="2">
+                    <UniformGrid>
+                        <UniformGrid.Style>
+                            <Style TargetType="UniformGrid">
+                                <Setter Property="Columns" Value="2"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSystemEqSelected}" Value="True"><Setter Property="Columns" Value="1"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </UniformGrid.Style>
                         <Button Content="Open in editor"
                                 Command="{Binding LoadOnlineProfileIntoEditorCommand}"
                                 Style="{StaticResource QuietButton}"
                                 ToolTip="Save this profile and open it in the editor"/>
                         <Button Content="Write to current slot"
                                 Command="{Binding WriteOnlineProfileToSlotCommand}"
+                                Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"
                                 Style="{StaticResource AccentButton}"
                                 ToolTip="Save this profile and write it to the selected device slot"/>
                     </UniformGrid>
