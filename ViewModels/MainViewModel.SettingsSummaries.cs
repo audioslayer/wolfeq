@@ -21,9 +21,12 @@ public sealed partial class MainViewModel
             if (IsSystemEqSelected)
             {
                 var status = SystemEqStatusText?.Trim().TrimEnd('.') ?? string.Empty;
+                // "System EQ on Headphones" already names the mode; don't repeat it.
                 return status.Length == 0
                     ? "Windows System EQ"
-                    : $"Windows System EQ{SummarySeparator}{status}";
+                    : status.StartsWith("System EQ", StringComparison.OrdinalIgnoreCase)
+                        ? status
+                        : $"Windows System EQ{SummarySeparator}{status}";
             }
 
             var name = string.IsNullOrWhiteSpace(_binding.UsbPath) || string.IsNullOrWhiteSpace(_binding.Name)

@@ -119,14 +119,14 @@ public sealed class SettingsSummaryTests : IDisposable
     {
         var model = await _rig.CreateSystemEqModelAsync();
 
-        Assert.Equal("Windows System EQ · System EQ on Headphones (USB Audio)", model.DeviceSectionSummary);
+        Assert.Equal("System EQ on Headphones (USB Audio)", model.DeviceSectionSummary);
         Assert.Equal("Bypass and preset shortcuts", model.IntegrationsSectionSummary);
         Assert.Equal("Not available for this device", model.LightsSectionSummary);
 
         var raised = Track(model);
         model.SystemEqBypassed = true;
 
-        Assert.Equal("Windows System EQ · System EQ bypassed", model.DeviceSectionSummary);
+        Assert.Equal("System EQ bypassed", model.DeviceSectionSummary);
         Assert.Contains(nameof(MainViewModel.DeviceSectionSummary), raised);
     }
 
