@@ -347,38 +347,25 @@
                 <Border x:Name="LibrarySelectionActions" Grid.Row="2" Visibility="{Binding HasItems, ElementName=SavedPresetList, Converter={StaticResource BooleanToVisibilityConverter}}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,12,0,0">
                     <StackPanel>
                         <TextBlock Text="{Binding LibrarySelection.Name, TargetNullValue=Select a preset}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="2,0,0,10"/>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <Button x:Name="OpenPresetButton" Click="OpenPresetButton_Click" Margin="0,0,8,0" Padding="12,10">
 
                                 <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SavePresetButton}"><Style.Triggers><DataTrigger Binding="{Binding LibrarySelection}" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></Button.Style>
                                 <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="17" IconBrush="{DynamicResource WolfGreenContrastBrush}" Margin="0,0,8,0"/><TextBlock Text="Open in editor" Foreground="{DynamicResource WolfGreenContrastBrush}"/></StackPanel>
                             </Button>
-                            <Button x:Name="DeleteSelectedPresetButton" Grid.Column="1" Command="{Binding DeletePresetCommand}" Width="42" Margin="0,0,8,0" Cursor="Hand"
-                                    ToolTip="Delete this preset" AutomationProperties.Name="Delete selected preset">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="8">
-                                            <Path x:Name="Glyph" Data="M3,5 H17 M7,5 V2 H13 V5 M5,5 V18 H15 V5 M8,8 V15 M12,8 V15" Width="16" Height="16" Stretch="Uniform"
-                                                  Stroke="{DynamicResource WolfDangerBrush}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Chrome" Property="Background" Value="#26FF5555"/>
-                                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfDangerBrush}"/>
-                                            </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/></Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                            <ToggleButton x:Name="PresetActionsButton" Grid.Column="2" Content="&#x22EF;" FontSize="22" Width="42" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=PresetActionsPopup, Mode=TwoWay}" ToolTip="Actions for this preset" AutomationProperties.Name="Preset actions"/>
+                            <ToggleButton x:Name="PresetActionsButton" Grid.Column="1" Width="42" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=PresetActionsPopup, Mode=TwoWay}" ToolTip="Actions for this preset" AutomationProperties.Name="Preset actions">
+                                <!-- Drawn dots: the U+22EF glyph clipped to two dots at this size. -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Ellipse Width="4" Height="4" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
+                                    <Ellipse Width="4" Height="4" Margin="3,0" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
+                                    <Ellipse Width="4" Height="4" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
+                                </StackPanel>
+                            </ToggleButton>
                             <Popup x:Name="PresetActionsPopup" PlacementTarget="{Binding ElementName=PresetActionsButton}" Placement="Top" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                 <Border Width="230" Padding="8" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="8">
                                     <StackPanel>
                                         <Button Command="{Binding DuplicatePresetCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M5,2 H18 V15 H5 Z M2,5 V18 H15" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Duplicate preset" Foreground="{DynamicResource WolfTextBrush}"/></StackPanel></Button>
                                         <Button Command="{Binding WriteLibraryPresetToSlotCommand}" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M10,2 V13 M5,8 L10,13 L15,8 M3,14 V18 H17 V14" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Write to device slot" Foreground="{DynamicResource WolfTextBrush}"/></StackPanel></Button>
-                                        <Border Height="1" Background="{DynamicResource WolfLineBrush}" Margin="4,6"/>
-                                        <Button Command="{Binding DeletePresetCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Left" Click="PresetAction_Click"><StackPanel Orientation="Horizontal"><Path Data="M3,5 H17 M7,5 V2 H13 V5 M5,5 V18 H15 V5 M8,8 V15 M12,8 V15" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfDangerBrush}" StrokeThickness="1.5" Margin="0,0,10,0"/><TextBlock Text="Delete preset" Foreground="{DynamicResource WolfDangerBrush}"/></StackPanel></Button>
                                     </StackPanel>
                                 </Border>
                             </Popup>

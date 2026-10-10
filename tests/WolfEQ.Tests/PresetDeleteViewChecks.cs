@@ -35,7 +35,7 @@ internal static class PresetDeleteViewChecks
         model.LibrarySelection = model.Presets[0];
         StudioViewChecks.Layout(library, 460, 1000);
         StudioViewChecks.Render(library, 460, 1000, "studio-library-delete");
-        Assert.NotNull(library.FindName("DeleteSelectedPresetButton"));
+        Assert.Null(library.FindName("DeleteSelectedPresetButton"));
         var shownRowButtons = StudioViewChecks.Descendants(list).OfType<Button>()
             .Where(button => button.Name == "RowDeleteButton" && button.Visibility == Visibility.Visible)
             .ToArray();
