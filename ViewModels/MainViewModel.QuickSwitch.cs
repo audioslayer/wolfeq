@@ -6,7 +6,7 @@ using WolfEQ.Services;
 namespace WolfEQ.ViewModels;
 
 /// <summary>
-/// The device dock's quick-switch menu: Windows System EQ plus every FiiO device currently
+/// The device dock's quick-switch menu: Software EQ plus every FiiO device currently
 /// plugged in over USB. Picking one goes through the same guarded profile switch and the
 /// same read-only USB connect as Settings; nothing is written to a device by switching.
 /// </summary>
@@ -18,7 +18,7 @@ public sealed partial class MainViewModel
 
     public ObservableCollection<QuickDeviceOption> QuickDevices { get; } = [];
 
-    /// <summary>True while the menu has nothing but System EQ, so it can hint at plugging in a device.</summary>
+    /// <summary>True while the menu has nothing but Software EQ, so it can hint at plugging in a device.</summary>
     public bool HasOnlySystemEqQuickDevice => QuickDevices.Count == 1 && !IsScanningQuickDevices;
 
     public bool IsScanningQuickDevices

@@ -2,14 +2,14 @@
 
 ## v0.8.0-beta
 
-Your headphone EQ, on any Windows output. **Windows System EQ** brings WolfEQ's library, AutoEQ search, and curve editor to laptop jacks, USB dongles, other brands' DACs, and Bluetooth headphones, with Equalizer APO doing the audio work behind the scenes. FiiO and Snowsky support is unchanged.
+Your headphone EQ, on any Windows output. **Software EQ** brings WolfEQ's library, AutoEQ search, and curve editor to laptop jacks, USB dongles, other brands' DACs, and Bluetooth headphones, with Equalizer APO doing the audio work behind the scenes. FiiO and Snowsky support is unchanged.
 
-### 💻 Windows System EQ
+### 💻 Software EQ
 
-- A new **Windows System EQ** entry in the device list, remembered across restarts. FiiO auto-detection never switches you out of it.
+- A new **Software EQ** entry in the device list, remembered across restarts. FiiO auto-detection never switches you out of it.
 - Choose exactly which Windows outputs get the EQ. Nothing is applied until you tick one.
 - **Live edits:** band changes, preamp, preset loads, reset, and undo/redo reach your outputs within about a quarter of a second. No write step.
-- The EQ keeps playing after WolfEQ closes, until you bypass it or leave System EQ mode.
+- The EQ keeps playing after WolfEQ closes, until you bypass it or leave Software EQ mode.
 - Per-output status shows whether Equalizer APO is active, missing from that output, or blocked by disabled audio enhancements.
 - USER slots, slot names, live-sync, lighting, and other hardware-only controls are hidden in this mode.
 
@@ -22,7 +22,7 @@ Your headphone EQ, on any Windows output. **Windows System EQ** brings WolfEQ's 
 
 ### ⏯️ Bypass from anywhere
 
-- Turn System EQ off and on from the editor or the tray without losing your curve.
+- Turn Software EQ off and on from the editor or the tray without losing your curve.
 - Bypass is remembered across restarts.
 
 ### 🤝 Plays well with Peace
@@ -36,14 +36,14 @@ Your headphone EQ, on any Windows output. **Windows System EQ** brings WolfEQ's 
 
 - `--system-eq-bypass on|off|toggle` controls bypass from Stream Deck or scripts.
 - `--preset "<name>"` loads a library preset by name and applies it.
-- `--slot` returns a clear "not available in System EQ mode" result instead of failing silently.
+- `--slot` returns a clear "not available in Software EQ mode" result instead of failing silently.
 
 ### ⚠️ Known limitations
 
-- Apps using WASAPI exclusive mode or ASIO bypass Equalizer APO and play without System EQ.
+- Apps using WASAPI exclusive mode or ASIO bypass Equalizer APO and play without Software EQ.
 - Windows feature updates and audio driver updates can remove Equalizer APO from an output. Use **Add outputs** and restart if asked.
 - Bluetooth hands-free (call) audio is a separate output. Tick it separately if you want EQ during calls.
-- System EQ uses the editor's 10 bands and applies the same EQ to both channels.
+- Software EQ uses the editor's 10 bands and applies the same EQ to both channels.
 
 ### 🚀 Downloads
 
@@ -53,13 +53,13 @@ Your headphone EQ, on any Windows output. **Windows System EQ** brings WolfEQ's 
 | **WolfEQ-0.8.0-beta-win-x64.zip** | Portable use: extract everything and launch WolfEQ.exe. |
 | **SHA256SUMS.txt** | Verify the downloaded installer and ZIP. |
 
-Both builds include the .NET runtime and the Equalizer APO 1.4.2 x64 installer (`redist\EqualizerAPO`). Equalizer APO is a separate GPL-2.0 program by Jonas Thedering; see THIRD_PARTY_NOTICES.md for its license and source. Existing presets and settings remain in your WolfEQ user-data folder. System EQ settings are stored in `%LOCALAPPDATA%\WolfEQ\system-eq.json`.
+Both builds include the .NET runtime and the Equalizer APO 1.4.2 x64 installer (`redist\EqualizerAPO`). Equalizer APO is a separate GPL-2.0 program by Jonas Thedering; see THIRD_PARTY_NOTICES.md for its license and source. Existing presets and settings remain in your WolfEQ user-data folder. Software EQ settings are stored in `%LOCALAPPDATA%\WolfEQ\system-eq.json`.
 
 ### ✅ Validation and beta scope
 
-The full automated suite passes, including the new Equalizer APO config writer, managed-block repair, detection, settings, and automation tests, plus rendered UI checks for System EQ mode.
+The full automated suite passes, including the new Equalizer APO config writer, managed-block repair, detection, settings, and automation tests, plus rendered UI checks for Software EQ mode.
 
-Windows System EQ is new in this beta. Equalizer APO's behavior varies with audio drivers, so please report the output, driver, and Windows version if something sounds wrong. K13 R2R remains the primary verified FiiO device; this release does not change FiiO behavior or expand hardware-verification claims.
+Software EQ is new in this beta. Equalizer APO's behavior varies with audio drivers, so please report the output, driver, and Windows version if something sounds wrong. K13 R2R remains the primary verified FiiO device; this release does not change FiiO behavior or expand hardware-verification claims.
 
 ---
 

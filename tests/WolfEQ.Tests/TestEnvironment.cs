@@ -6,9 +6,9 @@ using WolfEQ.ViewModels;
 namespace WolfEQ.Tests;
 
 /// <summary>
-/// Keeps tests away from the real machine: System EQ settings go to a temp folder and
-/// <c>new MainViewModel()</c> gets inert System EQ services, so no test can write into
-/// Equalizer APO's config folder, pick up a developer's persisted System EQ choice, or flip
+/// Keeps tests away from the real machine: Software EQ settings go to a temp folder and
+/// <c>new MainViewModel()</c> gets inert Software EQ services, so no test can write into
+/// Equalizer APO's config folder, pick up a developer's persisted Software EQ choice, or flip
 /// their saved Light/Dark theme.
 /// </summary>
 internal static class TestEnvironment

@@ -379,7 +379,7 @@ public sealed class SystemEqViewModelTests : IDisposable
         Assert.Equal(SystemEqState.Active, model.SystemEqState);
 
         model.SystemEqEndpoints.Single(endpoint => endpoint.Id == K13Id).IsSelected = true;
-        Assert.Equal("System EQ on Headphones (USB Audio)", model.SystemEqStatusText);
+        Assert.Equal("Software EQ on Headphones (USB Audio)", model.SystemEqStatusText);
         Assert.Contains("Equalizer APO isn't active on Speakers (FiiO K13 R2R). Use Add outputs to enable it.", model.SystemEqWarningText);
 
         model.SystemEqEndpoints.Single(endpoint => endpoint.Id == HeadphonesId).IsSelected = false;
@@ -396,7 +396,7 @@ public sealed class SystemEqViewModelTests : IDisposable
         Assert.Contains("canceled", model.SystemEqStatusText);
 
         model.ToggleSystemEqBypassCommand.Execute(null);
-        Assert.Equal("System EQ bypassed", model.SystemEqStatusText);
+        Assert.Equal("Software EQ bypassed", model.SystemEqStatusText);
         model.ToggleSystemEqBypassCommand.Execute(null);
         await model.FlushSystemEqApplyAsync();
 
@@ -405,7 +405,7 @@ public sealed class SystemEqViewModelTests : IDisposable
         _rig.Backend.NextOutcome = SystemEqApplyOutcome.Failed;
         model.Bands[0].GainDb = 1;
         await model.FlushSystemEqApplyAsync();
-        Assert.StartsWith("Couldn't apply System EQ", model.SystemEqStatusText);
+        Assert.StartsWith("Couldn't apply Software EQ", model.SystemEqStatusText);
     }
 
     [Fact]
@@ -464,7 +464,7 @@ public sealed class SystemEqViewModelTests : IDisposable
     }
 }
 
-/// <summary>Temp settings/library paths plus fake System EQ services shared by System EQ VM tests.</summary>
+/// <summary>Temp settings/library paths plus fake Software EQ services shared by Software EQ VM tests.</summary>
 
 public sealed class SystemEqPickerOrderTests
 {
@@ -527,7 +527,7 @@ internal sealed class SystemEqTestRig : IDisposable
     public MainViewModel CreateModel()
         => new(new LocalPresetLibraryService(LibraryPath), Services, SettingsPath);
 
-    /// <summary>A model in System EQ mode with the headphones ticked and the backend call log cleared.</summary>
+    /// <summary>A model in Software EQ mode with the headphones ticked and the backend call log cleared.</summary>
     public async Task<MainViewModel> CreateSystemEqModelAsync(bool flush = true)
     {
         var model = CreateModel();

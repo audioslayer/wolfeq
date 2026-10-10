@@ -317,7 +317,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             }
 
             _bands = value;
-            // Preset loads, detaches and resets replace the collection; System EQ applies them (KTD8).
+            // Preset loads, detaches and resets replace the collection; Software EQ applies them (KTD8).
             QueueSystemEqApply();
         }
     }
@@ -3078,7 +3078,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// and a band-template rebuild when the new profile's band count differs.
     /// Shared by the manual picker and auto-detection.
     /// </summary>
-    /// <summary>Profile switch tail shared by the picker and the System EQ startup restore.</summary>
+    /// <summary>Profile switch tail shared by the picker and the Software EQ startup restore.</summary>
     private void SwitchDeviceProfile(FiioDeviceProfile value)
     {
         ApplyDeviceProfile(value);
@@ -4517,7 +4517,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private void NotifyEditorContentEdited()
     {
-        // Band, collection and preamp hooks all land here. System EQ must also see loads,
+        // Band, collection and preamp hooks all land here. Software EQ must also see loads,
         // undo and reset (which run under _isLoadingPreset), so queue before the early return.
         QueueSystemEqApply();
         if (_isLoadingPreset)
@@ -5465,7 +5465,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private void SelectDetectedDeviceProfile(FiioDeviceProfile profile, HidDeviceCandidate? candidate)
     {
-        // R2: FiiO detection never switches a user out of Windows System EQ.
+        // R2: FiiO detection never switches a user out of Software EQ.
         if (IsSystemEqSelected)
         {
             NoteFiioDetectedInSystemEq(profile);

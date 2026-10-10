@@ -7,7 +7,7 @@ using WolfEQ.Models;
 namespace WolfEQ.Services.SystemEq;
 
 /// <summary>
-/// Persisted Windows System EQ choice (<c>%LOCALAPPDATA%\WolfEQ\system-eq.json</c>):
+/// Persisted Software EQ choice (<c>%LOCALAPPDATA%\WolfEQ\system-eq.json</c>):
 /// whether the mode is selected, which output endpoints are targeted, bypass, and the last
 /// editor curve that was successfully applied (restored into the editor at startup).
 /// </summary>
@@ -46,7 +46,7 @@ public sealed class SystemEqSettings
             if (File.Exists(filePath))
             {
                 settings = JsonSerializer.Deserialize<SystemEqSettings>(BoundedTextReader.ReadAllText(
-                    filePath, BoundedTextReader.SettingsMaxBytes, "System EQ settings"));
+                    filePath, BoundedTextReader.SettingsMaxBytes, "Software EQ settings"));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or FormatException)
@@ -124,7 +124,7 @@ public sealed class SystemEqAppliedSnapshot
 
         return new SystemEqAppliedSnapshot
         {
-            Name = (Name ?? string.Empty).Trim() is { Length: > 0 and <= 200 } name ? name : "System EQ",
+            Name = (Name ?? string.Empty).Trim() is { Length: > 0 and <= 200 } name ? name : "Software EQ",
             PreampDb = double.IsFinite(PreampDb) ? Math.Clamp(PreampDb, -24.0, 12.0) : 0,
             Bands = bands
         };

@@ -16,11 +16,11 @@
 
 ## ✨ Meet WolfEQ 0.8.0 beta
 
-No FiiO DAC? No problem. **Windows System EQ** brings WolfEQ's headphone library, AutoEQ search, and curve editor to any Windows output: laptop jacks, USB dongles, other brands' DACs, and Bluetooth headphones. WolfEQ drives [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) for you, so edits play live without touching a config file. FiiO and Snowsky support works exactly as before.
+No FiiO DAC? No problem. **Software EQ** brings WolfEQ's headphone library, AutoEQ search, and curve editor to any Windows output: laptop jacks, USB dongles, other brands' DACs, and Bluetooth headphones. WolfEQ drives [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) for you, so edits play live without touching a config file. FiiO and Snowsky support works exactly as before.
 
 | | New in 0.8.0 |
 |---|---|
-| 🖥️ **Windows System EQ** | Pick it in the device list, choose your outputs, and hear every edit within a moment. |
+| 🖥️ **Software EQ** | Pick it in the device list, choose your outputs, and hear every edit within a moment. |
 | 📦 **Equalizer APO included** | The official installer ships with WolfEQ; one button starts setup. |
 | ⏯️ **Bypass anywhere** | Compare EQ on and off from the app or the tray, without losing your curve. |
 | 🤝 **Plays well with Peace** | WolfEQ keeps to its own file and one marked line, and warns about stacked EQ. |
@@ -55,11 +55,11 @@ Choose **Settings → Appearance → Background**. Background mode is saved, and
 
 - **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.8.0-beta/WolfEQ-Setup-0.8.0-beta.exe)** — normal installation and shortcuts.
 - **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.8.0-beta/WolfEQ-0.8.0-beta-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
-- Both include the .NET runtime and the official Equalizer APO 1.4.2 x64 installer for Windows System EQ. SHA-256 checksums are supplied with the release.
+- Both include the .NET runtime and the official Equalizer APO 1.4.2 x64 installer for Software EQ. SHA-256 checksums are supplied with the release.
 
 ## 🔌 First session
 
-Using a FiiO or Snowsky device? Follow the steps below. Using anything else, such as a laptop jack, another DAC, or Bluetooth headphones? Start with [Windows System EQ](#-windows-system-eq).
+Using a FiiO or Snowsky device? Follow the steps below. Using anything else, such as a laptop jack, another DAC, or Bluetooth headphones? Start with [Software EQ](#-windows-system-eq).
 
 1. Connect your DAC over USB. In **Settings → Device → Connections**, refresh the list, select your device, and save the connection.
 2. For supported K13 lighting controls, select its Bluetooth connection too. Use **Identify** to confirm you have the same unit.
@@ -70,17 +70,17 @@ Using a FiiO or Snowsky device? Follow the steps below. Using anything else, suc
 
 The **Tools** menu groups editing, A/B comparison, device preparation, and sharing. Undo/redo is available in the title bar and with **Ctrl+Z / Ctrl+Y**. Import/export includes Equalizer APO, FiiO XML, and JSON workflows.
 
-## 💻 Windows System EQ
+## 💻 Software EQ
 
-Windows System EQ applies WolfEQ's EQ to any Windows playback output you choose, using [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) as the audio engine. The library, AutoEQ and OPRA search, graph, band controls, undo/redo, and presets all work the same as with a DAC. There are no USER slots to write: edits reach your outputs within about a quarter of a second, and the EQ keeps playing after WolfEQ closes.
+Software EQ applies WolfEQ's EQ to any Windows playback output you choose, using [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) as the audio engine. The library, AutoEQ and OPRA search, graph, band controls, undo/redo, and presets all work the same as with a DAC. There are no USER slots to write: edits reach your outputs within about a quarter of a second, and the EQ keeps playing after WolfEQ closes.
 
 **Setup**
 
-1. In the device list (**Settings → Device**), choose **Windows System EQ**. WolfEQ remembers this choice.
+1. In the device list (**Settings → Device**), choose **Software EQ**. WolfEQ remembers this choice.
 2. If Equalizer APO is not installed, choose **Install Equalizer APO**. Windows asks for administrator permission, then the official Equalizer APO 1.4.2 installer bundled with WolfEQ runs.
 3. In Equalizer APO's **Device Selector**, tick each output you want to EQ (for example *Speakers* or *Headphones*) and close it.
 4. Restart Windows if the installer asks you to.
-5. Back in WolfEQ, tick the same outputs in the System EQ output list. Each output shows whether Equalizer APO is active on it. Use **Add outputs** to reopen the Device Selector later.
+5. Back in WolfEQ, tick the same outputs in the Software EQ output list. Each output shows whether Equalizer APO is active on it. Use **Add outputs** to reopen the Device Selector later.
 
 Nothing is applied until at least one output is ticked.
 
@@ -90,10 +90,10 @@ Nothing is applied until at least one output is ticked.
 
 **Limitations**
 
-- Apps that use **exclusive mode** (WASAPI exclusive) or **ASIO** bypass Equalizer APO, so they play without System EQ. There is no workaround.
+- Apps that use **exclusive mode** (WASAPI exclusive) or **ASIO** bypass Equalizer APO, so they play without Software EQ. There is no workaround.
 - Windows feature updates and audio driver updates can remove Equalizer APO from an output. If an output's status changes, use **Add outputs**, tick it again, and restart if asked.
 - Bluetooth headphones appear as two outputs: stereo and **hands-free** (used during calls). Tick each one you want to EQ.
-- System EQ uses the editor's 10-band limit and applies the same EQ to both channels.
+- Software EQ uses the editor's 10-band limit and applies the same EQ to both channels.
 
 ## 🎶 Live spectrum
 
@@ -118,7 +118,7 @@ Click or right-click the green waveform for quick access to saved USER slots and
 - **Quit** exits the app and checks for unsaved edits.
 - The active indicator reflects the confirmed device slot. Optional saved profile lighting follows confirmed switches.
 
-In Windows System EQ mode, the tray shows a bypass toggle and the System EQ status instead of USER slots.
+In Software EQ mode, the tray shows a bypass toggle and the Software EQ status instead of USER slots.
 
 Tray and automation switches select EQ **already stored on the device**. Save or discard editor changes before switching; use the editor to write a library preset into a slot.
 
@@ -147,7 +147,7 @@ WolfEQ.exe --system-eq-bypass toggle
 WolfEQ.exe --preset "My Headphones"
 ```
 
-In Windows System EQ mode, `--system-eq-bypass on|off|toggle` controls bypass and `--preset "<name>"` loads a library preset by name and applies it to your chosen outputs. `--slot` is not available in System EQ mode and returns a clear "not available in System EQ mode" result. An unknown preset name returns an error.
+In Software EQ mode, `--system-eq-bypass on|off|toggle` controls bypass and `--preset "<name>"` loads a library preset by name and applies it to your chosen outputs. `--slot` is not available in Software EQ mode and returns a clear "not available in Software EQ mode" result. An unknown preset name returns an error.
 
 `--device` accepts the saved connection name or exact USB path. It must match the saved connection and never silently reassigns Bluetooth. Existing instances receive requests without taking focus; cold commands run without opening the editor.
 
@@ -163,7 +163,7 @@ Results are also written to `%LOCALAPPDATA%\WolfEQ\automation-result.json`. Use 
 
 | Device | Status | Notes |
 |-|-|-|
-| Windows System EQ | 🆕 Beta | Any Windows playback output through Equalizer APO 1.4.2 (bundled installer). Live edits, bypass, 10-band PEQ, no USER slots. See [Windows System EQ](#-windows-system-eq). |
+| Software EQ | 🆕 Beta | Any Windows playback output through Equalizer APO 1.4.2 (bundled installer). Live edits, bypass, 10-band PEQ, no USER slots. See [Software EQ](#-windows-system-eq). |
 | FiiO K13 R2R | ✅ WolfEQ verified | Main tested target. USB detection, EQ readback, USER slot switching, PEQ writes, global preamp writes, preset storage, LED cues, USB/COAX input switching. |
 | FiiO BR15 R2R | ⚠️ Experimental | Community-sourced 10-band layout and USER 1-10 save path. Save-only until WolfEQ readback is physically verified. |
 | FiiO QX13 | ⚠️ Experimental | Community-sourced 10-band layout and USER 1-10 save path. Save-only until WolfEQ readback is physically verified. |
@@ -193,7 +193,7 @@ K15, K17, and K19 are not listed as supported because their dedicated serial/RS2
 - Update downloads use unique temporary paths, enforce a 250 MB limit, and must have a Windows executable header.
 - FiiO writes validate the device profile, writable slot, band number, filter support, numeric ranges, HID report size, and response timeout.
 - Application logs escape line breaks, truncate oversized entries, and rotate at 5 MB.
-- The bundled Equalizer APO installer is the unmodified upstream file. The release build refuses to package it unless its SHA-256 matches the pinned 1.4.2 value. System EQ writes only `WolfEQ.txt` and one marked block in Equalizer APO's `config.txt`, using atomic replacement.
+- The bundled Equalizer APO installer is the unmodified upstream file. The release build refuses to package it unless its SHA-256 matches the pinned 1.4.2 value. Software EQ writes only `WolfEQ.txt` and one marked block in Equalizer APO's `config.txt`, using atomic replacement.
 
 WolfEQ does not upload local presets or device data. Online search and update checks contact the providers named above. Installer code signing or published checksum verification remains recommended for a stable release.
 

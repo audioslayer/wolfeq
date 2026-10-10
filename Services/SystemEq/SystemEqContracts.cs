@@ -1,7 +1,7 @@
 namespace WolfEQ.Services.SystemEq;
 
 /// <summary>
-/// Setup state of the Windows System EQ mode; drives the System EQ card in Settings.
+/// Setup state of the Software EQ mode; drives the Software EQ card in Settings.
 /// </summary>
 public enum SystemEqState
 {

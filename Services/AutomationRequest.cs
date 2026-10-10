@@ -1,7 +1,7 @@
 namespace WolfEQ.Services;
 
-/// <param name="SystemEqBypass">Windows System EQ bypass action: "on", "off" or "toggle".</param>
-/// <param name="PresetName">Library preset to load and apply in Windows System EQ mode.</param>
+/// <param name="SystemEqBypass">Software EQ bypass action: "on", "off" or "toggle".</param>
+/// <param name="PresetName">Library preset to load and apply in Software EQ mode.</param>
 public sealed record AutomationRequest(
     int? Slot = null,
     string? Device = null,
@@ -10,7 +10,7 @@ public sealed record AutomationRequest(
     string? SystemEqBypass = null,
     string? PresetName = null)
 {
-    public const string Usage = "WolfEQ.exe --slot <1-10> [--device \"Desk K13\"]\nWolfEQ.exe --system-eq-bypass <on|off|toggle>\nWolfEQ.exe --preset \"<library preset name>\"\nWolfEQ.exe --list-devices\nWolfEQ.exe --help\n--slot switches a stored USER slot on a FiiO device; it does not write a library preset. --system-eq-bypass and --preset work in Windows System EQ mode. Exit codes: 0 success, 1 failure, 2 invalid arguments, 3 unsaved edits/busy, 4 slot switched but lighting failed. Output is also saved to %LOCALAPPDATA%\\WolfEQ\\automation-result.json.";
+    public const string Usage = "WolfEQ.exe --slot <1-10> [--device \"Desk K13\"]\nWolfEQ.exe --system-eq-bypass <on|off|toggle>\nWolfEQ.exe --preset \"<library preset name>\"\nWolfEQ.exe --list-devices\nWolfEQ.exe --help\n--slot switches a stored USER slot on a FiiO device; it does not write a library preset. --system-eq-bypass and --preset work in Software EQ mode. Exit codes: 0 success, 1 failure, 2 invalid arguments, 3 unsaved edits/busy, 4 slot switched but lighting failed. Output is also saved to %LOCALAPPDATA%\\WolfEQ\\automation-result.json.";
 
     public static AutomationRequest Parse(string[] args)
     {
@@ -58,7 +58,7 @@ public sealed record AutomationRequest(
         var normalized = value.Trim().ToLowerInvariant();
         return normalized is "on" or "off" or "toggle"
             ? normalized
-            : throw new ArgumentException("System EQ bypass must be on, off, or toggle.");
+            : throw new ArgumentException("Software EQ bypass must be on, off, or toggle.");
     }
 }
 

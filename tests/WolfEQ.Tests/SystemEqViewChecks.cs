@@ -12,7 +12,7 @@ using Xunit;
 
 namespace WolfEQ.Tests;
 
-/// <summary>Renders the Windows System EQ surfaces and checks hardware-only controls are hidden (R3).</summary>
+/// <summary>Renders the Software EQ surfaces and checks hardware-only controls are hidden (R3).</summary>
 internal static class SystemEqViewChecks
 {
     public static void Verify()
@@ -33,14 +33,14 @@ internal static class SystemEqViewChecks
         StudioViewChecks.Render(settings, 460, 1400, "studio-settings-system-eq");
 
         var card = (FrameworkElement)settings.FindName("SystemEqCard");
-        Assert.True(IsShown(card), "System EQ card must be visible in System EQ mode.");
+        Assert.True(IsShown(card), "Software EQ card must be visible in Software EQ mode.");
         Assert.All(StudioViewChecks.Descendants(settings).OfType<TabControl>(), tabs => Assert.False(IsShown(tabs)));
         var endpointBoxes = StudioViewChecks.Descendants(card).OfType<CheckBox>().Where(IsShown).ToArray();
         Assert.Equal(model.SystemEqEndpoints.Count, endpointBoxes.Length);
         Assert.Contains(StudioViewChecks.Descendants(card).OfType<TextBlock>(), text => IsShown(text) && text.Text == "FiiO");
         Assert.Contains(StudioViewChecks.Descendants(settings).OfType<ComboBox>(), combo => IsShown(combo) && ReferenceEquals(combo.ItemsSource, model.DeviceProfiles));
 
-        // Integrations stay available in System EQ mode for the bypass/preset commands (R13),
+        // Integrations stay available in Software EQ mode for the bypass/preset commands (R13),
         // while the USER slot Stream Deck controls are hardware-only.
         var integrations = new SettingsPopover { DataContext = model };
         StudioViewChecks.Layout(integrations, 460, 1400);
@@ -51,7 +51,7 @@ internal static class SystemEqViewChecks
         StudioViewChecks.Layout(integrations, 460, 1400);
         StudioViewChecks.Render(integrations, 460, 1400, "studio-settings-integrations-system-eq");
         var integrationsExpander = StudioViewChecks.Descendants(integrations).OfType<Expander>().Single(expander => Equals(expander.Header, "Integrations"));
-        Assert.True(IsShown(integrationsExpander), "Integrations must stay visible in System EQ mode.");
+        Assert.True(IsShown(integrationsExpander), "Integrations must stay visible in Software EQ mode.");
         var commandBoxes = StudioViewChecks.Descendants(integrationsExpander).OfType<TextBox>().Where(IsShown).ToArray();
         Assert.Contains(commandBoxes, box => box.IsReadOnly && box.Text.Contains("--system-eq-bypass", StringComparison.Ordinal));
         Assert.Contains(commandBoxes, box => box.IsReadOnly && box.Text.Contains("--preset", StringComparison.Ordinal));
@@ -94,11 +94,11 @@ internal static class SystemEqViewChecks
         Assert.DoesNotContain(StudioViewChecks.Descendants(trayContent).OfType<Button>(), button => button.Tag is int && IsShown(button));
         Assert.False(IsShown(TrayPart<FrameworkElement>(trayContent, "SlotsPanel")), "USER slot chips are hardware-only.");
         var quickPanel = TrayPart<FrameworkElement>(trayContent, "QuickPresetsPanel");
-        Assert.True(IsShown(quickPanel), "Quick presets must be visible in System EQ mode.");
+        Assert.True(IsShown(quickPanel), "Quick presets must be visible in Software EQ mode.");
         var quickRows = StudioViewChecks.Descendants(quickPanel).OfType<Button>().Where(IsShown).ToArray();
         Assert.Equal(Math.Min(MainViewModel.TrayQuickPresetLimit, model.Presets.Count), quickRows.Length);
         Assert.Equal(model.TrayQuickPresets.Select(preset => preset.Name), quickRows.Select(AutomationProperties.GetName));
-        // The EQ switch shows "on" while System EQ is not bypassed.
+        // The EQ switch shows "on" while Software EQ is not bypassed.
         var eqToggle = TrayPart<ToggleButton>(trayContent, "EqToggle");
         Assert.True(IsShown(eqToggle));
         Assert.Equal(!model.SystemEqBypassed, eqToggle.IsChecked);
@@ -108,21 +108,21 @@ internal static class SystemEqViewChecks
         foreach (var preset in extra) model.Presets.Remove(preset);
     }
 
-    /// <summary>Tray tooltip: no doubled "System EQ" prefix, problems survive bypass, 127-char limit.</summary>
+    /// <summary>Tray tooltip: no doubled "Software EQ" prefix, problems survive bypass, 127-char limit.</summary>
     private static void VerifyTrayTips()
     {
-        Assert.Equal("WolfEQ — System EQ on Speakers",
-            TrayIconService.BuildTip(true, "System EQ on Speakers", "System EQ on Speakers", false, SystemEqState.Active, false, ""));
-        Assert.Equal("WolfEQ — System EQ bypassed",
-            TrayIconService.BuildTip(true, "", "System EQ bypassed", true, SystemEqState.Active, false, ""));
-        Assert.Equal("WolfEQ — System EQ bypassed · Equalizer APO is not installed",
+        Assert.Equal("WolfEQ — Software EQ on Speakers",
+            TrayIconService.BuildTip(true, "Software EQ on Speakers", "Software EQ on Speakers", false, SystemEqState.Active, false, ""));
+        Assert.Equal("WolfEQ — Software EQ bypassed",
+            TrayIconService.BuildTip(true, "", "Software EQ bypassed", true, SystemEqState.Active, false, ""));
+        Assert.Equal("WolfEQ — Software EQ bypassed · Equalizer APO is not installed",
             TrayIconService.BuildTip(true, "", "Equalizer APO is not installed.", true, SystemEqState.NeedsInstall, false, ""));
-        Assert.Equal("WolfEQ — System EQ bypassed · Equalizer APO is not installed",
-            TrayIconService.BuildTip(true, "", "System EQ bypassed", true, SystemEqState.NeedsInstall, false, ""));
-        Assert.Equal("WolfEQ — System EQ bypassed · Peace is also active in Equalizer APO, so two EQs may be applied",
-            TrayIconService.BuildTip(true, "", "System EQ bypassed", true, SystemEqState.Active, true, "Peace is also active in Equalizer APO, so two EQs may be applied."));
+        Assert.Equal("WolfEQ — Software EQ bypassed · Equalizer APO is not installed",
+            TrayIconService.BuildTip(true, "", "Software EQ bypassed", true, SystemEqState.NeedsInstall, false, ""));
+        Assert.Equal("WolfEQ — Software EQ bypassed · Peace is also active in Equalizer APO, so two EQs may be applied",
+            TrayIconService.BuildTip(true, "", "Software EQ bypassed", true, SystemEqState.Active, true, "Peace is also active in Equalizer APO, so two EQs may be applied."));
         Assert.Equal("WolfEQ — Desk K13 connected",
-            TrayIconService.BuildTip(false, "Desk K13 connected", "System EQ bypassed", true, SystemEqState.NotSelected, false, ""));
+            TrayIconService.BuildTip(false, "Desk K13 connected", "Software EQ bypassed", true, SystemEqState.NotSelected, false, ""));
         Assert.Equal("WolfEQ — quick profiles", TrayIconService.BuildTip(false, null, null, false, SystemEqState.NotSelected, false, null));
 
         var blocked = TrayIconService.BuildTip(true, "", "WolfEQ can't write to the Equalizer APO config folder.", true, SystemEqState.Blocked, true,
@@ -130,9 +130,9 @@ internal static class SystemEqViewChecks
             + "Audio enhancements are turned off for Speakers, so Equalizer APO can't process it.");
         Assert.True(blocked.Length <= TrayIconService.MaxTipLength, blocked);
         Assert.EndsWith("…", blocked);
-        Assert.StartsWith("WolfEQ — System EQ bypassed · WolfEQ can't write to the Equalizer APO config folder (Access is denied)", blocked);
+        Assert.StartsWith("WolfEQ — Software EQ bypassed · WolfEQ can't write to the Equalizer APO config folder (Access is denied)", blocked);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(blocked, "can't write"));
-        Assert.DoesNotContain("System EQ: System EQ", blocked);
+        Assert.DoesNotContain("Software EQ: Software EQ", blocked);
     }
 
     /// <summary>While Install Equalizer APO runs, the card shows a progress bar instead of the button.</summary>
@@ -170,7 +170,7 @@ internal static class SystemEqViewChecks
         rig.Backend.Status = SystemEqTestRig.InstalledStatus;
     }
 
-    /// <summary>Device dock dropdown: System EQ first, plugged-in FiiO devices, and Manage devices.</summary>
+    /// <summary>Device dock dropdown: Software EQ first, plugged-in FiiO devices, and Manage devices.</summary>
     private static void VerifyDeviceSwitcher(MainViewModel model)
     {
         model.QuickDeviceScanOverride = () => Task.FromResult<IReadOnlyList<WolfEQ.Services.HidDeviceCandidate>>(

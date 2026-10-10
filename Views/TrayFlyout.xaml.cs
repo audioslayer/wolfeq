@@ -168,7 +168,7 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
         {
             if (Vm.IsSystemEqSelected)
             {
-                // The device row already shows the System EQ status line; say what this is.
+                // The device row already shows the Software EQ status line; say what this is.
                 return Vm.EditorSession.WouldReplaceUnsavedEdits ? "Unsaved changes in the editor"
                     : Vm.SystemEqBypassed ? "EQ is off. Turn it on to hear it."
                     : Vm.SelectedPreset is { } preset && Vm.Presets.Contains(preset) ? $"From your library · {preset.Category}"
@@ -255,7 +255,7 @@ internal sealed class TrayPanelState : INotifyPropertyChanged, IDisposable
         finally { _switching = false; Refresh(); }
     }
 
-    /// <summary>Opens a quick preset in the editor; System EQ applies it automatically.</summary>
+    /// <summary>Opens a quick preset in the editor; Software EQ applies it automatically.</summary>
     public void OpenPreset(EqPreset preset)
     {
         Vm.TryOpenTrayQuickPreset(preset);

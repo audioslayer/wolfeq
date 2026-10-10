@@ -1,6 +1,6 @@
 # Equalizer APO (bundled installer)
 
-WolfEQ's **Windows System EQ** mode uses [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) as its audio engine. The WolfEQ installer and portable ZIP ship the official, unmodified Equalizer APO x64 installer in this folder so a user can install it from WolfEQ's setup card.
+WolfEQ's **Software EQ** mode uses [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) as its audio engine. The WolfEQ installer and portable ZIP ship the official, unmodified Equalizer APO x64 installer in this folder so a user can install it from WolfEQ's setup card.
 
 The executable is not committed to git (see `.gitignore`). `build-installer.bat` downloads it when it is missing and refuses to build if its SHA-256 does not match the pinned value below.
 

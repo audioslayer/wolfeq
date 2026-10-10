@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace WolfEQ.ViewModels;
 
-/// <summary>One row in the System EQ endpoint picker.</summary>
+/// <summary>One row in the Software EQ endpoint picker.</summary>
 public sealed class SystemEqEndpointOption : INotifyPropertyChanged
 {
     private bool _isSelected;

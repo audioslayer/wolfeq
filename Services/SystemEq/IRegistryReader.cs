@@ -6,7 +6,7 @@ public enum RegistryRoot
     ClassesRoot
 }
 
-/// <summary>Read-only registry access (64-bit view) so System EQ detection can be faked in tests.</summary>
+/// <summary>Read-only registry access (64-bit view) so Software EQ detection can be faked in tests.</summary>
 public interface IRegistryReader
 {
     bool KeyExists(RegistryRoot root, string subKey);

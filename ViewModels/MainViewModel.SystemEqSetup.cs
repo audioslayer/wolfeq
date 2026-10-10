@@ -4,7 +4,7 @@ using WolfEQ.Services.SystemEq;
 namespace WolfEQ.ViewModels;
 
 /// <summary>
-/// Progress shown on the System EQ card while "Install Equalizer APO" downloads, verifies, and
+/// Progress shown on the Software EQ card while "Install Equalizer APO" downloads, verifies, and
 /// waits for the installer, so the click never looks frozen.
 /// </summary>
 public sealed partial class MainViewModel

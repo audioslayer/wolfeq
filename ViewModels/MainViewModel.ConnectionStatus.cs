@@ -15,7 +15,7 @@ public sealed partial class MainViewModel
 {
     /// <summary>
     /// Color tone for <see cref="ConnectionText"/> and the dock's status dot.
-    /// Hardware: Active when connected, Idle otherwise. System EQ: Active only when
+    /// Hardware: Active when connected, Idle otherwise. Software EQ: Active only when
     /// Equalizer APO is processing at least one ticked output and bypass is off;
     /// Attention when setup is incomplete or a warning is showing; Idle while checking
     /// or bypassed.

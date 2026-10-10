@@ -122,7 +122,7 @@
 
                     <Expander Header="Device" Tag="Cpu" views:SettingsPopover.SectionSummary="{Binding DeviceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="True" Margin="0,0,0,8">
  <StackPanel Margin="0,10,0,0">
- <!-- Device picker stays visible in both modes so users can switch between FiiO and Windows System EQ. -->
+ <!-- Device picker stays visible in both modes so users can switch between FiiO and Software EQ. -->
  <StackPanel Margin="0,0,0,12">
  <ComboBox ItemsSource="{Binding DeviceProfiles}" SelectedItem="{Binding SelectedDeviceProfile}" TextSearch.TextPath="DisplayLabel" AutomationProperties.Name="Device">
      <ComboBox.ItemTemplate>
@@ -240,7 +240,7 @@
  </TabControl>
  </StackPanel>
 
-                            <!-- Windows System EQ card: replaces the hardware Connections/Controls tabs in System EQ mode. -->
+                            <!-- Software EQ card: replaces the hardware Connections/Controls tabs in Software EQ mode. -->
                             <Border x:Name="SystemEqCard"
                                     Padding="13,12"
                                     Background="{DynamicResource WolfShellBrush}"
@@ -255,12 +255,12 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Margin="0,0,12,0">
-                                            <TextBlock Text="System EQ" FontSize="14" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Software EQ" FontSize="14" FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding SystemEqStatusText}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" ToolTip="Turn off WolfEQ's effect without losing your EQ">
                                             <TextBlock Text="Bypass" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <ToggleButton Style="{StaticResource BandPowerToggle}" IsChecked="{Binding SystemEqBypassed, Mode=TwoWay}" AutomationProperties.Name="Bypass System EQ" VerticalAlignment="Center"/>
+                                            <ToggleButton Style="{StaticResource BandPowerToggle}" IsChecked="{Binding SystemEqBypassed, Mode=TwoWay}" AutomationProperties.Name="Bypass Software EQ" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Grid>
 
@@ -300,7 +300,7 @@
                                     <Border Margin="0,12,0,0">
                                         <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SourceTileBorder}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="Blocked"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
                                         <StackPanel>
-                                            <TextBlock Text="System EQ is paused" FontWeight="SemiBold" Foreground="{DynamicResource WolfWarningBrush}"/>
+                                            <TextBlock Text="Software EQ is paused" FontWeight="SemiBold" Foreground="{DynamicResource WolfWarningBrush}"/>
                                             <TextBlock Text="{Binding SystemEqWarningText}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Border>
@@ -333,7 +333,7 @@
                                                         <StackPanel Grid.Column="1">
                                                             <DockPanel LastChildFill="True">
                                                                 <Border DockPanel.Dock="Right" Background="{DynamicResource WolfAccentHoverBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
-                                                                        Visibility="{Binding IsFiio, Converter={StaticResource BooleanToVisibilityConverter}}" ToolTip="FiiO device: its own EQ may stack with System EQ">
+                                                                        Visibility="{Binding IsFiio, Converter={StaticResource BooleanToVisibilityConverter}}" ToolTip="FiiO device: its own EQ may stack with Software EQ">
                                                                     <TextBlock Text="FiiO" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource WolfGreenBrush}"/>
                                                                 </Border>
                                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
@@ -741,7 +741,7 @@
                     </Expander>
 
                     <!-- Integrations show in both modes: USER slot switching is hardware-only, while
-                         System EQ mode has its own bypass and preset commands. -->
+                         Software EQ mode has its own bypass and preset commands. -->
                     <Expander Header="Integrations" Tag="Keyboard" views:SettingsPopover.SectionSummary="{Binding IntegrationsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,10">
                         <StackPanel Margin="4,10">
                         <StackPanel x:Name="HardwareStreamDeckPanel" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -787,8 +787,8 @@
                             </StackPanel></Expander>
                         </StackPanel>
 
-                        <!-- System EQ mode: bypass and library-preset commands for Stream Deck keys and scripts.
-                             Templated in only in System EQ mode so hardware mode keeps a single command box. -->
+                        <!-- Software EQ mode: bypass and library-preset commands for Stream Deck keys and scripts.
+                             Templated in only in Software EQ mode so hardware mode keeps a single command box. -->
                         <ContentControl x:Name="SystemEqShortcutsPanel" Content="{Binding}" Focusable="False"
                                         Visibility="{Binding IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
                             <ContentControl.Style>
@@ -801,11 +801,11 @@
                                                         <Border Style="{StaticResource SourceTileBorder}">
                                                             <StackPanel>
                                                                 <TextBlock Text="Stream Deck and shortcuts" FontWeight="SemiBold" FontSize="14"/>
-                                                                <TextBlock Text="Bypass System EQ or apply a library preset from a Stream Deck key, shortcut or script. WolfEQ can be open or closed." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,10"/>
+                                                                <TextBlock Text="Bypass Software EQ or apply a library preset from a Stream Deck key, shortcut or script. WolfEQ can be open or closed." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,10"/>
                                                                 <TextBlock Text="Bypass (on, off or toggle)" FontWeight="SemiBold"/>
                                                                 <TextBox Text="{Binding StreamDeckExecutable, Mode=OneWay, StringFormat='&quot;{0}&quot; --system-eq-bypass toggle', FallbackValue='WolfEQ.exe --system-eq-bypass toggle'}"
                                                                          IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Margin="0,4,0,10"
-                                                                         AutomationProperties.Name="System EQ bypass command"/>
+                                                                         AutomationProperties.Name="Software EQ bypass command"/>
                                                                 <TextBlock Text="Apply a library preset" FontWeight="SemiBold"/>
                                                                 <TextBox Text="{Binding StreamDeckExecutable, Mode=OneWay, StringFormat='&quot;{0}&quot; --preset &quot;Ananda Music - Warm Detail&quot;', FallbackValue='WolfEQ.exe --preset &quot;Ananda Music - Warm Detail&quot;'}"
                                                                          IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Margin="0,4,0,8"

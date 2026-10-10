@@ -9,7 +9,7 @@ using WolfEQ.Services.SystemEq;
 namespace WolfEQ.ViewModels;
 
 /// <summary>
-/// Windows System EQ mode: the editor drives Equalizer APO through <see cref="IEqOutputBackend"/>.
+/// Software EQ mode: the editor drives Equalizer APO through <see cref="IEqOutputBackend"/>.
 /// This pipeline is separate from FiiO live sync (KTD8).
 /// </summary>
 public sealed partial class MainViewModel
@@ -118,7 +118,7 @@ public sealed partial class MainViewModel
 
     /// <summary>
     /// Ctor tail: wires services, settings, the debounce pipeline and commands, then restores a
-    /// persisted System EQ choice before any FiiO auto-detect runs (KTD9).
+    /// persisted Software EQ choice before any FiiO auto-detect runs (KTD9).
     /// </summary>
     private void InitializeSystemEq(SystemEqServices? services, string? settingsPath)
     {
@@ -165,7 +165,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
-    /// Loads a persisted System EQ curve into the editor. A library preset with the same name
+    /// Loads a persisted Software EQ curve into the editor. A library preset with the same name
     /// and curve is selected (the normal library-open path); anything else becomes detached
     /// editor content. Returns true when a library preset was selected.
     /// </summary>
@@ -234,7 +234,7 @@ public sealed partial class MainViewModel
             _systemEqApplyHalted = false;
             if (!_isInitializingSystemEq)
             {
-                // The user picked System EQ: the editor is what they want applied.
+                // The user picked Software EQ: the editor is what they want applied.
                 _systemEqHoldStartupApply = false;
             }
 
@@ -242,7 +242,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        // Leaving System EQ for a FiiO profile: keep the config.txt include but make it
+        // Leaving Software EQ for a FiiO profile: keep the config.txt include but make it
         // harmless (header-only WolfEQ.txt). Only "Remove from Equalizer APO" removes it.
         _systemEqSettings.Selected = false;
         SaveSystemEqSettings();
@@ -269,16 +269,16 @@ public sealed partial class MainViewModel
             var result = await _systemEq.Backend.ApplyAsync(snapshot, [], bypassed: true);
             if (!result.Succeeded)
             {
-                AddLog($"Windows System EQ could not be bypassed while switching devices: {result.Message}");
+                AddLog($"Software EQ could not be bypassed while switching devices: {result.Message}");
             }
         }
         catch (Exception ex)
         {
-            AddLog($"Windows System EQ could not be bypassed while switching devices: {ex.Message}");
+            AddLog($"Software EQ could not be bypassed while switching devices: {ex.Message}");
         }
     }
 
-    /// <summary>Records a FiiO detection while System EQ stays selected (R2); feeds the warning only.</summary>
+    /// <summary>Records a FiiO detection while Software EQ stays selected (R2); feeds the warning only.</summary>
     private void NoteFiioDetectedInSystemEq(FiioDeviceProfile profile)
     {
         DeviceSelectionStatus = $"Detected {profile.DisplayLabel}; staying in {SystemEqProfiles.WindowsSystemEq.DisplayName}.";
@@ -325,14 +325,14 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            AddLog($"Windows System EQ apply failed: {ex.Message}");
+            AddLog($"Software EQ apply failed: {ex.Message}");
         }
     }
 
     /// <summary>
     /// Sends the pending editor snapshot now (the debounce tick calls this; tests call it directly).
     /// Returns null when nothing was pending, an apply is already in flight (it re-checks the
-    /// pending flag when it finishes), or System EQ cannot apply.
+    /// pending flag when it finishes), or Software EQ cannot apply.
     /// </summary>
     internal async Task<SystemEqApplyResult?> FlushSystemEqApplyAsync()
     {
@@ -463,7 +463,7 @@ public sealed partial class MainViewModel
                 _systemEqApplyPending = false;
                 _systemEqBlockedMessage = result.Message;
                 SystemEqState = SystemEqState.Blocked;
-                AddLog($"Windows System EQ stopped: {result.Message}");
+                AddLog($"Software EQ stopped: {result.Message}");
                 break;
             case SystemEqApplyOutcome.NotInstalled:
                 _systemEqApplyHalted = true;
@@ -473,7 +473,7 @@ public sealed partial class MainViewModel
                 break;
             case SystemEqApplyOutcome.Failed:
                 _systemEqApplyError = result.Message;
-                AddLog($"Windows System EQ apply failed: {result.Message}");
+                AddLog($"Software EQ apply failed: {result.Message}");
                 break;
             default:
                 _systemEqApplyError = null;
@@ -727,7 +727,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
-    /// "Remove from Equalizer APO": leaves System EQ mode and deletes WolfEQ's include file and
+    /// "Remove from Equalizer APO": leaves Software EQ mode and deletes WolfEQ's include file and
     /// config.txt block (R10). This is the only path that calls <see cref="IEqOutputBackend.RemoveAsync"/>.
     /// </summary>
     private async Task RemoveSystemEqFromApoAsync()
@@ -773,7 +773,7 @@ public sealed partial class MainViewModel
 
     /// <summary>
     /// A launcher notice (setup canceled, waiting, failed) shows until the next meaningful change:
-    /// bypass, output ticks, an apply error, a refresh, or leaving System EQ. While a launcher is
+    /// bypass, output ticks, an apply error, a refresh, or leaving Software EQ. While a launcher is
     /// still running its "waiting" text stays.
     /// </summary>
     private void ClearSystemEqNotice()
@@ -803,7 +803,7 @@ public sealed partial class MainViewModel
     {
         if (!IsSystemEqSelected)
         {
-            return "Windows System EQ is off.";
+            return "Software EQ is off.";
         }
 
         if (!string.IsNullOrWhiteSpace(_systemEqNotice))
@@ -822,12 +822,12 @@ public sealed partial class MainViewModel
             SystemEqState.NeedsInstall => "Equalizer APO is not installed.",
             SystemEqState.NeedsDeviceSelection => "Equalizer APO is not active on any output yet. Use Add outputs.",
             SystemEqState.Blocked => "WolfEQ can't write to the Equalizer APO config folder.",
-            SystemEqState.Active when SystemEqBypassed => "System EQ bypassed",
+            SystemEqState.Active when SystemEqBypassed => "Software EQ bypassed",
             SystemEqState.Active when !SystemEqEndpoints.Any(endpoint => endpoint.IsSelected)
-                => "Pick an output to apply System EQ.",
-            SystemEqState.Active when _systemEqApplyError is not null => $"Couldn't apply System EQ: {_systemEqApplyError}",
+                => "Pick an output to apply Software EQ.",
+            SystemEqState.Active when _systemEqApplyError is not null => $"Couldn't apply Software EQ: {_systemEqApplyError}",
             SystemEqState.Active => BuildActiveSystemEqStatusText(),
-            _ => "Windows System EQ is off."
+            _ => "Software EQ is off."
         };
     }
 
@@ -841,8 +841,8 @@ public sealed partial class MainViewModel
             0 => selected.Count == 1
                 ? "Equalizer APO isn't active on the selected output"
                 : "Equalizer APO isn't active on the selected outputs",
-            1 => $"System EQ on {reached[0].Name}",
-            _ => $"System EQ on {reached.Count} outputs"
+            1 => $"Software EQ on {reached[0].Name}",
+            _ => $"Software EQ on {reached.Count} outputs"
         };
     }
 
@@ -895,7 +895,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            AddLog($"System EQ settings could not be saved: {ex.Message}");
+            AddLog($"Software EQ settings could not be saved: {ex.Message}");
         }
     }
 
@@ -907,7 +907,7 @@ public sealed partial class MainViewModel
     {
         if (!IsSystemEqSelected)
         {
-            return new(1, "This command works in Windows System EQ mode. Select Windows System EQ in Settings first.");
+            return new(1, "This command works in Software EQ mode. Select Software EQ in Settings first.");
         }
 
         // Concurrent automation commands run one after another, never interleaved.
@@ -917,7 +917,7 @@ public sealed partial class MainViewModel
             await _systemEqRefreshTask;
             if (!IsSystemEqSelected)
             {
-                return new(1, "This command works in Windows System EQ mode. Select Windows System EQ in Settings first.");
+                return new(1, "This command works in Software EQ mode. Select Software EQ in Settings first.");
             }
 
             return request.SystemEqBypass is { } bypass
@@ -940,7 +940,7 @@ public sealed partial class MainViewModel
         };
         var result = await ApplySystemEqNowAsync();
         return result.Succeeded
-            ? new(0, SystemEqBypassed ? "Windows System EQ bypass on." : "Windows System EQ bypass off.")
+            ? new(0, SystemEqBypassed ? "Software EQ bypass on." : "Software EQ bypass off.")
             : new(1, $"Bypass saved, but it could not be applied: {result.Message}");
     }
 
@@ -967,7 +967,7 @@ public sealed partial class MainViewModel
 
         var result = await ApplySystemEqNowAsync();
         return result.Succeeded
-            ? new(0, $"Applied \"{preset.Name}\" to Windows System EQ.")
+            ? new(0, $"Applied \"{preset.Name}\" to Software EQ.")
             : new(1, $"Loaded \"{preset.Name}\", but it could not be applied: {result.Message}");
     }
 

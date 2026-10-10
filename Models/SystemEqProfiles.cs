@@ -1,14 +1,14 @@
 namespace WolfEQ.Models;
 
 /// <summary>
-/// The Windows System EQ support type. Deliberately kept out of <see cref="FiioDeviceProfiles.All"/>
+/// The Software EQ support type. Deliberately kept out of <see cref="FiioDeviceProfiles.All"/>
 /// so FiiO hardware detection can never match it.
 /// </summary>
 public static class SystemEqProfiles
 {
     public static readonly FiioDeviceProfile WindowsSystemEq = new(
         Id: "windows-system-eq",
-        DisplayName: "Windows System EQ",
+        DisplayName: "Software EQ",
         ProductId: null,
         ReportId: 0x00,
         BandCount: 10,

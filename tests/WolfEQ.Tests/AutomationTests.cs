@@ -93,7 +93,7 @@ public sealed class AutomationTests
 
         var slot = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--slot", "1"]));
         Assert.Equal(1, slot.ExitCode);
-        Assert.Contains("not available in Windows System EQ mode", slot.Message);
+        Assert.Contains("not available in Software EQ mode", slot.Message);
 
         var bypass = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--system-eq-bypass", "toggle"]));
         Assert.Equal(0, bypass.ExitCode);
@@ -137,8 +137,8 @@ public sealed class AutomationTests
 
         // The in-flight apply picked up the bypass instead of the command reporting Failed,
         // and the second command ran only after the first finished.
-        Assert.Equal((0, "Windows System EQ bypass on."), (bypassResult.ExitCode, bypassResult.Message));
-        Assert.Equal((0, "Windows System EQ bypass off."), (bypassOffResult.ExitCode, bypassOffResult.Message));
+        Assert.Equal((0, "Software EQ bypass on."), (bypassResult.ExitCode, bypassResult.Message));
+        Assert.Equal((0, "Software EQ bypass off."), (bypassOffResult.ExitCode, bypassOffResult.Message));
         Assert.Equal([false, true, false], rig.Backend.Applies.Select(apply => apply.Bypassed));
         Assert.Equal(5, rig.Backend.Applies[0].Preset.Bands[0].GainDb);
     }

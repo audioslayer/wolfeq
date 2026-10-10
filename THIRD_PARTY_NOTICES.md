@@ -34,7 +34,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Equalizer APO 1.4.2
 
-WolfEQ's Windows System EQ mode uses Equalizer APO as its audio engine. The WolfEQ installer and portable ZIP include the official Equalizer APO x64 installer, unmodified, at `redist\EqualizerAPO\EqualizerAPO-x64-1.4.2.exe`.
+WolfEQ's Software EQ mode uses Equalizer APO as its audio engine. The WolfEQ installer and portable ZIP include the official Equalizer APO x64 installer, unmodified, at `redist\EqualizerAPO\EqualizerAPO-x64-1.4.2.exe`.
 
 - Project: https://sourceforge.net/projects/equalizerapo/
 - Copyright: Copyright Jonas Thedering

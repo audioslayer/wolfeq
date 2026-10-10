@@ -141,13 +141,13 @@
                                 <TextBlock x:Name="NowPlayingTitle" Text="{Binding NowTitle}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding NowTitle}"/>
                                 <TextBlock x:Name="NowPlayingSubtitle" Text="{Binding NowSubtitle}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding NowSubtitle}"/>
                             </StackPanel>
-                            <!-- System EQ only: ON means "not bypassed". -->
+                            <!-- Software EQ only: ON means "not bypassed". -->
                             <StackPanel x:Name="EqSwitchPanel" Grid.Column="2" VerticalAlignment="Center"
                                         Visibility="{Binding Vm.IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
                                 <TextBlock Text="EQ" Style="{StaticResource TinyLabel}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                 <ToggleButton x:Name="EqToggle" Style="{StaticResource BandPowerToggle}" Focusable="True"
                                               IsChecked="{Binding Vm.SystemEqBypassed, Mode=TwoWay, Converter={StaticResource InverseBooleanConverter}}"
-                                              AutomationProperties.Name="System EQ on" ToolTip="Turn System EQ on or off"/>
+                                              AutomationProperties.Name="Software EQ on" ToolTip="Turn Software EQ on or off"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -189,7 +189,7 @@
                         </ItemsControl>
                     </StackPanel>
 
-                    <!-- 4b. System EQ: quick presets from the library -->
+                    <!-- 4b. Software EQ: quick presets from the library -->
                     <StackPanel x:Name="QuickPresetsPanel" Visibility="{Binding Vm.IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
                         <TextBlock Text="Quick presets" Style="{StaticResource TinyLabel}" Margin="2,0,0,7"/>
                         <ItemsControl x:Name="QuickPresetItems" ItemsSource="{Binding QuickPresets}">

@@ -2,7 +2,7 @@ using WolfEQ.Models;
 
 namespace WolfEQ.ViewModels;
 
-/// <summary>Quick presets shown in the tray flyout while Windows System EQ is selected.</summary>
+/// <summary>Quick presets shown in the tray flyout while Software EQ is selected.</summary>
 public sealed partial class MainViewModel
 {
     public const int TrayQuickPresetLimit = 6;
@@ -25,7 +25,7 @@ public sealed partial class MainViewModel
 
     /// <summary>
     /// Opens a quick preset through the normal library path, so the unsaved-edits
-    /// confirmation still applies. System EQ applies the loaded content on its own.
+    /// confirmation still applies. Software EQ applies the loaded content on its own.
     /// </summary>
     public bool TryOpenTrayQuickPreset(EqPreset preset)
     {

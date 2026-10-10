@@ -3,7 +3,7 @@ using WolfEQ.Models;
 namespace WolfEQ.Services.SystemEq;
 
 /// <summary>
-/// Software EQ output used by the Windows System EQ mode. FiiO hardware does not go through this seam.
+/// Software EQ output used by the Software EQ mode. FiiO hardware does not go through this seam.
 /// </summary>
 public interface IEqOutputBackend
 {

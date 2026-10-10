@@ -112,7 +112,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Device switcher: quick list of System EQ and plugged-in FiiO devices, with Settings one click away. -->
+            <!-- Device switcher: quick list of Software EQ and plugged-in FiiO devices, with Settings one click away. -->
             <Grid Grid.Column="0">
             <ToggleButton x:Name="DeviceMenuButton" Style="{StaticResource StudioMenuToggle}" Height="54" Padding="16,6"
                           Background="{DynamicResource WolfPanel2Brush}" BorderBrush="{DynamicResource WolfLineBrush}"
@@ -176,7 +176,7 @@
 
             <!-- Menu entries invoke the existing guarded switch command. Selection
                  stays bound to the confirmed slot, including after cancellation. -->
-            <!-- Hardware only: Windows System EQ has no USER slots. -->
+            <!-- Hardware only: Software EQ has no USER slots. -->
             <Grid Grid.Column="2" VerticalAlignment="Center" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <ToggleButton x:Name="SlotMenuButton" Style="{StaticResource StudioMenuToggle}" Height="54" Padding="16,6"
                               Background="{DynamicResource WolfPanel2Brush}" BorderBrush="{DynamicResource WolfLineBrush}"
@@ -289,7 +289,7 @@
             <TextBlock Grid.Column="3" Text="{Binding Bands.Count, StringFormat={}{0}-band PEQ}" Foreground="{DynamicResource WolfMutedBrush}" Margin="22,0" VerticalAlignment="Center"/>
             <TextBlock x:Name="SyncStateText" Grid.Column="4" Text="{Binding EditorSyncStatusText}" Visibility="Collapsed"/>
             <!-- 5. Live-sync toggle (only for profiles that support live EQ writes) -->
-            <!-- 5b. System EQ: bypass in the live-sync column. The status line is the device button subtitle (ConnectionText), so it is not repeated here. -->
+            <!-- 5b. Software EQ: bypass in the live-sync column. The status line is the device button subtitle (ConnectionText), so it is not repeated here. -->
             <StackPanel x:Name="SystemEqDockPanel"
                         Grid.Column="5"
                         Orientation="Horizontal"
@@ -298,7 +298,7 @@
                         Visibility="{Binding IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
                 <ToggleButton Style="{StaticResource BandPowerToggle}"
                               IsChecked="{Binding SystemEqBypassed, Mode=TwoWay}"
-                              AutomationProperties.Name="Bypass System EQ"
+                              AutomationProperties.Name="Bypass Software EQ"
                               ToolTip="Turn off WolfEQ's effect without losing your EQ"
                               VerticalAlignment="Center"
                               Margin="0,0,7,0"/>

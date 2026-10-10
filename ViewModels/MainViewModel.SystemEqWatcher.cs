@@ -5,7 +5,7 @@ using WolfEQ.Services.SystemEq;
 namespace WolfEQ.ViewModels;
 
 /// <summary>
-/// Watches Equalizer APO's config.txt while System EQ is selected. If another tool (Peace, a
+/// Watches Equalizer APO's config.txt while Software EQ is selected. If another tool (Peace, a
 /// hand edit) rewrites it and drops WolfEQ's managed block, the next apply puts it back (R10).
 /// The backend only rewrites files whose content changed, so our own writes do not loop.
 /// </summary>
@@ -46,7 +46,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
         {
-            AddLog($"Windows System EQ cannot watch Equalizer APO's config.txt: {ex.Message}");
+            AddLog($"Software EQ cannot watch Equalizer APO's config.txt: {ex.Message}");
         }
     }
 

@@ -130,8 +130,8 @@ public sealed class TrayIconService : IDisposable
 
     /// <summary>
     /// Builds the notification-area tooltip, already truncated to <see cref="MaxTipLength"/>.
-    /// Hardware mode shows the connection text. System EQ mode shows the status line as-is (it
-    /// already names System EQ), and when bypassed still surfaces setup problems or warnings so
+    /// Hardware mode shows the connection text. Software EQ mode shows the status line as-is (it
+    /// already names Software EQ), and when bypassed still surfaces setup problems or warnings so
     /// "bypassed" never hides that the EQ could not reach Windows anyway.
     /// </summary>
     internal static string BuildTip(bool isSystemEq, string? connectionText, string? statusText, bool bypassed,
@@ -144,7 +144,7 @@ public sealed class TrayIconService : IDisposable
         }
         else
         {
-            const string bypassedText = "System EQ bypassed";
+            const string bypassedText = "Software EQ bypassed";
             var status = TrimSentence(statusText);
             if (bypassed && (status.Length == 0 || status.StartsWith(bypassedText, StringComparison.OrdinalIgnoreCase)))
             {
@@ -160,7 +160,7 @@ public sealed class TrayIconService : IDisposable
             var warning = hasWarning ? TrimSentence(warningText) : "";
             var parts = new List<string>(3);
             if (bypassed) parts.Add(bypassedText);
-            // The status line already says "System EQ bypassed" once Active, and the Blocked
+            // The status line already says "Software EQ bypassed" once Active, and the Blocked
             // warning repeats the Blocked status with more detail; show each fact once.
             if (status.Length > 0 && !status.StartsWith(bypassedText, StringComparison.OrdinalIgnoreCase)
                 && !warning.StartsWith(status, StringComparison.OrdinalIgnoreCase))
@@ -168,7 +168,7 @@ public sealed class TrayIconService : IDisposable
                 parts.Add(status);
             }
             if (warning.Length > 0) parts.Add(warning);
-            detail = parts.Count == 0 ? "Windows System EQ" : string.Join(" · ", parts);
+            detail = parts.Count == 0 ? "Software EQ" : string.Join(" · ", parts);
         }
 
         return Truncate($"WolfEQ — {(detail.Length == 0 ? "quick profiles" : detail)}", MaxTipLength);

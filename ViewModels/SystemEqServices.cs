@@ -7,7 +7,7 @@ using WolfEQ.Services.SystemEq;
 namespace WolfEQ.ViewModels;
 
 /// <summary>
-/// The Windows System EQ services the view model talks to. Tests pass fakes; the app uses
+/// The Software EQ services the view model talks to. Tests pass fakes; the app uses
 /// <see cref="CreateDefault"/>.
 /// </summary>
 /// <param name="GetEndpointStatus">Per-endpoint APO health, keyed by the endpoint GUID (with braces).</param>

@@ -33,11 +33,11 @@ public sealed class QuickDeviceSwitchTests : IDisposable
     {
         var options = MainViewModel.BuildQuickDeviceOptions(
             [Candidate(@"\\?\hid#other", 0x9999, "Some Mouse")],
-            SystemEqProfiles.WindowsSystemEq, null, null, isConnected: false, "System EQ on DENON");
+            SystemEqProfiles.WindowsSystemEq, null, null, isConnected: false, "Software EQ on DENON");
 
         var only = Assert.Single(options);
         Assert.True(only.IsCurrent);
-        Assert.Equal("System EQ on DENON", only.Subtitle);
+        Assert.Equal("Software EQ on DENON", only.Subtitle);
     }
 
     [Fact]
