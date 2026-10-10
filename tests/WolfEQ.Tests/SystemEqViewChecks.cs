@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using WolfEQ.Models;
+using WolfEQ.Services;
+using WolfEQ.Services.SystemEq;
 using WolfEQ.ViewModels;
 using WolfEQ.Views;
 using Xunit;
@@ -37,6 +39,30 @@ internal static class SystemEqViewChecks
         Assert.Contains(StudioViewChecks.Descendants(card).OfType<TextBlock>(), text => IsShown(text) && text.Text == "FiiO");
         Assert.Contains(StudioViewChecks.Descendants(settings).OfType<ComboBox>(), combo => IsShown(combo) && ReferenceEquals(combo.ItemsSource, model.DeviceProfiles));
 
+        // Integrations stay available in System EQ mode for the bypass/preset commands (R13),
+        // while the USER slot Stream Deck controls are hardware-only.
+        var integrations = new SettingsPopover { DataContext = model };
+        StudioViewChecks.Layout(integrations, 460, 1400);
+        integrations.DataContext = null;
+        foreach (var expander in StudioViewChecks.Descendants(integrations).OfType<Expander>())
+            expander.IsExpanded = Equals(expander.Header, "Integrations");
+        integrations.DataContext = model;
+        StudioViewChecks.Layout(integrations, 460, 1400);
+        StudioViewChecks.Render(integrations, 460, 1400, "studio-settings-integrations-system-eq");
+        var integrationsExpander = StudioViewChecks.Descendants(integrations).OfType<Expander>().Single(expander => Equals(expander.Header, "Integrations"));
+        Assert.True(IsShown(integrationsExpander), "Integrations must stay visible in System EQ mode.");
+        var commandBoxes = StudioViewChecks.Descendants(integrationsExpander).OfType<TextBox>().Where(IsShown).ToArray();
+        Assert.Contains(commandBoxes, box => box.IsReadOnly && box.Text.Contains("--system-eq-bypass", StringComparison.Ordinal));
+        Assert.Contains(commandBoxes, box => box.IsReadOnly && box.Text.Contains("--preset", StringComparison.Ordinal));
+        Assert.Contains(commandBoxes, box => box.Text.StartsWith($"\"{model.StreamDeckExecutable}\"", StringComparison.Ordinal));
+        Assert.DoesNotContain(commandBoxes, box => box.Text.Contains("--slot", StringComparison.Ordinal));
+        Assert.True(IsShown((FrameworkElement)integrations.FindName("SystemEqShortcutsPanel")));
+        Assert.False(IsShown((FrameworkElement)integrations.FindName("HardwareStreamDeckPanel")));
+        Assert.False(IsShown((FrameworkElement)integrations.FindName("StreamDeckSetupButton")));
+        Assert.DoesNotContain(StudioViewChecks.Descendants(integrationsExpander).OfType<ComboBox>(), IsShown);
+
+        VerifyTrayTips();
+
         var dock = new DeviceDock { DataContext = model };
         StudioViewChecks.Layout(dock, 1586, 80);
         StudioViewChecks.Render(dock, 1586, 80, "studio-dock-system-eq");
@@ -53,6 +79,33 @@ internal static class SystemEqViewChecks
         StudioViewChecks.Render(trayContent, 368, 720, "studio-tray-system-eq");
         Assert.DoesNotContain(StudioViewChecks.Descendants(trayContent).OfType<Button>(), button => button.Tag is int && IsShown(button));
         tray.DisposeFlyout();
+    }
+
+    /// <summary>Tray tooltip: no doubled "System EQ" prefix, problems survive bypass, 127-char limit.</summary>
+    private static void VerifyTrayTips()
+    {
+        Assert.Equal("WolfEQ — System EQ on Speakers",
+            TrayIconService.BuildTip(true, "System EQ on Speakers", "System EQ on Speakers", false, SystemEqState.Active, false, ""));
+        Assert.Equal("WolfEQ — System EQ bypassed",
+            TrayIconService.BuildTip(true, "", "System EQ bypassed", true, SystemEqState.Active, false, ""));
+        Assert.Equal("WolfEQ — System EQ bypassed · Equalizer APO is not installed",
+            TrayIconService.BuildTip(true, "", "Equalizer APO is not installed.", true, SystemEqState.NeedsInstall, false, ""));
+        Assert.Equal("WolfEQ — System EQ bypassed · Equalizer APO is not installed",
+            TrayIconService.BuildTip(true, "", "System EQ bypassed", true, SystemEqState.NeedsInstall, false, ""));
+        Assert.Equal("WolfEQ — System EQ bypassed · Peace is also active in Equalizer APO, so two EQs may be applied",
+            TrayIconService.BuildTip(true, "", "System EQ bypassed", true, SystemEqState.Active, true, "Peace is also active in Equalizer APO, so two EQs may be applied."));
+        Assert.Equal("WolfEQ — Desk K13 connected",
+            TrayIconService.BuildTip(false, "Desk K13 connected", "System EQ bypassed", true, SystemEqState.NotSelected, false, ""));
+        Assert.Equal("WolfEQ — quick profiles", TrayIconService.BuildTip(false, null, null, false, SystemEqState.NotSelected, false, null));
+
+        var blocked = TrayIconService.BuildTip(true, "", "WolfEQ can't write to the Equalizer APO config folder.", true, SystemEqState.Blocked, true,
+            "WolfEQ can't write to the Equalizer APO config folder (Access is denied). Your edits stay in the editor, but they are not reaching Windows. "
+            + "Audio enhancements are turned off for Speakers, so Equalizer APO can't process it.");
+        Assert.True(blocked.Length <= TrayIconService.MaxTipLength, blocked);
+        Assert.EndsWith("…", blocked);
+        Assert.StartsWith("WolfEQ — System EQ bypassed · WolfEQ can't write to the Equalizer APO config folder (Access is denied)", blocked);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(blocked, "can't write"));
+        Assert.DoesNotContain("System EQ: System EQ", blocked);
     }
 
     /// <summary>True when the element and every visual ancestor are <see cref="Visibility.Visible"/>.</summary>

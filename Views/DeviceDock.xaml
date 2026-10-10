@@ -112,18 +112,13 @@
             <TextBlock Grid.Column="3" Text="{Binding Bands.Count, StringFormat={}{0}-band PEQ}" Foreground="{DynamicResource WolfMutedBrush}" Margin="22,0" VerticalAlignment="Center"/>
             <TextBlock x:Name="SyncStateText" Grid.Column="4" Text="{Binding EditorSyncStatusText}" Visibility="Collapsed"/>
             <!-- 5. Live-sync toggle (only for profiles that support live EQ writes) -->
-            <!-- 5b. System EQ: bypass + compact status in the live-sync column. -->
+            <!-- 5b. System EQ: bypass in the live-sync column. The status line is the device button subtitle (ConnectionText), so it is not repeated here. -->
             <StackPanel x:Name="SystemEqDockPanel"
                         Grid.Column="5"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="0,0,12,0"
                         Visibility="{Binding IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
-                <TextBlock Text="{Binding SystemEqStatusText}" FontSize="12"
-                           Foreground="{DynamicResource WolfMutedBrush}"
-                           MaxWidth="260" TextTrimming="CharacterEllipsis"
-                           ToolTip="{Binding SystemEqStatusText}"
-                           VerticalAlignment="Center" Margin="0,0,14,0"/>
                 <ToggleButton Style="{StaticResource BandPowerToggle}"
                               IsChecked="{Binding SystemEqBypassed, Mode=TwoWay}"
                               AutomationProperties.Name="Bypass System EQ"
