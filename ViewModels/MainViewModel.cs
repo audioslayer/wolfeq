@@ -188,6 +188,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         _selectedTopLedModeOption = LedModeOptions[0];
         _selectedKnobLedModeOption = LedModeOptions[0];
         InitializeIntegrations();
+        InitializeSettingsSummaries();
         LoadSlotLightingProfiles();
         Bands = _selectedPreset.Bands;
         WatchBands(Bands);

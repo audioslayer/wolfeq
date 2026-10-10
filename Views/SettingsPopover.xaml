@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:WolfEQ"
              xmlns:controls="clr-namespace:WolfEQ.Controls"
+             xmlns:views="clr-namespace:WolfEQ.Views"
              mc:Ignorable="d"
              d:DesignWidth="460"
              d:DesignHeight="820"
@@ -17,12 +18,29 @@
         <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
 
         <DataTemplate x:Key="SettingsSectionHeader">
-            <StackPanel Orientation="Horizontal">
-                <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource WolfAccentHoverBrush}" Margin="0,0,10,0">
+            <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Left" Width="26" Height="26" CornerRadius="7" Background="{DynamicResource WolfAccentHoverBrush}" Margin="0,0,10,0" VerticalAlignment="Center">
                     <controls:PhosphorIcon IconName="{Binding Tag, RelativeSource={RelativeSource AncestorType=Expander}}" IconSize="16" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Text="{Binding}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-            </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="SectionSummaryText"
+                               Text="{Binding (views:SettingsPopover.SectionSummary), RelativeSource={RelativeSource AncestorType=Expander}}"
+                               Style="{StaticResource TinyLabel}"
+                               FontSize="11"
+                               FontWeight="Normal"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </DockPanel>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}}" Value="True">
+                    <Setter TargetName="SectionSummaryText" Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Text, ElementName=SectionSummaryText}" Value="">
+                    <Setter TargetName="SectionSummaryText" Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
         <Style x:Key="SettingsActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
                 <StackPanel Orientation="Horizontal">
@@ -102,7 +120,7 @@
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="2,0,4,0">
 
-                    <Expander Header="Device" Tag="Cpu" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="True" Margin="0,0,0,8">
+                    <Expander Header="Device" Tag="Cpu" views:SettingsPopover.SectionSummary="{Binding DeviceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="True" Margin="0,0,0,8">
  <StackPanel Margin="0,10,0,0">
  <!-- Device picker stays visible in both modes so users can switch between FiiO and Windows System EQ. -->
  <StackPanel Margin="0,0,0,12">
@@ -346,7 +364,7 @@
  </StackPanel>
  </Expander>
 
-                    <Expander Header="Profile Lights" Tag="Lightbulb" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander Header="Profile Lights" Tag="Lightbulb" views:SettingsPopover.SectionSummary="{Binding LightsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}"
                               Margin="0,0,0,10"
@@ -595,7 +613,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="Windows Audio" Tag="SpeakerHigh" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander Header="Windows Audio" Tag="SpeakerHigh" views:SettingsPopover.SectionSummary="{Binding WindowsAudioSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}"
                               Expanded="WindowsAudioExpander_Expanded"
@@ -724,7 +742,7 @@
 
                     <!-- Integrations show in both modes: USER slot switching is hardware-only, while
                          System EQ mode has its own bypass and preset commands. -->
-                    <Expander Header="Integrations" Tag="Keyboard" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,10">
+                    <Expander Header="Integrations" Tag="Keyboard" views:SettingsPopover.SectionSummary="{Binding IntegrationsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,10">
                         <StackPanel Margin="4,10">
                         <StackPanel x:Name="HardwareStreamDeckPanel" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock Text="Stream Deck" FontWeight="SemiBold" FontSize="14"/>
@@ -807,7 +825,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="Appearance" Tag="Palette" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander Header="Appearance" Tag="Palette" views:SettingsPopover.SectionSummary="{Binding AppearanceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}"
                               Margin="0,0,0,10">
@@ -882,7 +900,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="About" Tag="AppWindow" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander Header="About" Tag="AppWindow" views:SettingsPopover.SectionSummary="{Binding AboutSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}">
                         <StackPanel Margin="0,10,0,0">
