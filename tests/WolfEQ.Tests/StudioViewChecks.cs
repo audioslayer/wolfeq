@@ -85,12 +85,17 @@ internal static class StudioViewChecks
         slotContent.DataContext = model;
         var unnamedSlot = model.DeviceUserPresets[0];
         model.DeviceUserPresets[0] = unnamedSlot with { LocalEqName = "Evening music" };
-        Render(slotContent, 240, 480, "studio-slot-menu");
+        Render(slotContent, 296, 560, "studio-slot-menu");
         Assert.Contains(Descendants(slotContent).OfType<TextBlock>(), text => text.Text == "Evening music");
-        var slotButtons = Descendants(slotContent).OfType<Button>().ToArray();
+        Assert.Contains(Descendants(slotContent).OfType<TextBlock>(), text => text.Text == "No local name yet");
+        var slotButtons = Descendants((ItemsControl)dock.FindName("SlotItems")).OfType<Button>().ToArray();
         Assert.Equal(model.DeviceUserPresets.Count, slotButtons.Length);
         Assert.All(slotButtons, button => Assert.Same(model.SwitchSlotCommand, button.Command));
         Assert.All(slotButtons, button => Assert.Contains(button.CommandParameter, model.DeviceUserPresets));
+        // Footer opens Settings to name the slot; it is the only other button in the menu.
+        var nameSlot = (Button)dock.FindName("NameSlotButton");
+        Assert.Equal(Visibility.Visible, ((FrameworkElement)nameSlot.Parent).Visibility);
+        Assert.Equal(slotButtons.Length + 1, Descendants(slotContent).OfType<Button>().Count());
         model.DeviceUserPresets[0] = unnamedSlot;
 
         var tools = (Popup)editor.FindName("ToolsPopup");

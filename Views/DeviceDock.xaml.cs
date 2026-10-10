@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using WolfEQ.ViewModels;
 
@@ -12,9 +14,10 @@ namespace WolfEQ.Views;
 /// Save to Library / Write to device actions. Expects the application's
 /// MainViewModel as (inherited) DataContext.
 /// <para>
-/// <see cref="EditorSessionState"/> is a plain class (Changed event, no
-/// INotifyPropertyChanged), so the sync-indicator colors and the Write button's
-/// tooltip are refreshed from code-behind instead of XAML triggers.
+/// The connection dot and status line are colored in XAML from
+/// <see cref="MainViewModel.ConnectionTone"/>. <see cref="EditorSessionState"/> is a
+/// plain class (Changed event, no INotifyPropertyChanged), so the hidden sync text
+/// color and the Write button's tooltip are refreshed from code-behind.
 /// </para>
 /// </summary>
 public partial class DeviceDock : UserControl
@@ -76,47 +79,26 @@ public partial class DeviceDock : UserControl
 
     }
 
-    /// <summary>Updates the sync-indicator colors and the Write button's tooltip.</summary>
+    /// <summary>Updates the sync-text color and the Write button's tooltip.</summary>
     private void RefreshDeviceState()
     {
-        var dimBrush = BrushResource("WolfDimBrush", Brushes.Gray);
-        var mutedBrush = BrushResource("WolfMutedBrush", Brushes.Gray);
-
         if (_viewModel is null)
         {
-            // Design time / no DataContext yet: neutral indicator, no tooltip.
-            SyncStateDot.Fill = dimBrush;
-            SyncStateText.Foreground = mutedBrush;
+            // Design time / no DataContext yet: neutral text, no tooltip.
+            SyncStateText.Foreground = BrushResource("WolfMutedBrush", Brushes.Gray);
             WriteToDeviceButton.ToolTip = "Write the editor's EQ to the device slot";
             return;
         }
 
-        // Sync indicator: green when in sync, amber when the editor has drifted, gray otherwise.
-        if (!_viewModel.IsDeviceConnected)
-        {
-            SyncStateDot.Fill = dimBrush;
-            SyncStateText.Foreground = mutedBrush;
-        }
-        else
-        {
-            switch (_viewModel.EditorSession.DeviceSyncState)
+        // Sync text: green when in sync, amber when the editor has drifted, muted otherwise.
+        SyncStateText.Foreground = !_viewModel.IsDeviceConnected
+            ? BrushResource("WolfMutedBrush", Brushes.Gray)
+            : _viewModel.EditorSession.DeviceSyncState switch
             {
-                case DeviceSyncState.InSync:
-                    var greenBrush = BrushResource("WolfGreenBrush", Brushes.LimeGreen);
-                    SyncStateDot.Fill = greenBrush;
-                    SyncStateText.Foreground = greenBrush;
-                    break;
-                case DeviceSyncState.Modified:
-                    var amberBrush = BrushResource("WolfWarningBrush", Brushes.Goldenrod);
-                    SyncStateDot.Fill = amberBrush;
-                    SyncStateText.Foreground = amberBrush;
-                    break;
-                default:
-                    SyncStateDot.Fill = dimBrush;
-                    SyncStateText.Foreground = mutedBrush;
-                    break;
-            }
-        }
+                DeviceSyncState.InSync => BrushResource("WolfGreenBrush", Brushes.LimeGreen),
+                DeviceSyncState.Modified => BrushResource("WolfWarningBrush", Brushes.Goldenrod),
+                _ => BrushResource("WolfMutedBrush", Brushes.Gray)
+            };
 
         // Disabled-tooltip: plain-English explanation whenever Write cannot run.
         var reason = _viewModel.WriteToDeviceCommand.CanExecute(null)
@@ -214,6 +196,13 @@ public partial class DeviceDock : UserControl
 
     private void SlotMenuItem_Click(object sender, RoutedEventArgs e) => SlotPopup.IsOpen = false;
 
+    // The slot name lives in Settings > Device, so the footer row simply opens Settings.
+    private void NameSlot_Click(object sender, RoutedEventArgs e)
+    {
+        SlotPopup.IsOpen = false;
+        if (Window.GetWindow(this) is MainWindow window) window.OpenSettings();
+    }
+
     private void DeviceSettings_Click(object sender, RoutedEventArgs e)
     {
         DevicePopup.IsOpen = false;
@@ -235,4 +224,14 @@ public partial class DeviceDock : UserControl
 
     private Brush BrushResource(string key, Brush fallback)
         => TryFindResource(key) as Brush ?? fallback;
+}
+
+/// <summary>True when the first two bound values are equal by value (e.g. two slot ids).</summary>
+public sealed class SameValueMultiConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        => values.Length >= 2 && values[0] is not null && values[0] != DependencyProperty.UnsetValue && Equals(values[0], values[1]);
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
 }
