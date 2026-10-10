@@ -62,6 +62,68 @@ public sealed class AutomationTests
         Assert.True(model.EditorSession.WouldReplaceUnsavedEdits);
     }
 
+    [Theory]
+    [InlineData("on")]
+    [InlineData("OFF")]
+    [InlineData("toggle")]
+    public void SystemEqBypassActionsAreParsed(string value)
+    {
+        Assert.Equal(value.ToLowerInvariant(), AutomationRequest.Parse(["--system-eq-bypass", value]).SystemEqBypass);
+        Assert.Equal(value.ToLowerInvariant(), AutomationRequest.Parse(["--system-eq", "bypass", value]).SystemEqBypass);
+    }
+
+    [Fact]
+    public void SystemEqArgumentsAreValidated()
+    {
+        Assert.Equal("Bright Test", AutomationRequest.Parse(["--preset", "Bright Test"]).PresetName);
+        Assert.Throws<ArgumentException>(() => AutomationRequest.Parse(["--system-eq-bypass", "maybe"]));
+        Assert.Throws<ArgumentException>(() => AutomationRequest.Parse(["--preset", " "]));
+        Assert.Throws<ArgumentException>(() => AutomationRequest.Parse(["--preset", "A", "--slot", "1"]));
+        Assert.Throws<ArgumentException>(() => AutomationRequest.Parse(["--preset", "A", "--system-eq-bypass", "on"]));
+        Assert.Throws<ArgumentException>(() => AutomationRequest.Parse(["--device", "Desk", "--preset", "A"]));
+    }
+
+    [Fact]
+    public async Task SystemEqAutomationRefusesSlotsAndDrivesBypassAndPresets()
+    {
+        using var rig = new SystemEqTestRig();
+        var model = await rig.CreateSystemEqModelAsync();
+        var preset = SystemEqTestRig.Preset("Bright Test", gainDb: 2, preampDb: -2);
+        model.Presets.Add(preset);
+
+        var slot = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--slot", "1"]));
+        Assert.Equal(1, slot.ExitCode);
+        Assert.Contains("not available in Windows System EQ mode", slot.Message);
+
+        var bypass = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--system-eq-bypass", "toggle"]));
+        Assert.Equal(0, bypass.ExitCode);
+        Assert.True(model.SystemEqBypassed);
+        Assert.True(rig.Backend.Applies[^1].Bypassed);
+        await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--system-eq-bypass", "off"]));
+        Assert.False(model.SystemEqBypassed);
+
+        rig.Backend.Applies.Clear();
+        var applied = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--preset", "bright test"]));
+        Assert.Equal(0, applied.ExitCode);
+        Assert.Same(preset, model.SelectedPreset);
+        Assert.Equal(2, Assert.Single(rig.Backend.Applies).Preset.Bands[0].GainDb);
+
+        var unknown = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--preset", "No Such Preset"]));
+        Assert.Equal(1, unknown.ExitCode);
+        Assert.Contains("No Such Preset", unknown.Message);
+    }
+
+    [Fact]
+    public async Task SystemEqAutomationNeedsSystemEqMode()
+    {
+        using var rig = new SystemEqTestRig();
+        var model = rig.CreateModel();
+        var result = await model.ExecuteAutomationAsync(AutomationRequest.Parse(["--system-eq-bypass", "on"]));
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(model.SystemEqBypassed);
+        Assert.Empty(rig.Backend.Applies);
+    }
+
     [Fact]
     public void SecondInstanceCannotAcquireOwnership()
     {

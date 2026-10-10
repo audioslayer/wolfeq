@@ -222,7 +222,10 @@ public sealed partial class MainViewModel
             return new(0, string.Join(Environment.NewLine, FiioK13DeviceService.GetSelectableDevices(scan.Candidates)
                 .Select(d => $"{d.Product}: {d.DevicePath}")));
         }
+        if (request.SystemEqBypass is not null || request.PresetName is not null) return await ExecuteSystemEqAutomationAsync(request);
         if (request.Slot is null) return new(0, "WolfEQ is running.");
+        if (IsSystemEqSelected)
+            return new(1, "USER slots are not available in Windows System EQ mode. Use --preset or --system-eq-bypass instead.");
         if (_integrationBusy || IsDeviceBusy || EditorSession.WouldReplaceUnsavedEdits)
             return new(3, "Slot unchanged: device busy or editor has unsaved changes.");
         if (request.Device is not null &&
