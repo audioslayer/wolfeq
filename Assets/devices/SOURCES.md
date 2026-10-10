@@ -14,3 +14,9 @@ Original manufacturer navigation thumbnails downloaded from [FiiO](https://www.f
 | fiio-ja11 | [Original PNG](https://nwzimg.wezhan.net/contents/sitefiles3600/18000638/images/9321754.png) |
 | snowsky-melody | [Original PNG](https://nwzimg.wezhan.net/contents/sitefiles3600/18000638/images/11369460.png) |
 | snowsky-retro-nano | [Original PNG](https://nwzimg.wezhan.net/contents/sitefiles3600/18000638/images/10338756.png) |
+
+## Original WolfEQ assets
+
+| Device profile | Source |
+| --- | --- |
+| windows-system-eq | Original WolfEQ artwork (monitor with EQ curve in the WolfEQ accent green), generated for this project in 2026-10. Covered by the WolfEQ license. |

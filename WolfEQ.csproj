@@ -35,5 +35,8 @@
     <Resource Include="Assets\icon\wolfeq.ico" />
     <Resource Include="Assets\devices\*.png" />
     <None Include="Assets\icon\wolfeq-source.png" />
+    <!-- Equalizer APO installer bundled for Windows System EQ. The exe is gitignored and is
+         downloaded and hash-checked by build-installer.bat. The glob matches nothing when absent. -->
+    <None Include="redist\EqualizerAPO\*.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
