@@ -11,6 +11,9 @@
     <Version>0.8.0-beta</Version>
     <AssemblyVersion>0.8.0.0</AssemblyVersion>
     <FileVersion>0.8.0.0</FileVersion>
+    <!-- Pinned Equalizer APO installer (KTD14). Keep in sync with build-installer.bat and
+         ApoProcessLauncher.PinnedInstallerFileName; a test checks all three agree. -->
+    <EqualizerApoInstallerFileName>EqualizerAPO-x64-1.4.2.exe</EqualizerApoInstallerFileName>
     <!-- Keep repository build artifacts excluded even when deploy.bat redirects obj/bin locally. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
   </PropertyGroup>
@@ -36,7 +39,10 @@
     <Resource Include="Assets\devices\*.png" />
     <None Include="Assets\icon\wolfeq-source.png" />
     <!-- Equalizer APO installer bundled for Windows System EQ. The exe is gitignored and is
-         downloaded and hash-checked by build-installer.bat. The glob matches nothing when absent. -->
-    <None Include="redist\EqualizerAPO\*.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+         downloaded and hash-checked by build-installer.bat. Only the exact pinned file is bundled
+         (it is run elevated); the name must match ApoProcessLauncher.PinnedInstallerFileName. -->
+    <None Include="redist\EqualizerAPO\$(EqualizerApoInstallerFileName)"
+          Condition="Exists('redist\EqualizerAPO\$(EqualizerApoInstallerFileName)')"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

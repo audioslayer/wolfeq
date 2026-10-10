@@ -27,7 +27,7 @@ public sealed class EqualizerApoBackendTests : IDisposable
             return;
         }
 
-        foreach (var file in Directory.GetFiles(_directory))
+        foreach (var file in Directory.GetFiles(_directory, "*", SearchOption.AllDirectories))
         {
             File.SetAttributes(file, FileAttributes.Normal);
         }
@@ -254,6 +254,165 @@ public sealed class EqualizerApoBackendTests : IDisposable
         var finalText = File.ReadAllText(IncludePath);
         Assert.Contains(presets, p => EqualizerApoConfigWriter.Build(p, [GuidA], false) == finalText);
         Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task ManyAppliesCallStatusProviderOnce()
+    {
+        var calls = 0;
+        var backend = new EqualizerApoBackend(_ => { calls++; return Task.FromResult(InstalledStatus()); });
+
+        for (var i = 0; i < 10; i++)
+        {
+            var result = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: i % 2 == 0);
+            Assert.True(result.Succeeded);
+        }
+
+        Assert.Equal(1, calls);
+        Assert.Empty(Directory.GetFiles(_directory, ".wolfeq-write-test-*"));
+    }
+
+    [Fact]
+    public async Task GetStatusAlwaysRefreshesAndWarmsTheApplyCache()
+    {
+        var calls = 0;
+        var backend = new EqualizerApoBackend(_ => { calls++; return Task.FromResult(InstalledStatus()); });
+
+        await backend.GetStatusAsync();
+        await backend.GetStatusAsync();
+        await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+        await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidB], bypassed: false);
+
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task CachedNotInstalledStatusIsRefreshedByGetStatus()
+    {
+        var installed = false;
+        var backend = new EqualizerApoBackend(_ => Task.FromResult(
+            installed ? InstalledStatus() : SystemEqBackendStatus.NotInstalled("APO missing")));
+
+        Assert.Equal(SystemEqApplyOutcome.NotInstalled, (await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], false)).Outcome);
+
+        installed = true;
+        await backend.GetStatusAsync();
+
+        Assert.Equal(SystemEqApplyOutcome.Applied, (await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], false)).Outcome);
+    }
+
+    [Fact]
+    public async Task AccessDeniedInvalidatesCacheSoNextApplyRedetects()
+    {
+        var calls = 0;
+        var backend = new EqualizerApoBackend(
+            _ => { calls++; return Task.FromResult(InstalledStatus()); }, maxAttempts: 2, retryDelay: TimeSpan.FromMilliseconds(1));
+        await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+        File.SetAttributes(IncludePath, FileAttributes.ReadOnly);
+
+        var blocked = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidB], bypassed: false);
+        File.SetAttributes(IncludePath, FileAttributes.Normal);
+        var retried = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidB], bypassed: false);
+
+        Assert.Equal(SystemEqApplyOutcome.Blocked, blocked.Outcome);
+        Assert.Equal(SystemEqApplyOutcome.Applied, retried.Outcome);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task MissingConfigFolderInvalidatesCache()
+    {
+        var calls = 0;
+        var backend = new EqualizerApoBackend(_ => { calls++; return Task.FromResult(InstalledStatus()); });
+        await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+        Directory.Delete(_directory, recursive: true);
+
+        var missing = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+        Directory.CreateDirectory(_directory);
+        var again = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+
+        Assert.Equal(SystemEqApplyOutcome.NotInstalled, missing.Outcome);
+        Assert.Equal(SystemEqApplyOutcome.Applied, again.Outcome);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task TransientAccessDeniedOnReplaceIsRetried()
+    {
+        File.WriteAllText(IncludePath, "# old content\r\n");
+        File.SetAttributes(IncludePath, FileAttributes.ReadOnly);
+        var backend = CreateBackend(maxAttempts: 10, retryDelay: TimeSpan.FromMilliseconds(30));
+
+        // Simulates antivirus briefly denying the replace, then letting go.
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(80);
+            File.SetAttributes(IncludePath, FileAttributes.Normal);
+        });
+        var result = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+        await release;
+
+        Assert.Equal(SystemEqApplyOutcome.Applied, result.Outcome);
+        Assert.Contains("Filter 1: ON LSC", File.ReadAllText(IncludePath));
+        Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task PersistentAccessDeniedInWritableFolderIsFailedNotBlocked()
+    {
+        // A folder squatting on WolfEQ.txt makes the replace fail with access denied while the folder stays writable.
+        Directory.CreateDirectory(IncludePath);
+        var backend = CreateBackend(maxAttempts: 3, retryDelay: TimeSpan.FromMilliseconds(1));
+
+        var result = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+
+        Assert.Equal(SystemEqApplyOutcome.Failed, result.Outcome);
+        Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task PersistentAccessDeniedWithUnwritableFolderIsBlocked()
+    {
+        Directory.CreateDirectory(IncludePath);
+        var backend = new EqualizerApoBackend(
+            _ => Task.FromResult(InstalledStatus()), maxAttempts: 3, retryDelay: TimeSpan.FromMilliseconds(1), canWriteDirectory: _ => false);
+
+        var result = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+
+        Assert.Equal(SystemEqApplyOutcome.Blocked, result.Outcome);
+    }
+
+    [Fact]
+    public async Task RemoveCleansLeftoverConfigFolderWhenApoIsNotInstalled()
+    {
+        var original = Encoding.UTF8.GetBytes("Include: peace.txt\r\n");
+        File.WriteAllBytes(ConfigPath, original);
+        await CreateBackend().ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+        var leftover = new SystemEqBackendStatus(false, _directory, @"C:\Fake\EqualizerAPO", false, false, "Not installed.");
+        var backend = new EqualizerApoBackend(_ => Task.FromResult(leftover));
+
+        var applied = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidB], bypassed: false);
+        var removed = await backend.RemoveAsync();
+
+        Assert.Equal(SystemEqApplyOutcome.NotInstalled, applied.Outcome);
+        Assert.True(removed.Succeeded);
+        Assert.Equal(original, File.ReadAllBytes(ConfigPath));
+        Assert.False(File.Exists(IncludePath));
+    }
+
+    [Fact]
+    public async Task Utf8BomConfigWithInvalidBytesIsHandledAndRestoredExactly()
+    {
+        byte[] original = [0xEF, 0xBB, 0xBF, 0x23, 0x20, 0xE9, 0xFF, 0x0D, 0x0A];
+        File.WriteAllBytes(ConfigPath, original);
+        var backend = CreateBackend();
+
+        var applied = await backend.ApplyAsync(EqPreset.AnandaMusic(), [GuidA], bypassed: false);
+        var removed = await backend.RemoveAsync();
+
+        Assert.Equal(SystemEqApplyOutcome.Applied, applied.Outcome);
+        Assert.True(removed.Succeeded);
+        Assert.Equal(original, File.ReadAllBytes(ConfigPath));
     }
 
     [Fact]

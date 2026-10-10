@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Text.RegularExpressions;
 
 namespace WolfEQ.Services.SystemEq;
 
@@ -9,9 +8,27 @@ namespace WolfEQ.Services.SystemEq;
 /// Runs the bundled Equalizer APO installer or its DeviceSelector elevated (KTD11) and maps the
 /// outcome to a calm <see cref="ApoLaunchResult"/>. A cancelled UAC prompt is a result, not an error.
 /// </summary>
-public sealed partial class ApoProcessLauncher
+public sealed class ApoProcessLauncher
 {
+    /// <summary>
+    /// The only installer WolfEQ will run. It must match the <c>EqualizerApoInstallerFileName</c> property in
+    /// WolfEQ.csproj and the file build-installer.bat downloads and hash-checks (KTD14).
+    /// </summary>
+    public const string PinnedInstallerFileName = "EqualizerAPO-x64-1.4.2.exe";
+
     private const int ErrorCancelled = 1223;
+
+    // The installer is NSIS: 1 = the user cancelled the wizard, 2 = the script aborted.
+    private const int InstallerExitCancelled = 1;
+
+    // DeviceSelector returns 1 when the endpoint changes need a reboot to take effect.
+    private const int DeviceSelectorExitRebootRequired = 1;
+
+    private enum LaunchKind
+    {
+        Installer,
+        DeviceSelector
+    }
 
     private readonly Func<ProcessStartInfo, CancellationToken, Task<int>> _runProcess;
     private readonly Func<string, bool> _fileExists;
@@ -27,28 +44,21 @@ public sealed partial class ApoProcessLauncher
     }
 
     public Task<ApoLaunchResult> RunInstallerAsync(string installerPath, CancellationToken cancellationToken = default)
-        => RunElevatedAsync(installerPath, "Equalizer APO installer", cancellationToken);
+        => RunElevatedAsync(installerPath, LaunchKind.Installer, cancellationToken);
 
     public Task<ApoLaunchResult> RunDeviceSelectorAsync(string deviceSelectorPath, CancellationToken cancellationToken = default)
-        => RunElevatedAsync(deviceSelectorPath, "Equalizer APO Device Selector", cancellationToken);
+        => RunElevatedAsync(deviceSelectorPath, LaunchKind.DeviceSelector, cancellationToken);
 
     /// <summary>
-    /// Finds <c>redist\EqualizerAPO\EqualizerAPO-x64-*.exe</c> under the app folder, preferring the highest version.
+    /// Finds exactly <c>redist\EqualizerAPO\</c><see cref="PinnedInstallerFileName"/> under the app folder.
+    /// No other file is ever picked, because the result is run elevated.
     /// </summary>
     public static string? FindBundledInstaller(string appBaseDirectory)
     {
         try
         {
-            var folder = Path.Combine(appBaseDirectory, "redist", "EqualizerAPO");
-            if (!Directory.Exists(folder))
-            {
-                return null;
-            }
-
-            return Directory.EnumerateFiles(folder, "EqualizerAPO-x64-*.exe")
-                .OrderByDescending(ParseInstallerVersion)
-                .ThenByDescending(path => path, StringComparer.OrdinalIgnoreCase)
-                .FirstOrDefault();
+            var path = Path.Combine(appBaseDirectory, "redist", "EqualizerAPO", PinnedInstallerFileName);
+            return File.Exists(path) ? path : null;
         }
         catch
         {
@@ -56,19 +66,24 @@ public sealed partial class ApoProcessLauncher
         }
     }
 
-    internal static Version ParseInstallerVersion(string path)
+    internal static ApoLaunchResult MapInstallerExitCode(int exitCode) => exitCode switch
     {
-        var match = InstallerVersionRegex().Match(Path.GetFileName(path));
-        return match.Success && Version.TryParse(match.Groups[1].Value, out var version)
-            ? version
-            : new Version(0, 0);
-    }
+        0 => new ApoLaunchResult(ApoLaunchOutcome.Completed, "The Equalizer APO installer finished."),
+        InstallerExitCancelled => new ApoLaunchResult(ApoLaunchOutcome.Cancelled, "Equalizer APO setup was canceled, so nothing changed."),
+        _ => new ApoLaunchResult(ApoLaunchOutcome.Failed, $"The Equalizer APO installer exited with code {exitCode}.")
+    };
 
-    [GeneratedRegex(@"^EqualizerAPO-x64-(\d+(?:\.\d+){1,3})\.exe$", RegexOptions.IgnoreCase)]
-    private static partial Regex InstallerVersionRegex();
-
-    private async Task<ApoLaunchResult> RunElevatedAsync(string path, string displayName, CancellationToken cancellationToken)
+    internal static ApoLaunchResult MapDeviceSelectorExitCode(int exitCode) => exitCode switch
     {
+        0 => new ApoLaunchResult(ApoLaunchOutcome.Completed, "The Equalizer APO Device Selector finished."),
+        DeviceSelectorExitRebootRequired => new ApoLaunchResult(ApoLaunchOutcome.RebootRequired,
+            "Restart Windows to finish setting up Equalizer APO."),
+        _ => new ApoLaunchResult(ApoLaunchOutcome.Failed, $"The Equalizer APO Device Selector exited with code {exitCode}.")
+    };
+
+    private async Task<ApoLaunchResult> RunElevatedAsync(string path, LaunchKind kind, CancellationToken cancellationToken)
+    {
+        var displayName = kind == LaunchKind.Installer ? "Equalizer APO installer" : "Equalizer APO Device Selector";
         if (string.IsNullOrWhiteSpace(path) || !_fileExists(path))
         {
             return new ApoLaunchResult(ApoLaunchOutcome.NotFound, $"The {displayName} wasn't found.");
@@ -84,13 +99,7 @@ public sealed partial class ApoProcessLauncher
         try
         {
             var exitCode = await _runProcess(startInfo, cancellationToken).ConfigureAwait(false);
-            return exitCode switch
-            {
-                0 => new ApoLaunchResult(ApoLaunchOutcome.Completed, $"The {displayName} finished."),
-                1 => new ApoLaunchResult(ApoLaunchOutcome.RebootRequired,
-                    "Restart Windows to finish setting up Equalizer APO."),
-                _ => new ApoLaunchResult(ApoLaunchOutcome.Failed, $"The {displayName} exited with code {exitCode}.")
-            };
+            return kind == LaunchKind.Installer ? MapInstallerExitCode(exitCode) : MapDeviceSelectorExitCode(exitCode);
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
         {
