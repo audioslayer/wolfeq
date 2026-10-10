@@ -5,9 +5,12 @@ namespace WolfEQ.Services;
 
 public sealed class LocalPresetLibraryService
 {
+    /// <summary>Test hook: keeps tests that build a default view model away from the user's real library.</summary>
+    internal static string? DefaultPathOverride { get; set; }
+
     public LocalPresetLibraryService(string? libraryPath = null)
     {
-        LibraryPath = libraryPath ?? Path.Combine(
+        LibraryPath = libraryPath ?? DefaultPathOverride ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "WolfEQ",
             "profiles.json");

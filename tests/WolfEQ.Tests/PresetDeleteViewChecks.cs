@@ -43,7 +43,29 @@ internal static class PresetDeleteViewChecks
         Assert.Single(shownRowButtons);
         Assert.Same(model.Presets[0], shownRowButtons[0].DataContext);
 
+        VerifyFavoriteStars(model);
         VerifyImportExport(model);
+    }
+
+    /// <summary>Favorites keep a visible star on their row; the detail header star follows the selection.</summary>
+    private static void VerifyFavoriteStars(MainViewModel model)
+    {
+        var favorite = model.Presets[^1];
+        var wasFavorite = favorite.IsFavorite;
+        if (!wasFavorite) model.ToggleLibraryFavoriteCommand.Execute(favorite);
+        model.LibraryTab = MainViewModel.LibraryTabMine;
+        model.LibrarySelection = model.Presets[0];
+
+        var library = new LibraryPanel { DataContext = model };
+        StudioViewChecks.Layout(library, 860, 820);
+        StudioViewChecks.Render(library, 860, 820, "studio-library-favorites");
+        var stars = StudioViewChecks.Descendants((ListBox)library.FindName("SavedPresetList")).OfType<Button>()
+            .Where(button => button.Name == "RowFavoriteButton").ToArray();
+        Assert.Contains(stars, star => ReferenceEquals(star.DataContext, favorite) && star.Visibility == Visibility.Visible);
+        Assert.All(stars, star => Assert.Same(model.ToggleLibraryFavoriteCommand, star.Command));
+        Assert.NotNull(library.FindName("DetailFavoriteButton"));
+
+        if (!wasFavorite) model.ToggleLibraryFavoriteCommand.Execute(favorite);
     }
 
     /// <summary>Import / Export menus in the library header still reach every import/export command.</summary>

@@ -38,15 +38,54 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <controls:EqCurveThumbnail Grid.RowSpan="2" Bands="{Binding Bands}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding Name}"
                            FontSize="13"
                            FontWeight="SemiBold"
                            TextTrimming="CharacterEllipsis"/>
+                <!-- Row favorite: a filled star stays visible on favorites; others show an outline on hover or selection. -->
+                <Button x:Name="RowFavoriteButton" Grid.Column="2" Grid.RowSpan="2" Width="30" Height="30" Margin="8,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
+                        Command="{Binding DataContext.ToggleLibraryFavoriteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                                <Path x:Name="Glyph" Data="M10,1 L12.6,7 L19,7.6 L14.1,11.8 L15.6,18 L10,14.7 L4.4,18 L5.9,11.8 L1,7.6 L7.4,7 Z" Width="15" Height="15" Stretch="Uniform" StrokeThickness="1.4" StrokeLineJoin="Round"
+                                      Stroke="{DynamicResource WolfMutedBrush}" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                    <Setter TargetName="Glyph" Property="Fill" Value="{DynamicResource WolfWarningBrush}"/>
+                                    <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource WolfWarningBrush}"/>
+                                </DataTrigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                    <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource WolfWarningBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Hidden"/>
+                            <Setter Property="ToolTip" Value="Add to Favorites"/>
+                            <Setter Property="AutomationProperties.Name" Value="Add to Favorites"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="ToolTip" Value="Remove from Favorites"/>
+                                    <Setter Property="AutomationProperties.Name" Value="Remove from Favorites"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
                 <!-- Row delete: shown on hover or when the row is selected. -->
-                <Button x:Name="RowDeleteButton" Grid.Column="2" Grid.RowSpan="2" Click="RowDeleteButton_Click"
-                        Width="30" Height="30" Margin="8,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
+                <Button x:Name="RowDeleteButton" Grid.Column="3" Grid.RowSpan="2" Click="RowDeleteButton_Click"
+                        Width="30" Height="30" Margin="2,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
                         ToolTip="Delete preset" AutomationProperties.Name="Delete preset">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
@@ -549,6 +588,40 @@
                         <StackPanel Margin="18,16,18,12">
                             <DockPanel>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,2,0,0">
+                                    <Button x:Name="DetailFavoriteButton" Command="{Binding ToggleLibraryFavoriteCommand}" Width="34" Height="34" Margin="0,0,10,0" Cursor="Hand"
+                                            Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="8">
+                                                    <Path x:Name="Glyph" Data="M10,1 L12.6,7 L19,7.6 L14.1,11.8 L15.6,18 L10,14.7 L4.4,18 L5.9,11.8 L1,7.6 L7.4,7 Z" Width="15" Height="15" Stretch="Uniform" StrokeThickness="1.4" StrokeLineJoin="Round"
+                                                          Stroke="{DynamicResource WolfMutedBrush}" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding LibraryDetailIsFavorite}" Value="True">
+                                                        <Setter TargetName="Glyph" Property="Fill" Value="{DynamicResource WolfWarningBrush}"/>
+                                                        <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource WolfWarningBrush}"/>
+                                                    </DataTrigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfWarningBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/></Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="ToolTip" Value="Add to Favorites"/>
+                                                <Setter Property="AutomationProperties.Name" Value="Add to Favorites"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding LibraryDetailIsFavorite}" Value="True">
+                                                        <Setter Property="ToolTip" Value="Remove from Favorites"/>
+                                                        <Setter Property="AutomationProperties.Name" Value="Remove from Favorites"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding LibrarySelection}" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                     <RadioButton x:Name="PreviewCurveChoice" GroupName="LibraryPreview" Style="{StaticResource PreviewViewChoice}" IsChecked="True" Content="Curve" Tag="0" Click="PreviewView_Click"/>
                                     <RadioButton x:Name="PreviewTableChoice" GroupName="LibraryPreview" Style="{StaticResource PreviewViewChoice}" Content="Bands" Tag="1" Click="PreviewView_Click"/>
                                 </StackPanel>

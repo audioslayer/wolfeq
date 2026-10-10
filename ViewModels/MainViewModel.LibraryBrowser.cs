@@ -112,6 +112,47 @@ public sealed partial class MainViewModel
 
     public bool HasLibraryDetail => LibraryDetailPreset is not null;
 
+    private System.Windows.Input.ICommand? _toggleLibraryFavoriteCommand;
+
+    /// <summary>Stars or un-stars a library preset (the row's preset, or the selection when no parameter).</summary>
+    public System.Windows.Input.ICommand ToggleLibraryFavoriteCommand
+        => _toggleLibraryFavoriteCommand ??= new AsyncParameterRelayCommand(parameter =>
+        {
+            ToggleLibraryFavorite(parameter as EqPreset ?? LibrarySelection);
+            return Task.CompletedTask;
+        });
+
+    /// <summary>True when the saved preset in the detail pane is a favorite (drives the header star).</summary>
+    public bool LibraryDetailIsFavorite => IsLocalLibraryTab && LibrarySelection?.IsFavorite == true;
+
+    internal void ToggleLibraryFavorite(EqPreset? preset)
+    {
+        if (preset is null || !Presets.Contains(preset))
+        {
+            return;
+        }
+
+        preset.IsFavorite = !preset.IsFavorite;
+        Status = preset.IsFavorite ? $"Added {preset.Name} to Favorites." : $"Removed {preset.Name} from Favorites.";
+        AddLog(Status);
+
+        // EqPreset has no change notifications; refreshing the view rebuilds the rows so stars update.
+        var selection = LibrarySelection;
+        RefreshProfileLibrary();
+        if (selection is not null && FilteredPresets.Cast<EqPreset>().Contains(selection))
+        {
+            LibrarySelection = selection;
+        }
+
+        if (ReferenceEquals(preset, SelectedPreset))
+        {
+            OnPropertyChanged(nameof(SelectedPreset));
+        }
+
+        RaiseLibraryDetailChanged();
+        QueueProfileAutosave();
+    }
+
     public string LibraryDetailFilterCount => LibraryDetailPreset is { } p
         ? p.Bands.Count(band => band.Enabled).ToString(CultureInfo.CurrentCulture)
         : "—";
@@ -141,6 +182,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(LibraryDetailTitle));
         OnPropertyChanged(nameof(LibraryDetailSubtitle));
         OnPropertyChanged(nameof(HasLibraryDetail));
+        OnPropertyChanged(nameof(LibraryDetailIsFavorite));
         OnPropertyChanged(nameof(LibraryDetailFilterCount));
         OnPropertyChanged(nameof(LibraryDetailFitText));
         OnPropertyChanged(nameof(LibraryDetailFits));

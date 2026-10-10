@@ -21,6 +21,8 @@ internal static class TestEnvironment
         SystemEqSettings.DefaultPathOverride = Path.Combine(root, "system-eq.json");
         // Theme checks flip Light/Dark; never let that reach the developer's real preference.
         WolfEQ.Services.BackgroundThemeService.PreferencePathOverride = Path.Combine(root, "background-theme.txt");
+        // View checks star, rename and delete presets; never let that touch the real library.
+        WolfEQ.Services.LocalPresetLibraryService.DefaultPathOverride = Path.Combine(root, "profiles.json");
         SystemEqServices.DefaultOverride = () => new SystemEqServices(
             new NullEqOutputBackend(),
             new EmptyAudioEndpointCatalog(),

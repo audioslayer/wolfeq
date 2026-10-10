@@ -66,6 +66,29 @@ public sealed class PresetDeleteTests : IDisposable
         Assert.Contains("open in the editor", asked!.Detail);
     }
 
+    [Fact]
+    public void StarringAPresetAddsItToFavoritesAndSavesTheLibrary()
+    {
+        var model = CreateModel();
+        var target = model.Presets[0];
+        target.IsFavorite = false;
+        model.LibraryTab = MainViewModel.LibraryTabFavorites;
+        Assert.DoesNotContain(target, model.FilteredPresets.Cast<WolfEQ.Models.EqPreset>());
+
+        model.ToggleLibraryFavoriteCommand.Execute(target);
+
+        Assert.True(target.IsFavorite);
+        Assert.Contains(target, model.FilteredPresets.Cast<WolfEQ.Models.EqPreset>());
+        var saved = new LocalPresetLibraryService(Path.Combine(_directory, "library.json"));
+        model.LibraryTab = MainViewModel.LibraryTabMine;
+        model.LibrarySelection = target;
+        Assert.True(model.LibraryDetailIsFavorite);
+
+        model.ToggleLibraryFavoriteCommand.Execute(null);
+        Assert.False(target.IsFavorite);
+        Assert.False(model.LibraryDetailIsFavorite);
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_directory, recursive: true); }
