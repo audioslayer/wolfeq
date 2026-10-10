@@ -1,3 +1,4 @@
+using System.Windows.Automation;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -202,6 +203,18 @@ internal static class StudioViewChecks
         ((RadioButton)library.FindName("PreviewCurveChoice")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         Assert.Equal(0, previewTabs.SelectedIndex);
         previewProperty.SetValue(model, originalPreview);
+
+        // Online rows get a save (download) button on hover/selection, like the trash on saved rows.
+        var entry = new WolfEQ.Models.AutoEqProfileIndexEntry("HIFIMAN Ananda", "oratory1990", "", "oratory1990%2FHIFIMAN%20Ananda", "https://example.invalid");
+        model.GitHubProfiles.Add(entry);
+        // Selecting a row would start a real preview download, so check the row without selecting it.
+        var onlineList = (ListBox)library.FindName("OnlineProfileList");
+        Layout(library, 860, 820);
+        var saveButton = Descendants(onlineList).OfType<Button>().Single(b => b.Name == "RowSaveButton");
+        Assert.Same(entry, saveButton.DataContext);
+        Assert.Equal(Visibility.Hidden, saveButton.Visibility);
+        Assert.Equal("Save to My Library", AutomationProperties.GetName(saveButton));
+        model.GitHubProfiles.Remove(entry);
         model.LibraryTab = MainViewModel.LibraryTabMine;
 
         var importPopup = (Popup)library.FindName("ImportPopup");

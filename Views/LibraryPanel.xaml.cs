@@ -48,6 +48,23 @@ public partial class LibraryPanel : UserControl
             OpenPresetButton_Click(sender, e);
     }
 
+    /// <summary>Online row download button: select that result, then save it to My Library.</summary>
+    private void RowSaveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel model || sender is not FrameworkElement { DataContext: Models.AutoEqProfileIndexEntry entry })
+        {
+            return;
+        }
+
+        model.SelectedGitHubProfile = entry;
+        if (model.ImportGitHubProfileCommand.CanExecute(null))
+        {
+            model.ImportGitHubProfileCommand.Execute(null);
+        }
+
+        e.Handled = true;
+    }
+
     /// <summary>Row trash button: select that row, then run the normal confirmed delete.</summary>
     private void RowDeleteButton_Click(object sender, RoutedEventArgs e)
     {

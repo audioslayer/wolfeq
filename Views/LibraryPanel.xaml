@@ -131,6 +131,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding Name}"
                            FontSize="13"
@@ -146,6 +147,35 @@
                     <Border.Style><Style TargetType="Border"><Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/><Style.Triggers><DataTrigger Binding="{Binding Provider}" Value="OPRA"><Setter Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/></DataTrigger></Style.Triggers></Style></Border.Style>
                     <TextBlock Text="{Binding Provider}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=Border}}"/>
                 </Border>
+                <!-- Row save: download this result into My Library (shown on hover or selection). -->
+                <Button x:Name="RowSaveButton" Grid.Column="2" Grid.RowSpan="2" Click="RowSaveButton_Click"
+                        Width="30" Height="30" Margin="6,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
+                        ToolTip="Save to My Library" AutomationProperties.Name="Save to My Library">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                                <Path x:Name="Glyph" Data="M10,2 V13 M5,8 L10,13 L15,8 M3,15 V18 H17 V15" Width="14" Height="14" Stretch="Uniform"
+                                      Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                    <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource WolfGreenBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Hidden"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
             </Grid>
         </DataTemplate>
 
