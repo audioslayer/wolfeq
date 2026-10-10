@@ -424,7 +424,7 @@
                             </StackPanel>
                             <TextBlock Text="{Binding GitHubPreviewPreset.PreampDb, StringFormat=Preamp {0:+0.0;-0.0;0.0} dB, TargetNullValue=Select a profile}" Style="{StaticResource TinyLabel}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </DockPanel>
-                        <TabControl x:Name="OnlinePreviewTabs" Grid.Row="1" Height="190" BorderThickness="0" Background="Transparent" Padding="0">
+                        <TabControl x:Name="OnlinePreviewTabs" Grid.Row="1" Height="190" SelectedIndex="0" BorderThickness="0" Background="Transparent" Padding="0">
                             <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
                             <TabItem x:Name="PreviewCurveTab" Header="Curve">
                                 <controls:EqResponseGraphControl Bands="{Binding GitHubPreviewPreset.Bands}" PreampDb="{Binding GitHubPreviewPreset.PreampDb, TargetNullValue=0}" IsInteractive="False" MinGainDb="-12" MaxGainDb="12" MinHeight="0"/>
