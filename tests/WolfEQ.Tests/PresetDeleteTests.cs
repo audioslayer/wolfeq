@@ -89,6 +89,44 @@ public sealed class PresetDeleteTests : IDisposable
         Assert.False(model.LibraryDetailIsFavorite);
     }
 
+    [Fact]
+    public void RenamingAPresetUpdatesItAndValidatesTheName()
+    {
+        var model = CreateModel();
+        model.LibrarySelection = model.Presets[0];
+        model.DuplicatePresetCommand.Execute(null);
+        var first = model.Presets[0];
+        var second = model.Presets.Last();
+        TextPromptRequest? asked = null;
+        model.TextPromptDialog = request => { asked = request; return "  Late night  "; };
+
+        model.RenameLibraryPresetCommand.Execute(second);
+
+        Assert.NotNull(asked);
+        Assert.Equal(second.Name, "Late night");
+        Assert.Equal("Rename", asked!.ConfirmText);
+        Assert.Equal("Enter a name.", asked.Validate!(""));
+        Assert.Equal("Another preset already has this name.", asked.Validate!(first.Name.ToUpperInvariant()));
+        Assert.Null(asked.Validate!("Something new"));
+        Assert.StartsWith("Use 80 characters", model.ValidatePresetName(second, new string('x', 81)));
+
+        Assert.False(model.RenameLibraryPreset(second, first.Name));
+        Assert.Equal("Late night", second.Name);
+    }
+
+    [Fact]
+    public void CancellingTheRenamePromptKeepsTheName()
+    {
+        var model = CreateModel();
+        var preset = model.Presets[0];
+        var original = preset.Name;
+        model.TextPromptDialog = _ => null;
+
+        model.RenameLibraryPresetCommand.Execute(preset);
+
+        Assert.Equal(original, preset.Name);
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_directory, recursive: true); }

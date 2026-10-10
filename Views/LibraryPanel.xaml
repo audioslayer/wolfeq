@@ -39,6 +39,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <controls:EqCurveThumbnail Grid.RowSpan="2" Bands="{Binding Bands}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding Name}"
@@ -83,8 +84,36 @@
                         </Style>
                     </Button.Style>
                 </Button>
+                <!-- Row rename: shown on hover or when the row is selected. -->
+                <Button x:Name="RowRenameButton" Grid.Column="3" Grid.RowSpan="2" Width="30" Height="30" Margin="2,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
+                        Command="{Binding DataContext.RenameLibraryPresetCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}"
+                        ToolTip="Rename preset (F2)" AutomationProperties.Name="Rename preset">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                                <Path x:Name="Glyph" Data="M3,17 L3,13.5 L13,3.5 L16.5,7 L6.5,17 Z M11,5.5 L14.5,9" Width="14" Height="14" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                                      Stroke="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                    <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource WolfGreenBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Hidden"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
                 <!-- Row delete: shown on hover or when the row is selected. -->
-                <Button x:Name="RowDeleteButton" Grid.Column="3" Grid.RowSpan="2" Click="RowDeleteButton_Click"
+                <Button x:Name="RowDeleteButton" Grid.Column="4" Grid.RowSpan="2" Click="RowDeleteButton_Click"
                         Width="30" Height="30" Margin="2,0,0,0" VerticalAlignment="Center" Cursor="Hand" Focusable="False"
                         ToolTip="Delete preset" AutomationProperties.Name="Delete preset">
                     <Button.Template>
@@ -618,6 +647,32 @@
                         <StackPanel Margin="18,16,18,12">
                             <DockPanel>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,2,0,0">
+                                    <Button x:Name="DetailRenameButton" Command="{Binding RenameLibraryPresetCommand}" Width="34" Height="34" Margin="0,0,6,0" Cursor="Hand"
+                                            ToolTip="Rename preset (F2)" AutomationProperties.Name="Rename preset"
+                                            Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="8">
+                                                    <Path x:Name="Glyph" Data="M3,17 L3,13.5 L13,3.5 L16.5,7 L6.5,17 Z M11,5.5 L14.5,9" Width="14" Height="14" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                                                          Stroke="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                                        <Setter TargetName="Glyph" Property="Stroke" Value="{DynamicResource WolfGreenBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/></Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding LibrarySelection}" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                     <Button x:Name="DetailFavoriteButton" Command="{Binding ToggleLibraryFavoriteCommand}" Width="34" Height="34" Margin="0,0,10,0" Cursor="Hand"
                                             Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <Button.Template>

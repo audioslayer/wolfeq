@@ -4,7 +4,7 @@ namespace WolfEQ.Models;
 
 public sealed class EqPreset
 {
-    public string Name { get; init; } = "Untitled";
+    public string Name { get; set; } = "Untitled";
     public string Category { get; init; } = "Manual";
     public string SourceName { get; init; } = "Manual";
     public string Description { get; init; } = "Offline EQ profile";

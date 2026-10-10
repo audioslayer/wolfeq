@@ -84,6 +84,13 @@ public partial class LibraryPanel : UserControl
 
     private void SavedPresetList_KeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.F2 && DataContext is MainViewModel renameModel)
+        {
+            renameModel.RenameLibraryPresetCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key != Key.Delete || DataContext is not MainViewModel model || !model.DeletePresetCommand.CanExecute(null))
         {
             return;

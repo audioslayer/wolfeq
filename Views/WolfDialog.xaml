@@ -31,6 +31,11 @@
                 </StackPanel>
                 <TextBlock x:Name="MessageText" Style="{StaticResource DimText}" FontSize="13" TextWrapping="Wrap" LineHeight="19"/>
                 <TextBlock x:Name="DetailText" FontSize="12" Foreground="{DynamicResource WolfMutedBrush}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="Collapsed"/>
+                <!-- Text prompt mode (rename): input plus a live validation message. -->
+                <StackPanel x:Name="PromptPanel" Margin="0,14,0,0" Visibility="Collapsed">
+                    <TextBox x:Name="PromptBox" Height="38" Padding="10,0" FontSize="13" TextChanged="PromptBox_TextChanged" AutomationProperties.Name="New name"/>
+                    <TextBlock x:Name="PromptError" FontSize="12" Foreground="{DynamicResource WolfWarningBrush}" TextWrapping="Wrap" Margin="2,6,0,0" Visibility="Collapsed"/>
+                </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                     <Button x:Name="CancelButton" Content="Cancel" Style="{StaticResource QuietButton}" Padding="16,8" Margin="0,0,8,0" IsCancel="True" Click="CancelButton_Click"/>
                     <Button x:Name="ConfirmButton" Padding="16,8" Click="ConfirmButton_Click">

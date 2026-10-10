@@ -44,7 +44,40 @@ internal static class PresetDeleteViewChecks
         Assert.Same(model.Presets[0], shownRowButtons[0].DataContext);
 
         VerifyFavoriteStars(model);
+        VerifyRename(model);
         VerifyImportExport(model);
+    }
+
+    /// <summary>Rename: a row button and header button, and a prompt that validates as you type.</summary>
+    private static void VerifyRename(MainViewModel model)
+    {
+        var library = new LibraryPanel { DataContext = model };
+        model.LibraryTab = MainViewModel.LibraryTabMine;
+        model.LibrarySelection = model.Presets[0];
+        StudioViewChecks.Layout(library, 860, 820);
+        var renameButtons = StudioViewChecks.Descendants((ListBox)library.FindName("SavedPresetList")).OfType<Button>()
+            .Where(button => button.Name == "RowRenameButton").ToArray();
+        Assert.NotEmpty(renameButtons);
+        Assert.All(renameButtons, button => Assert.Same(model.RenameLibraryPresetCommand, button.Command));
+        Assert.Same(model.RenameLibraryPresetCommand, ((Button)library.FindName("DetailRenameButton")).Command);
+
+        var preset = model.Presets[0];
+        var dialog = WolfDialog.CreatePrompt(new TextPromptRequest("Rename preset", string.Empty, preset.Name, "Rename",
+            text => model.ValidatePresetName(preset, text)));
+        var surface = (FrameworkElement)dialog.Content;
+        dialog.Content = null;
+        surface.Resources = dialog.Resources;
+        System.Windows.Documents.TextElement.SetFontFamily(surface, new FontFamily("Segoe UI"));
+        System.Windows.Documents.TextElement.SetForeground(surface, dialog.Foreground);
+        dialog.SetPromptText("");
+        Assert.Equal("Enter a name.", dialog.PromptState.Error);
+        Assert.False(dialog.PromptState.CanConfirm);
+        dialog.SetPromptText("Evening listening");
+        Assert.Null(dialog.PromptState.Error);
+        Assert.True(dialog.PromptState.CanConfirm);
+        StudioViewChecks.Layout(surface, 560, 360);
+        StudioViewChecks.Render(surface, 560, 360, "studio-rename-dialog");
+        dialog.Close();
     }
 
     /// <summary>Favorites keep a visible star on their row; the detail header star follows the selection.</summary>

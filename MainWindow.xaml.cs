@@ -23,7 +23,8 @@ public partial class MainWindow : Window
         var viewModel = new MainViewModel
         {
             ConfirmDialog = (title, message) => Views.WolfDialog.Confirm(this, new ConfirmationRequest(title, message)),
-            ConfirmationDialog = request => Views.WolfDialog.Confirm(this, request)
+            ConfirmationDialog = request => Views.WolfDialog.Confirm(this, request),
+            TextPromptDialog = request => Views.WolfDialog.Prompt(this, request)
         };
         DataContext = viewModel;
 
