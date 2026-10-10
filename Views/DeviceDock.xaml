@@ -55,14 +55,62 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" Click="DeviceSettings_Click" Height="54" Padding="16,6" Margin="0" BorderBrush="{DynamicResource WolfLineBrush}" ToolTip="Choose or connect your device in Settings">
+            <!-- Device switcher: quick list of System EQ and plugged-in FiiO devices, with Settings one click away. -->
+            <Grid Grid.Column="0">
+            <ToggleButton x:Name="DeviceMenuButton" Style="{StaticResource StudioMenuToggle}" Height="54" Padding="16,6"
+                          Background="{DynamicResource WolfPanel2Brush}" BorderBrush="{DynamicResource WolfLineBrush}"
+                          IsChecked="{Binding IsOpen, ElementName=DevicePopup, Mode=TwoWay}" Checked="DeviceMenuButton_Checked"
+                          ToolTip="Switch device" AutomationProperties.Name="Switch device">
                 <StackPanel Orientation="Horizontal">
                     <Image x:Name="DeviceProductImage" Source="{Binding SelectedDeviceProfile.ProductImagePath}" Width="48" Height="38" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,14,0" VerticalAlignment="Center" AutomationProperties.Name="{Binding SelectedDeviceProfile.DisplayName}"/>
                     <Ellipse x:Name="SyncStateDot" Width="9" Height="9" Fill="{DynamicResource WolfDimBrush}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding SelectedDeviceProfile.DisplayLabel}" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="{Binding ConnectionText}" FontSize="12" Foreground="{DynamicResource WolfGreenBrush}" Margin="0,2,0,0"/></StackPanel>
                     <Path Data="M0,0 L5,5 L10,0" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" Margin="22,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
-            </Button>
+            </ToggleButton>
+            <Popup x:Name="DevicePopup" PlacementTarget="{Binding ElementName=DeviceMenuButton}" Placement="Bottom"
+                   StaysOpen="False" AllowsTransparency="True" VerticalOffset="6" Closed="DevicePopup_Closed"
+                   DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <Border Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}"
+                        BorderThickness="1" CornerRadius="10" Padding="6" Width="320" Effect="{StaticResource WolfComboShadow}" Margin="0,0,8,8">
+                    <StackPanel>
+                        <DockPanel Margin="12,8,12,6">
+                            <TextBlock x:Name="DeviceScanText" DockPanel.Dock="Right" Text="Scanning..." Style="{StaticResource TinyLabel}"
+                                       Visibility="{Binding IsScanningQuickDevices, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <TextBlock Text="DEVICES" Style="{StaticResource TinyLabel}"/>
+                        </DockPanel>
+                        <ItemsControl x:Name="DeviceItems" ItemsSource="{Binding QuickDevices}">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <Button Style="{StaticResource SlotMenuItem}" Click="DeviceMenuItem_Click" Margin="0,1"
+                                        Command="{Binding DataContext.SwitchToQuickDeviceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                        AutomationProperties.Name="{Binding Title}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <Image Source="{Binding ImagePath}" Width="40" Height="30" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{DynamicResource WolfMutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                        <Path Grid.Column="2" Data="M0,5 L4,9 L12,0" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                              VerticalAlignment="Center" Margin="10,0,4,0"
+                                              Visibility="{Binding IsCurrent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Plug in a FiiO device to see it here." Style="{StaticResource TinyLabel}" Margin="12,6,12,4"
+                                   Visibility="{Binding HasOnlySystemEqQuickDevice, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <Border Height="1" Background="{DynamicResource WolfLineBrush}" Margin="6,6"/>
+                        <Button x:Name="ManageDevicesButton" Style="{StaticResource SlotMenuItem}" Click="DeviceSettings_Click" AutomationProperties.Name="Manage devices">
+                            <DockPanel>
+                                <Path DockPanel.Dock="Right" Data="M0,0 L4,4 L0,8" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" VerticalAlignment="Center"/>
+                                <TextBlock Text="Manage devices..." Foreground="{DynamicResource WolfTextBrush}"/>
+                            </DockPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </Popup>
+            </Grid>
 
             <Rectangle Grid.Column="1"
                        Width="1"

@@ -216,8 +216,20 @@ public partial class DeviceDock : UserControl
 
     private void DeviceSettings_Click(object sender, RoutedEventArgs e)
     {
+        DevicePopup.IsOpen = false;
         if (Window.GetWindow(this) is MainWindow window) window.OpenSettings();
     }
+
+    // Opening the menu shows the known devices at once, then refreshes with a read-only USB scan.
+    private void DeviceMenuButton_Checked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel model && model.RefreshQuickDevicesCommand.CanExecute(null))
+            model.RefreshQuickDevicesCommand.Execute(null);
+    }
+
+    private void DeviceMenuItem_Click(object sender, RoutedEventArgs e) => DevicePopup.IsOpen = false;
+
+    private void DevicePopup_Closed(object? sender, EventArgs e) => DeviceMenuButton.IsChecked = false;
 
     private void SlotPopup_Closed(object? sender, EventArgs e) => SlotMenuButton.IsChecked = false;
 

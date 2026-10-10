@@ -63,6 +63,7 @@ internal static class SystemEqViewChecks
 
         VerifyTrayTips();
         VerifyInstallProgress(rig);
+        VerifyDeviceSwitcher(model);
 
         var dock = new DeviceDock { DataContext = model };
         StudioViewChecks.Layout(dock, 1586, 80);
@@ -142,6 +143,29 @@ internal static class SystemEqViewChecks
         Assert.False(bar.IsIndeterminate);
         Assert.InRange(bar.Value, 37, 38);
         rig.Backend.Status = SystemEqTestRig.InstalledStatus;
+    }
+
+    /// <summary>Device dock dropdown: System EQ first, plugged-in FiiO devices, and Manage devices.</summary>
+    private static void VerifyDeviceSwitcher(MainViewModel model)
+    {
+        model.QuickDeviceScanOverride = () => Task.FromResult<IReadOnlyList<WolfEQ.Services.HidDeviceCandidate>>(
+        [
+            QuickDeviceSwitchTests.Candidate(@"\\?\hid#k13", 0x0120, "FiiO K13 R2R")
+        ]);
+        model.RefreshQuickDevicesAsync().GetAwaiter().GetResult();
+        Assert.Equal(2, model.QuickDevices.Count);
+
+        var dock = new DeviceDock { DataContext = model };
+        StudioViewChecks.Layout(dock, 1586, 80);
+        var popup = (Popup)dock.FindName("DevicePopup");
+        var content = (FrameworkElement)popup.Child;
+        content.DataContext = model;
+        StudioViewChecks.Layout(content, 340, 300);
+        StudioViewChecks.Render(content, 340, 300, "studio-device-switcher");
+        var rows = StudioViewChecks.Descendants(content).OfType<Button>().Where(button => button.CommandParameter is QuickDeviceOption).ToArray();
+        Assert.Equal(2, rows.Length);
+        Assert.All(rows, row => Assert.Same(model.SwitchToQuickDeviceCommand, row.Command));
+        Assert.NotNull(dock.FindName("ManageDevicesButton"));
     }
 
     /// <summary>True when the element and every visual ancestor are <see cref="Visibility.Visible"/>.</summary>
