@@ -1,9 +1,10 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Data;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using WolfEQ.Services.SystemEq;
 using WolfEQ.ViewModels;
 using WolfEQ.Views;
 
@@ -13,6 +14,8 @@ namespace WolfEQ.Services;
 public sealed class TrayIconService : IDisposable
 {
     private const int CallbackMessage = 0x8001;
+    /// <summary>NOTIFYICONDATA.szTip holds 128 UTF-16 units including the terminator.</summary>
+    internal const int MaxTipLength = 127;
     private readonly MainWindow _editor;
     private readonly MainViewModel _viewModel;
     private readonly HwndSource _source;
@@ -25,7 +28,6 @@ public sealed class TrayIconService : IDisposable
     private bool _ignoreNextLeftUp;
     private NotifyIconData _data;
     private WindowState _restoreState = WindowState.Normal;
-    private readonly TrayTipSource _tipSource;
 
     public bool IsAvailable { get; private set; }
 
@@ -62,7 +64,7 @@ public sealed class TrayIconService : IDisposable
             Tip = "WolfEQ — quick profiles", Info = "", InfoTitle = ""
         };
         AddIcon();
-        _tipSource = new TrayTipSource(viewModel, UpdateTip);
+        viewModel.PropertyChanged += OnViewModelChanged;
         UpdateTip();
     }
 
@@ -97,14 +99,97 @@ public sealed class TrayIconService : IDisposable
         }
     }
 
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(MainViewModel.ConnectionText):
+            case nameof(MainViewModel.IsSystemEqSelected):
+            case nameof(MainViewModel.SelectedDeviceProfile):
+            case nameof(MainViewModel.SystemEqStatusText):
+            case nameof(MainViewModel.SystemEqBypassed):
+            case nameof(MainViewModel.SystemEqState):
+            case nameof(MainViewModel.HasSystemEqWarning):
+            case nameof(MainViewModel.SystemEqWarningText):
+            case null:
+            case "":
+                UpdateTip();
+                break;
+        }
+    }
+
     private void UpdateTip()
     {
         if (_disposed || !IsAvailable) return;
-        var detail = _tipSource.Describe();
-        var tip = $"WolfEQ — {(string.IsNullOrWhiteSpace(detail) ? "quick profiles" : detail)}";
+        var tip = BuildTip(_viewModel.IsSystemEqSelected, _viewModel.ConnectionText, _viewModel.SystemEqStatusText,
+            _viewModel.SystemEqBypassed, _viewModel.SystemEqState, _viewModel.HasSystemEqWarning, _viewModel.SystemEqWarningText);
         if (tip == _data.Tip) return;
-        _data.Tip = tip.Length > 127 ? tip[..127] : tip;
+        _data.Tip = tip;
         Shell_NotifyIcon(1, ref _data);
+    }
+
+    /// <summary>
+    /// Builds the notification-area tooltip, already truncated to <see cref="MaxTipLength"/>.
+    /// Hardware mode shows the connection text. System EQ mode shows the status line as-is (it
+    /// already names System EQ), and when bypassed still surfaces setup problems or warnings so
+    /// "bypassed" never hides that the EQ could not reach Windows anyway.
+    /// </summary>
+    internal static string BuildTip(bool isSystemEq, string? connectionText, string? statusText, bool bypassed,
+        SystemEqState state, bool hasWarning, string? warningText)
+    {
+        string detail;
+        if (!isSystemEq)
+        {
+            detail = connectionText?.Trim() ?? "";
+        }
+        else
+        {
+            const string bypassedText = "System EQ bypassed";
+            var status = TrimSentence(statusText);
+            if (bypassed && (status.Length == 0 || status.StartsWith(bypassedText, StringComparison.OrdinalIgnoreCase)))
+            {
+                // A bypass-only status must not hide that setup is incomplete.
+                status = state switch
+                {
+                    SystemEqState.NeedsInstall => "Equalizer APO is not installed",
+                    SystemEqState.NeedsDeviceSelection => "Equalizer APO is not active on any output yet",
+                    SystemEqState.Blocked => "WolfEQ can't write to the Equalizer APO config folder",
+                    _ => status
+                };
+            }
+            var warning = hasWarning ? TrimSentence(warningText) : "";
+            var parts = new List<string>(3);
+            if (bypassed) parts.Add(bypassedText);
+            // The status line already says "System EQ bypassed" once Active, and the Blocked
+            // warning repeats the Blocked status with more detail; show each fact once.
+            if (status.Length > 0 && !status.StartsWith(bypassedText, StringComparison.OrdinalIgnoreCase)
+                && !warning.StartsWith(status, StringComparison.OrdinalIgnoreCase))
+            {
+                parts.Add(status);
+            }
+            if (warning.Length > 0) parts.Add(warning);
+            detail = parts.Count == 0 ? "Windows System EQ" : string.Join(" · ", parts);
+        }
+
+        return Truncate($"WolfEQ — {(detail.Length == 0 ? "quick profiles" : detail)}", MaxTipLength);
+    }
+
+    private static string TrimSentence(string? text)
+    {
+        var trimmed = text?.Trim() ?? "";
+        // Drop a single closing period but keep an ellipsis such as "Checking Equalizer APO...".
+        return trimmed.EndsWith('.') && !trimmed.EndsWith("..", StringComparison.Ordinal) ? trimmed[..^1] : trimmed;
+    }
+
+    /// <summary>Cuts at a word boundary when one is close, ending with an ellipsis.</summary>
+    internal static string Truncate(string text, int maxLength)
+    {
+        if (text.Length <= maxLength) return text;
+        var cut = maxLength - 1;
+        if (char.IsLowSurrogate(text[cut])) cut--;
+        var space = text.LastIndexOf(' ', cut);
+        if (space > maxLength - 24) cut = space;
+        return text[..cut].TrimEnd(' ', '·', ',', ';', ':', '—', '-', '.') + "…";
     }
 
     private IntPtr WindowProc(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -159,57 +244,13 @@ public sealed class TrayIconService : IDisposable
         _disposed = true;
         _clickTimer.Stop();
         _clickTimer.Tick -= OnClickTimer;
-        _tipSource.Detach();
+        _viewModel.PropertyChanged -= OnViewModelChanged;
         Shell_NotifyIcon(2, ref _data);
         IsAvailable = false;
         _flyout.DisposeFlyout();
         _source.RemoveHook(WindowProc);
         _source.Dispose();
         if (_ownsIcon) DestroyIcon(_icon);
-    }
-
-    /// <summary>
-    /// Tracks the view-model state the tooltip shows (connection text in hardware mode;
-    /// System EQ status and bypass in System EQ mode) through bindings to the shared
-    /// contract property names, and calls back when any of them changes.
-    /// </summary>
-    private sealed class TrayTipSource : DependencyObject
-    {
-        private static readonly DependencyProperty ConnectionTextProperty = Register(nameof(MainViewModel.ConnectionText), typeof(string), null);
-        private static readonly DependencyProperty IsSystemEqProperty = Register("IsSystemEqSelected", typeof(bool), false);
-        private static readonly DependencyProperty StatusTextProperty = Register("SystemEqStatusText", typeof(string), null);
-        private static readonly DependencyProperty BypassedProperty = Register("SystemEqBypassed", typeof(bool), false);
-        private readonly Action _changed;
-        private bool _attached;
-
-        public TrayTipSource(MainViewModel viewModel, Action changed)
-        {
-            _changed = changed;
-            foreach (var property in new[] { ConnectionTextProperty, IsSystemEqProperty, StatusTextProperty, BypassedProperty })
-            {
-                // Each property is registered under its view-model name, which is also the binding path.
-                BindingOperations.SetBinding(this, property, new Binding(property.Name) { Source = viewModel, Mode = BindingMode.OneWay });
-            }
-            _attached = true;
-        }
-
-        public string Describe()
-        {
-            if (!(bool)GetValue(IsSystemEqProperty)) return (string?)GetValue(ConnectionTextProperty) ?? "";
-            if ((bool)GetValue(BypassedProperty)) return "System EQ bypassed";
-            var status = (string?)GetValue(StatusTextProperty);
-            return string.IsNullOrWhiteSpace(status) ? "Windows System EQ" : $"System EQ: {status}";
-        }
-
-        public void Detach()
-        {
-            _attached = false;
-            BindingOperations.ClearAllBindings(this);
-        }
-
-        private static DependencyProperty Register(string name, Type type, object? defaultValue)
-            => DependencyProperty.Register(name, type, typeof(TrayTipSource),
-                new PropertyMetadata(defaultValue, (d, _) => { if (d is TrayTipSource { _attached: true } source) source._changed(); }));
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
