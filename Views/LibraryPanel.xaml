@@ -98,6 +98,16 @@
             </Grid>
         </DataTemplate>
 
+        <!-- Compact row action for the Import / Export list. -->
+        <Style x:Key="IoActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource WolfPanelBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+        </Style>
+
         <!-- My Library / Online source chip (mutually exclusive, chip-styled radios). -->
         <Style x:Key="SourceChip" TargetType="{x:Type RadioButton}">
             <Setter Property="Background" Value="Transparent"/>
@@ -481,19 +491,172 @@
                       Header="Import / export"
                       Foreground="{DynamicResource WolfMutedBrush}"
                       Margin="0,12,0,0">
-                <WrapPanel Margin="0,8,0,0">
-                    <Button Content="Import APO" Command="{Binding ImportApoFromFileCommand}"/>
-                    <Button Content="Paste APO" Command="{Binding ImportApoFromClipboardCommand}"/>
-                    <Button Content="Export APO" Command="{Binding ExportApoToFileCommand}"/>
-                    <Button Content="Copy APO" Command="{Binding ExportApoToClipboardCommand}"/>
-                    <Button Content="Import FiiO XML" Command="{Binding ImportFiioXmlFromFileCommand}"/>
-                    <Button Content="Export FiiO XML" Command="{Binding ExportFiioXmlToFileCommand}"/>
-                    <Button Content="Import JSON" Command="{Binding ImportJsonFromFileCommand}"/>
-                    <Button Content="Export JSON" Command="{Binding ExportJsonToFileCommand}"/>
-                    <Button Content="Import Library" Command="{Binding ImportLibraryJsonCommand}"/>
-                    <Button Content="Export Library" Command="{Binding ExportLibraryJsonCommand}"/>
-                    <Button Content="Copy Report" Command="{Binding CopyTuningReportCommand}"/>
-                </WrapPanel>
+                <StackPanel Margin="0,8,0,0">
+                    <!-- Import / Export switch, same chip look as My Library / Discover Online. -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <RadioButton x:Name="ImportModeChip" Style="{StaticResource SourceChip}" GroupName="IoMode" IsChecked="True" MinHeight="36" AutomationProperties.Name="Import">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <controls:PhosphorIcon IconName="Plus" IconSize="14" IconBrush="{DynamicResource WolfGreenBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                <TextBlock Text="Import" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ExportModeChip" Grid.Column="1" Style="{StaticResource SourceChip}" GroupName="IoMode" MinHeight="36" Margin="2,0,0,0" AutomationProperties.Name="Export">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <controls:PhosphorIcon IconName="ArrowRight" IconSize="14" IconBrush="{DynamicResource WolfCyanBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                <TextBlock Text="Export" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </Grid>
+
+                    <StackPanel x:Name="ImportRows" Visibility="{Binding IsChecked, ElementName=ImportModeChip, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="Imported presets are added to My Library." Style="{StaticResource TinyLabel}" Margin="2,0,0,8"/>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="Equalizer APO / Peace" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text=".txt filters from Peace, AutoEq, or APO" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Open file" Command="{Binding ImportApoFromFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import an Equalizer APO or Peace .txt file"/>
+                                    <Button Content="Paste" Command="{Binding ImportApoFromClipboardCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import Equalizer APO text from the clipboard"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="Cpu" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="FiiO PEQ file" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text=".xml presets from the FiiO Control app" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Open file" Command="{Binding ImportFiioXmlFromFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import a FiiO .xml preset"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="MusicNote" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="WolfEQ preset" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="A single preset shared from WolfEQ (.json)" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Open file" Command="{Binding ImportJsonFromFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import a WolfEQ preset .json file"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="Folder" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="Library backup" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="Adds every preset from a WolfEQ backup" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Open file" Command="{Binding ImportLibraryJsonCommand}" Style="{StaticResource IoActionButton}" ToolTip="Import a whole WolfEQ library backup"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="ExportRows" Visibility="{Binding IsChecked, ElementName=ExportModeChip, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,0,0,8">
+                            <Run Text="Exports the preset open in the editor:"/>
+                            <Run Text="{Binding SelectedPreset.Name, Mode=OneWay, TargetNullValue='open a preset first'}" Foreground="{DynamicResource WolfTextBrush}"/>
+                        </TextBlock>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="Equalizer APO / Peace" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="For Peace, APO, or sharing as text" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Save file" Command="{Binding ExportApoToFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Save the open preset as an Equalizer APO .txt file"/>
+                                    <Button Content="Copy" Command="{Binding ExportApoToClipboardCommand}" Style="{StaticResource IoActionButton}" ToolTip="Copy the open preset as Equalizer APO text"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="Cpu" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="FiiO PEQ file" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="For the FiiO Control app (.xml)" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Save file" Command="{Binding ExportFiioXmlToFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Save the open preset as a FiiO .xml file"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="MusicNote" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="WolfEQ preset" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="Share this preset with another WolfEQ (.json)" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Save file" Command="{Binding ExportJsonToFileCommand}" Style="{StaticResource IoActionButton}" ToolTip="Save the open preset as a WolfEQ .json file"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="Folder" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="Library backup" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="Every preset in your library, one file" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Save file" Command="{Binding ExportLibraryJsonCommand}" Style="{StaticResource IoActionButton}" ToolTip="Back up your whole WolfEQ library"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <controls:PhosphorIcon IconName="AppWindow" IconSize="15" IconBrush="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="Tuning report" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="Readable summary of the current EQ" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="Copy" Command="{Binding CopyTuningReportCommand}" Style="{StaticResource IoActionButton}" ToolTip="Copy a readable tuning report to the clipboard"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
             </Expander>
         </Grid>
     </Border>

@@ -41,5 +41,40 @@ internal static class PresetDeleteViewChecks
             .ToArray();
         Assert.Single(shownRowButtons);
         Assert.Same(model.Presets[0], shownRowButtons[0].DataContext);
+
+        VerifyImportExport(model);
+    }
+
+    /// <summary>Import / Export: tabbed rows, and every import/export command is still reachable.</summary>
+    private static void VerifyImportExport(MainViewModel model)
+    {
+        var library = new LibraryPanel { DataContext = model };
+        StudioViewChecks.Layout(library, 460, 1000);
+        StudioViewChecks.Descendants(library).OfType<Expander>().Single(e => Equals(e.Header, "Import / export")).IsExpanded = true;
+        StudioViewChecks.Layout(library, 460, 1000);
+        var importRows = (FrameworkElement)library.FindName("ImportRows");
+        var exportRows = (FrameworkElement)library.FindName("ExportRows");
+        Assert.Equal(Visibility.Visible, importRows.Visibility);
+        Assert.Equal(Visibility.Collapsed, exportRows.Visibility);
+        StudioViewChecks.Render(library, 460, 1000, "studio-library-import");
+
+        ((RadioButton)library.FindName("ExportModeChip")).IsChecked = true;
+        StudioViewChecks.Layout(library, 460, 1000);
+        Assert.Equal(Visibility.Collapsed, importRows.Visibility);
+        Assert.Equal(Visibility.Visible, exportRows.Visibility);
+        StudioViewChecks.Render(library, 460, 1000, "studio-library-export");
+
+        var commands = StudioViewChecks.Descendants(importRows).Concat(StudioViewChecks.Descendants(exportRows))
+            .OfType<Button>().Select(button => button.Command).Where(command => command is not null).ToHashSet();
+        foreach (var expected in new[]
+                 {
+                     model.ImportApoFromFileCommand, model.ImportApoFromClipboardCommand, model.ImportFiioXmlFromFileCommand,
+                     model.ImportJsonFromFileCommand, model.ImportLibraryJsonCommand, model.ExportApoToFileCommand,
+                     model.ExportApoToClipboardCommand, model.ExportFiioXmlToFileCommand, model.ExportJsonToFileCommand,
+                     model.ExportLibraryJsonCommand, model.CopyTuningReportCommand
+                 })
+        {
+            Assert.Contains(expected, commands);
+        }
     }
 }
