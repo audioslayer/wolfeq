@@ -62,16 +62,16 @@ Choose **Settings → Appearance → Background**. Background mode is saved, and
 
 ## 🔌 First session
 
-Using a FiiO or Snowsky device? Follow the steps below. Using anything else, such as a laptop jack, another DAC, or Bluetooth headphones? Start with [Software EQ](#-windows-system-eq).
+Using a FiiO or Snowsky device? Follow the steps below. Using anything else, such as a laptop jack, another DAC, or Bluetooth headphones? Start with [Software EQ](#-software-eq).
 
 1. Connect your DAC over USB. In **Settings → Device → Connections**, refresh the list, select your device, and save the connection.
 2. For supported K13 lighting controls, select its Bluetooth connection too. Use **Identify** to confirm you have the same unit.
-3. Open **Library**. Choose a saved preset, or search AutoEQ and OPRA through **Discover Online** and inspect its **Curve** or **Table** preview.
+3. Open **Library**. Choose a saved preset, or search AutoEQ and OPRA on the **Discover online** tab and check its **Curve** or **Bands** preview.
 4. Choose **Open in editor**. Opening a preset closes the library; browsing alone does not replace your edits.
 5. Shape the curve or expand **Band controls**. Use **Optimize headroom** to make room for boosts, then **Save to Library** to choose a name.
 6. Select the intended USER slot and write when ready. On supported devices, **Live sync** sends edits automatically; its question-mark tooltip explains the behavior.
 
-The **Tools** menu groups editing, A/B comparison, device preparation, and sharing. Undo/redo is available in the title bar and with **Ctrl+Z / Ctrl+Y**. Import/export includes Equalizer APO, FiiO XML, and JSON workflows.
+The **Tools** menu groups editing, A/B comparison, device preparation, and sharing. Undo/redo is available in the title bar and with **Ctrl+Z / Ctrl+Y**. **Import** and **Export** at the top of the library cover Equalizer APO / Peace, FiiO XML, WolfEQ JSON, and library backups.
 
 ## 💻 Software EQ
 
@@ -79,15 +79,15 @@ Software EQ applies WolfEQ's EQ to any Windows playback output you choose, using
 
 **Setup**
 
-1. In the device list (**Settings → Device**), choose **Software EQ**. WolfEQ remembers this choice.
-2. If Equalizer APO is not installed, choose **Install Equalizer APO**. Windows asks for administrator permission, then the official Equalizer APO 1.4.2 installer bundled with WolfEQ runs.
+1. Choose **Software EQ** from the device menu in the toolbar (or **Settings → Device**). WolfEQ remembers this choice.
+2. If Equalizer APO is not installed, choose **Install Equalizer APO**. WolfEQ uses the official Equalizer APO 1.4.2 installer it ships with (or downloads and verifies it if missing) and shows progress. Windows asks for administrator permission.
 3. In Equalizer APO's **Device Selector**, tick each output you want to EQ (for example *Speakers* or *Headphones*) and close it.
 4. Restart Windows if the installer asks you to.
 5. Back in WolfEQ, tick the same outputs in the Software EQ output list. Each output shows whether Equalizer APO is active on it. Use **Add outputs** to reopen the Device Selector later.
 
 Nothing is applied until at least one output is ticked.
 
-**Bypass.** Turn the EQ off and on from the editor or the tray without losing your curve. Bypass is remembered across restarts. Choosing a FiiO device again, or **Remove from Equalizer APO**, removes WolfEQ's EQ from Equalizer APO.
+**Bypass.** Turn the EQ off and on from the editor or the tray without losing your curve. Bypass is remembered across restarts. Choosing a FiiO device again turns Software EQ off; **Remove from Equalizer APO** (or uninstalling WolfEQ) takes WolfEQ's EQ out of Equalizer APO completely.
 
 **Coexistence with Peace and hand-written configs.** WolfEQ keeps its EQ in its own `WolfEQ.txt` file and adds one marked block to Equalizer APO's `config.txt`. The rest of `config.txt` is left alone, and WolfEQ restores its block if another tool rewrites the file. If Peace is also active, or a ticked output is a FiiO device that may already have EQ on board, WolfEQ shows a double-EQ warning. It does not block you; turn one of them off if the sound is doubled.
 
