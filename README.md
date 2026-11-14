@@ -14,26 +14,46 @@
   <a href="https://github.com/audioslayer/wolfeq/issues">Report an issue</a>
 </p>
 
-## ✨ Meet WolfEQ 0.8.0 beta
+## ✨ Meet WolfEQ 0.9.0 beta
 
-No FiiO DAC? No problem. **Software EQ** brings WolfEQ's headphone library, AutoEQ search, and curve editor to any Windows output: laptop jacks, USB dongles, other brands' DACs, and Bluetooth headphones. WolfEQ drives [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) for you, so edits play live without touching a config file. FiiO and Snowsky support works exactly as before.
+A friendlier WolfEQ. Settings has been rebuilt around **your device**: one glance shows your K13 with its real light colours, whether USB and Bluetooth are working, and colour-coded sections for everything else. Small **?** tips explain each setting when you hover, so the fine print is gone. Lights got a proper editor, Stream Deck got a step-by-step guide, and four more FiiO devices joined the list.
 
-| | New in 0.8.0 |
+![WolfEQ 0.9 editor with live spectrum, band controls and the new preamp strip](docs/images/editor-0.9.png)
+
+| | New in 0.9.0 |
 |---|---|
-| 🖥️ **Software EQ** | Pick it in the device list, choose your outputs, and hear every edit within a moment. |
-| 📦 **Equalizer APO included** | The official installer ships with WolfEQ; one button starts setup. |
-| ⏯️ **Bypass anywhere** | Compare EQ on and off from the app or the tray, without losing your curve. |
-| 🤝 **Plays well with Peace** | WolfEQ keeps to its own file and one marked line, and warns about stacked EQ. |
-| ⌨️ **Automation** | `--system-eq-bypass` and `--preset` for Stream Deck and scripts. |
-| 📚 **A roomier library** | List and large preview side by side, Favorites, rename, and one-click saving from online results. |
-| 🔀 **Quicker switching** | A device menu in the toolbar, a clearer USER slot menu, and color-coded connection status. |
-| 📌 **A new tray** | Now playing, an EQ switch, and quick presets in Software EQ mode. |
+| 🎛️ **Settings at a glance** | A device card with a live drawing of your K13, USB and Bluetooth status chips, and colour-coded sections: Your device, Sound, Lights, Windows output, Shortcuts, Look and About. |
+| ❔ **Help where you need it** | Hover any **?** for a short, plain explanation. Preamp, Live sync, band count, volume limit, high gain and more. |
+| 🌈 **A real lights editor** | Preview the top bar and knob, edit Both, Top or Knob, and pick any built-in effect: Solid, Breathing, Rainbow, Rainbow breathing or Follow audio. Two-tone looks set both at once. |
+| 📶 **Bluetooth in one click** | **Find my K13** flashes your unit green and saves it when you say yes. No pairing in Windows and no separate save step. |
+| ⌨️ **Stream Deck made easy** | Pick a slot from Stream Deck-style keys, then follow a four-step guide to save the shortcut and add it to a key. |
+| 🎧 **More FiiO devices** | Added the **K17**, **K19**, **FP3** and **Oak Nano**. The QX13 and BTR17 are now recognised by their USB IDs. |
+| ⚡ **Fast on every PC** | Device detection, slot switching and readback no longer wait on unrelated USB devices. |
+| ✨ **Polish everywhere** | Matching headers, buttons and spacing across the editor, Library, Settings and dialogs. Clipping warnings sit right next to their **Avoid clipping** fix. |
 
-Still here from 0.7.0: the redesigned workspace, colorful live spectrum bars, light and dark backgrounds, and a faster path from finding a preset to making it yours.
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/settings-0.9.png" alt="Settings with the device card and colour-coded sections" /></td>
+    <td width="50%"><img src="docs/images/lights-0.9.png" alt="Lights editor with K13 preview, effects and colours" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Settings: your device first, then colour-coded sections</em></td>
+    <td align="center"><em>Lights: preview, effects and colours</em></td>
+  </tr>
+</table>
 
-![WolfEQ editor with colorful spectrum bars and expanded band controls](docs/images/editor-spectrum.png)
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/stream-deck-wizard-0.9.png" alt="Stream Deck setup guide, step 1: pick a USER slot" /></td>
+    <td width="50%"><img src="docs/images/library-0.9.png" alt="Preset library with filters and curve preview" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Stream Deck setup guide</em></td>
+    <td align="center"><em>Preset library</em></td>
+  </tr>
+</table>
 
-*App render with an illustrative spectrum. Band controls start collapsed; expand them when you want hands-on faders or a table.*
+Also in 0.8: **Software EQ** brings WolfEQ to any Windows output through Equalizer APO (bundled), with bypass from the app or tray, a roomier library with Favorites, and `--system-eq-bypass` / `--preset` automation.
 
 | | Workspace highlights |
 |---|---|
@@ -41,35 +61,33 @@ Still here from 0.7.0: the redesigned workspace, colorful live spectrum bars, li
 | 🎶 **See what's playing** | Colorful spectrum bars behind the curve, with smooth motion and a one-click toggle. |
 | 🎨 **Make it yours** | Light or dark backgrounds, green by default, solid accents, and Aurora, Sunset, Neon, and Ocean palettes. |
 | 📚 **Find, name, and open** | A compact library, naming before saving, Curve/Table online previews, and local names for device slots. |
-| ⌨️ **One-button switching** | A Windows ScriptDeck setup flyout generates a ready-to-paste PowerShell command for your saved device. |
-| ✨ **Details that connect** | Theme-aware icons, device thumbnails, selected-band highlights, subtle glows, and a larger transparent app/tray logo. |
 
 <details>
 <summary><strong>See light mode</strong></summary>
 
 ![WolfEQ light appearance with green accents](docs/images/editor-light.png)
 
-Choose **Settings → Appearance → Background**. Background mode is saved, and accent colors adapt for readable contrast.
+Choose **Settings → Look → Background**. Background mode is saved, and accent colors adapt for readable contrast.
 </details>
 
 ## 🚀 Download
 
 **[Get the latest release](https://github.com/audioslayer/wolfeq/releases/latest)**
 
-- **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.8.0-beta/WolfEQ-Setup-0.8.0-beta.exe)** — normal installation and shortcuts.
-- **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.8.0-beta/WolfEQ-0.8.0-beta-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
+- **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.9.0-beta/WolfEQ-Setup-0.9.0-beta.exe)** — normal installation and shortcuts.
+- **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.9.0-beta/WolfEQ-0.9.0-beta-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
 - Both include the .NET runtime and the official Equalizer APO 1.4.2 x64 installer for Software EQ. SHA-256 checksums are supplied with the release.
 
 ## 🔌 First session
 
 Using a FiiO or Snowsky device? Follow the steps below. Using anything else, such as a laptop jack, another DAC, or Bluetooth headphones? Start with [Software EQ](#-software-eq).
 
-1. Connect your DAC over USB. In **Settings → Device → Connections**, refresh the list, select your device, and save the connection.
-2. For supported K13 lighting controls, select its Bluetooth connection too. Use **Identify** to confirm you have the same unit.
+1. Connect your DAC over USB. In **Settings → Your device**, refresh the USB list, select your device, and choose **Save USB device**.
+2. For K13 lights and input switching, choose **Find my K13** under Bluetooth. Your K13 flashes green; choose **Yes, use it**.
 3. Open **Library**. Choose a saved preset, or search AutoEQ and OPRA on the **Discover online** tab and check its **Curve** or **Bands** preview.
 4. Choose **Open in editor**. Opening a preset closes the library; browsing alone does not replace your edits.
-5. Shape the curve or expand **Band controls**. Use **Optimize headroom** to make room for boosts, then **Save to Library** to choose a name.
-6. Select the intended USER slot and write when ready. On supported devices, **Live sync** sends edits automatically; its question-mark tooltip explains the behavior.
+5. Shape the curve or expand **Band controls**. Use **Avoid clipping** to make room for boosts, then **Save to Library** to choose a name.
+6. Select the intended USER slot and write when ready. On supported devices, **Live sync** sends edits automatically; hover its **?** for a short explanation.
 
 The **Tools** menu groups editing, A/B comparison, device preparation, and sharing. Undo/redo is available in the title bar and with **Ctrl+Z / Ctrl+Y**. **Import** and **Export** at the top of the library cover Equalizer APO / Peace, FiiO XML, WolfEQ JSON, and library backups.
 
@@ -79,7 +97,7 @@ Software EQ applies WolfEQ's EQ to any Windows playback output you choose, using
 
 **Setup**
 
-1. Choose **Software EQ** from the device menu in the toolbar (or **Settings → Device**). WolfEQ remembers this choice.
+1. Choose **Software EQ** from the device menu in the toolbar (or **Settings → Your device**). WolfEQ remembers this choice.
 2. If Equalizer APO is not installed, choose **Install Equalizer APO**. WolfEQ uses the official Equalizer APO 1.4.2 installer it ships with (or downloads and verifies it if missing) and shows progress. Windows asks for administrator permission.
 3. In Equalizer APO's **Device Selector**, tick each output you want to EQ (for example *Speakers* or *Headphones*) and close it.
 4. Restart Windows if the installer asks you to.
@@ -132,7 +150,9 @@ Tray and automation switches select EQ **already stored on the device**. Save or
 
 ## ⌨️ Stream Deck setup
 
-In **Settings → Integrations**, open **Windows ScriptDeck setup**:
+In **Settings → Shortcuts**, pick a USER slot from the Stream Deck keys and choose **Set up this key**. A four-step guide saves a shortcut for that slot and shows where it goes in Stream Deck (**System → Open**). Repeat for each slot.
+
+Prefer the Windows ScriptDeck plugin? Open **Advanced & troubleshooting → Windows ScriptDeck setup**:
 
 1. Follow the link to [Windows ScriptDeck by Start-Automating](https://marketplace.elgato.com/product/windows-scriptdeck-857f01dd-8fd4-44d5-8ec7-67ac850b21d3) in the Elgato Marketplace.
 2. Choose the USER slot to switch to.
@@ -141,7 +161,7 @@ In **Settings → Integrations**, open **Windows ScriptDeck setup**:
 
 Re-copy scripts if you move WolfEQ or change its saved connection. For lighting, save the Bluetooth connection and enable **Switch lights when I change USER slot** under **Lights**.
 
-The existing **Save shortcut** workflow is also available: assign the exported `.lnk` to Stream Deck's **System → Open** action.
+Already know the steps? **Save shortcut...** saves a slot's `.lnk` straight away; assign it to Stream Deck's **System → Open** action.
 
 <details>
 <summary><strong>Command-line automation and exit codes</strong></summary>

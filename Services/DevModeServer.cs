@@ -216,14 +216,16 @@ public sealed class DevModeServer : IDisposable
             if (ReferenceEquals(rootVisual, _window)) continue;
 
             var label = rootVisual is Window w ? $"dialog: {w.Title}" : "popup";
-            var root = rootVisual is Window win && win.Content is Visual content ? content : rootVisual;
+            // Render dialogs as the whole Window (template + content): drawing only the content
+            // mis-sized frames that use a margin and drop shadow inside a transparent window.
+            var root = rootVisual;
             if (root is not FrameworkElement fe || fe.ActualWidth < 1 || fe.ActualHeight < 1) continue;
 
             Point offset;
             try { offset = main.PointFromScreen(fe.PointToScreen(new Point(0, 0))); }
             catch (InvalidOperationException) { continue; }
             // A dialog's own background lives on the Window, not its content: paint it under the content.
-            yield return new Surface(fe, offset, new Size(fe.ActualWidth, fe.ActualHeight), label, (rootVisual as Window)?.Background);
+            yield return new Surface(fe, offset, new Size(fe.ActualWidth, fe.ActualHeight), label);
         }
     }
 
