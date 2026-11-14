@@ -49,7 +49,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private string _deviceControlsStatus = "Device controls will read on connect; slider and toggles write immediately when mapped.";
     private string _deviceInputDisplay = "Current input has not been read yet.";
     private string _githubProfileSearchText = "Ananda";
-    private string _githubProfileStatus = "Online source ready";
+    private string _githubProfileStatus = "Type a headphone name and press Search.";
     private string _connectionText = "Disconnected";
     private string _updateStatus = "Updates are checked from GitHub Releases when you ask.";
     private string _windowsAudioCurrentFormat = "Not checked";
@@ -161,7 +161,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         if (BackgroundThemeService.CurrentMode == "Light") ApplyAccentColor(_selectedAccentColorOption);
         LedColorOptions = new ObservableCollection<LedColorOption>
         {
-            new("Follow device", 0x00, "#8A8F98"),
+            new("Follow audio", 0x00, "#8A8F98"),
             new("Red", 0x01, "#FF4F5E"),
             new("Blue", 0x02, "#2F80FF"),
             new("Cyan", 0x03, "#00D9FF"),
@@ -174,14 +174,15 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         LedModeOptions = new ObservableCollection<LedModeOption>
         {
             new("Solid", 0x00),
-            new("Pulse", 0x01)
+            new("Breathing", 0x01)
         };
+        // Two-tone looks; single-zone effects (rainbow, follow audio) live in LightEffectOptions.
         LedSceneOptions = new ObservableCollection<LedSceneOption>
         {
             new("Neon Split", 0x03, 0x07, 0x00),
-            new("Soft Pulse", 0x04, 0x05, 0x01),
-            new("Audio Glow", 0x00, 0x00, 0x00),
-            new("Cycle Pulse", 0x08, 0x08, 0x01)
+            new("Sunset", 0x01, 0x05, 0x00),
+            new("Ice", 0x06, 0x03, 0x01),
+            new("Twilight", 0x04, 0x02, 0x01)
         };
         _selectedTopLedColorOption = LedColorOptions.First(option => option.Value == 0x07);
         _selectedKnobLedColorOption = LedColorOptions.First(option => option.Value == 0x03);
@@ -333,7 +334,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         ? $"{PreampDb + MaxEnabledBoostDb:F1} dB over"
         : $"{Math.Abs(PreampDb + MaxEnabledBoostDb):F1} dB margin";
     public string PresetEditSummaryText => $"{EnabledBandCount}/{Bands.Count} on Â· headroom {RecommendedPreampDb:F1} dB";
-    public string HeadroomGuardianTitle => PreampDb + MaxEnabledBoostDb > 0 ? "Clipping Risk" : "Safe Headroom";
+    public string HeadroomGuardianTitle => PreampDb + MaxEnabledBoostDb > 0 ? "Clipping risk" : "Safe headroom";
     public string HeadroomGuardianText => PreampDb + MaxEnabledBoostDb > 0
         ? $"Reduce preamp to {RecommendedPreampDb:F1} dB before writing this preset."
         : $"Peak boost is protected by {Math.Abs(PreampDb + MaxEnabledBoostDb):F1} dB.";
@@ -538,6 +539,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         {
             if (SetField(ref _selectedTopLedColorOption, value))
             {
+                if (IsPlainLightColor(value.Value)) _lastTopPlainColor = value.Value;
                 OnPropertyChanged(nameof(TopLedSummary));
                 OnPropertyChanged(nameof(SlotLightingSummary));
             }
@@ -551,6 +553,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         {
             if (SetField(ref _selectedKnobLedColorOption, value))
             {
+                if (IsPlainLightColor(value.Value)) _lastKnobPlainColor = value.Value;
                 OnPropertyChanged(nameof(KnobLedSummary));
                 OnPropertyChanged(nameof(SlotLightingSummary));
             }
@@ -1051,8 +1054,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             Status = result.IsDetected || !string.IsNullOrWhiteSpace(result.ScanError)
                 ? result.StatusMessage
                 : _binding.UsbPath is not null
-                    ? "Saved USB device unavailable. Reconnect it or select a device in Settings > Device > Connections."
-                    : "No unique USB device selected. Choose one in Settings > Device > Connections.";
+                    ? "Saved USB device unavailable. Reconnect it or select a device in Settings > Your device."
+                    : "No unique USB device selected. Choose one in Settings > Your device.";
             AddLog(result.StatusMessage);
 
             if (result.MatchedProfile is not null)
@@ -1306,89 +1309,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public async Task SetTopLedColorAsync(LedColorOption option)
-    {
-        SelectedTopLedColorOption = option;
-        await SetLedZoneAsync(0x02, SelectedTopLedColorOption, SelectedTopLedModeOption, TopLedOn, "Top");
-    }
-
-    public async Task SetKnobLedColorAsync(LedColorOption option)
-    {
-        SelectedKnobLedColorOption = option;
-        await SetLedZoneAsync(0x03, SelectedKnobLedColorOption, SelectedKnobLedModeOption, KnobLedOn, "Knob");
-    }
-
-    public async Task SetTopLedModeAsync(LedModeOption option)
-    {
-        SelectedTopLedModeOption = option;
-        await SetLedZoneAsync(0x02, SelectedTopLedColorOption, SelectedTopLedModeOption, TopLedOn, "Top");
-    }
-
-    public async Task SetKnobLedModeAsync(LedModeOption option)
-    {
-        SelectedKnobLedModeOption = option;
-        await SetLedZoneAsync(0x03, SelectedKnobLedColorOption, SelectedKnobLedModeOption, KnobLedOn, "Knob");
-    }
-
-    public async Task SetTopLedPowerAsync(bool on)
-    {
-        TopLedOn = on;
-        await SetLedPowerAsync(0x02, on, "Top");
-    }
-
-    public async Task SetKnobLedPowerAsync(bool on)
-    {
-        KnobLedOn = on;
-        await SetLedPowerAsync(0x03, on, "Knob");
-    }
-
-    public async Task ApplyLedSceneAsync(LedSceneOption scene)
-    {
-        SelectedTopLedColorOption = SelectLedColorOption(scene.TopColor);
-        SelectedKnobLedColorOption = SelectLedColorOption(scene.KnobColor);
-        SelectedTopLedModeOption = SelectLedModeOption(scene.Mode);
-        SelectedKnobLedModeOption = SelectLedModeOption(scene.Mode);
-        TopLedOn = true;
-        KnobLedOn = true;
-
-        Status = $"Applying {scene.Name} lighting...";
-        AddLog($"BLE split light scene requested: {scene.Name}.");
-
-        try
-        {
-            var snapshot = await _bleLightService.SetSplitLightsAsync(
-                scene.TopColor,
-                scene.Mode,
-                topOn: true,
-                scene.KnobColor,
-                scene.Mode,
-                knobOn: true);
-            ApplyLightSnapshot(snapshot);
-            LogBleSnapshot(snapshot);
-            Status = $"Lighting scene applied: {scene.Name}";
-            SaveSelectedSlotLightingProfile();
-            AddLog(Status);
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "BLE light scene was canceled.";
-            AddLog(Status);
-        }
-        catch (K13BleOperationException ex)
-        {
-            LogBleException(ex);
-            Status = ex.InnerException is null
-                ? ex.Message
-                : $"{ex.Message} {ex.InnerException.Message}";
-            AddLog(Status);
-        }
-        catch (Exception ex)
-        {
-            Status = $"BLE light scene failed: {ex.Message}";
-            AddLog(Status);
-        }
-    }
-
     private async Task SetLightsGreenAsync()
     {
         await SetLightsAsync(color: 0x07, mode: 0x00, on: true, label: "Green / Solid");
@@ -1397,79 +1317,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private async Task SetLightsCycleAsync()
     {
         await SetLightsAsync(color: 0x08, mode: 0x01, on: true, label: "Rainbow / Pulse");
-    }
-
-    private async Task SetLedZoneAsync(
-        byte zone,
-        LedColorOption color,
-        LedModeOption mode,
-        bool on,
-        string zoneName)
-    {
-        Status = $"Setting {zoneName} LED to {color.Name} / {mode.Name}...";
-        AddLog($"BLE {zoneName} LED write requested: {color.Name} / {mode.Name}.");
-
-        try
-        {
-            var snapshot = await _bleLightService.SetLightAsync(zone, color.Value, mode.Value, on);
-            ApplyLightSnapshot(snapshot);
-            LogBleSnapshot(snapshot);
-            Status = $"{zoneName} LED set: {color.Name} / {mode.Name}";
-            SaveSelectedSlotLightingProfile();
-            AddLog(Status);
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "BLE LED write was canceled.";
-            AddLog(Status);
-        }
-        catch (K13BleOperationException ex)
-        {
-            LogBleException(ex);
-            Status = ex.InnerException is null
-                ? ex.Message
-                : $"{ex.Message} {ex.InnerException.Message}";
-            AddLog(Status);
-        }
-        catch (Exception ex)
-        {
-            Status = $"BLE LED write failed: {ex.Message}";
-            AddLog(Status);
-        }
-    }
-
-    private async Task SetLedPowerAsync(byte zone, bool on, string zoneName)
-    {
-        Status = $"Turning {zoneName} LED {(on ? "on" : "off")}...";
-        AddLog($"BLE {zoneName} LED power requested: {(on ? "On" : "Off")}.");
-
-        try
-        {
-            var snapshot = await _bleLightService.SetLightPowerAsync(zone, on);
-            ApplyLightSnapshot(snapshot);
-            LogBleSnapshot(snapshot);
-            Status = $"{zoneName} LED {(on ? "on" : "off")}: {snapshot.Top}; {snapshot.Knob}";
-            SaveSelectedSlotLightingProfile();
-            AddLog(Status);
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "BLE LED power change was canceled.";
-            AddLog(Status);
-        }
-        catch (K13BleOperationException ex)
-        {
-            LogBleException(ex);
-            Status = ex.InnerException is null
-                ? ex.Message
-                : $"{ex.Message} {ex.InnerException.Message}";
-            AddLog(Status);
-        }
-        catch (Exception ex)
-        {
-            Status = $"BLE LED power change failed: {ex.Message}";
-            AddLog(Status);
-        }
     }
 
     private async Task ReadInputSourceAsync()
@@ -5681,7 +5528,7 @@ public sealed record DeviceUserPresetOption(int Slot, byte PresetId, string? Nam
         : $"Slot {Slot} - {DeviceName}";
 
     public string SlotLabel => Name == "No writable slots" ? Name : $"USER {Slot}";
-    public string LocalEqSubtitle => string.IsNullOrWhiteSpace(LocalEqName) ? "No local name yet" : LocalEqName;
+    public string LocalEqSubtitle => string.IsNullOrWhiteSpace(LocalEqName) ? "Not named yet" : LocalEqName;
 
     public string DeviceName => string.IsNullOrWhiteSpace(Name) ? $"USER {Slot}" : Name;
 
@@ -5749,4 +5596,50 @@ public sealed record LedColorOption(string Name, byte Value, string Hex)
 
 public sealed record LedModeOption(string Name, byte Value);
 
-public sealed record LedSceneOption(string Name, byte TopColor, byte KnobColor, byte Mode);
+public sealed record LedSceneOption(string Name, byte TopColor, byte KnobColor, byte Mode)
+{
+    public Brush TopBrush => LedBrushes.For(TopColor);
+    public Brush KnobBrush => LedBrushes.For(KnobColor);
+    public string Description => $"Top {LedBrushes.Name(TopColor)}, knob {LedBrushes.Name(KnobColor)}{(Mode == 0x01 ? ", breathing" : "")}";
+}
+
+/// <summary>Preview brushes for K13 light values, including the rainbow and follow-audio effects.</summary>
+public static class LedBrushes
+{
+    private static readonly Dictionary<byte, (string Name, Brush Brush)> Values = Build();
+
+    public static Brush Off { get; } = Freeze(new SolidColorBrush(Color.FromRgb(0x2A, 0x2F, 0x36)));
+
+    public static Brush For(byte color) => Values.TryGetValue(color, out var value) ? value.Brush : Off;
+
+    public static string Name(byte color) => Values.TryGetValue(color, out var value) ? value.Name.ToLowerInvariant() : "unknown";
+
+    private static Dictionary<byte, (string, Brush)> Build()
+    {
+        Brush Solid(string hex) => Freeze(new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)));
+        var rainbow = new LinearGradientBrush { StartPoint = new(0, 0), EndPoint = new(1, 0) };
+        foreach (var (hex, offset) in new[] { ("#FF4F5E", 0.0), ("#FFCC33", 0.25), ("#00E676", 0.5), ("#00D9FF", 0.75), ("#B25CFF", 1.0) })
+            rainbow.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(hex), offset));
+        var audio = new LinearGradientBrush { StartPoint = new(0, 0), EndPoint = new(1, 0) };
+        foreach (var (hex, offset) in new[] { ("#5B6270", 0.0), ("#C9CED6", 0.5), ("#5B6270", 1.0) })
+            audio.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(hex), offset));
+        return new()
+        {
+            [0x00] = ("Follow audio", Freeze(audio)),
+            [0x01] = ("Red", Solid("#FF4F5E")),
+            [0x02] = ("Blue", Solid("#2F80FF")),
+            [0x03] = ("Cyan", Solid("#00D9FF")),
+            [0x04] = ("Purple", Solid("#B25CFF")),
+            [0x05] = ("Yellow", Solid("#FFCC33")),
+            [0x06] = ("White", Solid("#F2F5F7")),
+            [0x07] = ("Green", Solid("#00E676")),
+            [0x08] = ("Rainbow", Freeze(rainbow))
+        };
+    }
+
+    private static Brush Freeze(Brush brush)
+    {
+        brush.Freeze();
+        return brush;
+    }
+}

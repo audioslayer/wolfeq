@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.9.0-beta
+
+### ✨ New
+
+- **More FiiO devices** — Added the FiiO K17, K19, FP3 and Oak Nano. The QX13 and BTR17 are now recognised by their USB IDs. Every listed device is labelled working; devices not yet confirmed on hardware save to USER slots without live sync or automatic readback.
+- **Cleaner Settings** — A device card on top with live light colours and USB/Bluetooth status, then colour-coded sections (Your device, Sound, Lights, Windows output, Shortcuts, Look, About) with "?" help tips instead of fine print.
+- **Guided Bluetooth setup** — Find my K13 flashes your unit and saves it when you confirm. No separate save step.
+- **New lights editor** — A live K13 preview, Both/Top/Knob editing, and every built-in effect: Solid, Breathing, Rainbow, Rainbow breathing and Follow audio.
+- **Stream Deck keys and setup guide** — Pick a slot from Stream Deck-style keys, then follow a four-step guide.
+- **Polish everywhere** — Consistent titles, corner radii and button styles across the editor, Library, Settings and dialogs.
+
+### 🐞 Fixed
+
+- **Fast on every PC** — WolfEQ no longer opens every USB device on your computer before each action. On some PCs this caused a delay of over a minute on every detection, slot switch, and readback. (#5)
+- **Lights after a restart** — If the K13 can't be reached right after Windows starts, WolfEQ now listens for your saved K13 for a few seconds and retries, so slot lighting works without pressing Scan. Thanks to derailius for the patch. (#4)
+- **Windows volume** — Reading and setting the Windows playback volume no longer fails with an `IMMDeviceCollection` error.
+- **Saving your Bluetooth device** — Saving a Bluetooth device or nickname in Device → Connections is no longer blocked by unsaved EQ edits. Only switching to a different USB device asks you to save first.
+
 ## v0.8.0-beta
 
 Headphone EQ on **any** Windows output, plus the biggest look-and-feel refresh WolfEQ has had.

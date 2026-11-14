@@ -8,6 +8,10 @@ echo.
 
 cd /d "%~dp0"
 
+rem Rainmeter/other launchers may pass a stale PATH; make sure dotnet is reachable
+where dotnet >nul 2>nul || set "PATH=%ProgramFiles%\dotnet;%PATH%"
+
+
 set "APP_NAME=WolfEQ"
 set "PROJECT_FILE=WolfEQ.csproj"
 set "BUILD_ROOT=%LOCALAPPDATA%\WolfEQ\deploy-build"
@@ -70,7 +74,8 @@ if not exist "%APP_EXE%" (
     exit /b 1
 )
 
-start "" "%APP_EXE%"
+rem --dev: lets Claude see and click the UI at http://127.0.0.1:47824 (dev builds only)
+start "" "%APP_EXE%" --dev
 
 echo.
 echo WolfEQ deployed and launched.

@@ -56,11 +56,54 @@ public sealed class FiioDeviceProfileTests
 
         Assert.All(profiles, profile =>
         {
-            Assert.False(profile.IsVerified);
             Assert.False(profile.SupportsLiveEqWrites);
             Assert.False(profile.SupportsEqReadback);
             Assert.False(profile.ReloadEqAfterSave);
         });
+    }
+
+    [Fact]
+    public void EveryListedDevice_IsLabelledWorking()
+    {
+        Assert.All(FiioDeviceProfiles.All, profile =>
+        {
+            Assert.True(profile.IsVerified);
+            Assert.DoesNotContain("experimental", profile.DisplayLabel, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    [Theory]
+    [InlineData(0x0128, "fiio-qx13")]
+    [InlineData(0x0088, "fiio-btr17")]
+    [InlineData(0x4016, "fiio-oak-nano")]
+    public void CommunityProfiles_MatchCapturedUsbProductIds(int productId, string expectedProfileId)
+        => Assert.Equal(expectedProfileId, FiioDeviceProfiles.Match((ushort)productId, null, null)?.Id);
+
+    [Theory]
+    [InlineData("FiiO K17", "fiio-k17")]
+    [InlineData("FIIO K19", "fiio-k19")]
+    [InlineData("FiiO FP3", "fiio-fp3")]
+    [InlineData("FiiO Oak Nano", "fiio-oak-nano")]
+    [InlineData("FiiO KA17", "fiio-ka17")]
+    [InlineData("SNOWSKY RETRO NANO", "snowsky-retro-nano")]
+    public void NewProfiles_MatchByNameWithoutStealingSimilarModels(string productName, string expectedProfileId)
+        => Assert.Equal(expectedProfileId, FiioDeviceProfiles.Match(null, productName, null)?.Id);
+
+    [Fact]
+    public void NewProfiles_StartInGuardedSaveOnlyModeWithTheirLayouts()
+    {
+        foreach (var profile in new[] { FiioDeviceProfiles.K17, FiioDeviceProfiles.K19, FiioDeviceProfiles.Fp3, FiioDeviceProfiles.OakNano })
+        {
+            Assert.False(profile.SupportsLiveEqWrites);
+            Assert.False(profile.SupportsEqReadback);
+            Assert.NotEmpty(profile.WritableSlots);
+            Assert.Contains("fiio-generic", profile.ProductImagePath);
+        }
+
+        Assert.Equal(31, FiioDeviceProfiles.K17.BandCount);
+        Assert.Equal(0x21, FiioDeviceProfiles.K19.SaveCommandId);
+        Assert.Equal(Enumerable.Range(0x07, 10), FiioDeviceProfiles.K17.WritableSlots.Select(slot => (int)slot.Id));
+        Assert.Equal(8, FiioDeviceProfiles.OakNano.BandCount);
     }
 
     [Fact]

@@ -38,6 +38,7 @@
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
     <Border x:Name="Rail" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="{TemplateBinding Padding}" Background="Transparent"><ContentPresenter/></Border>
     <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
      <Trigger Property="IsChecked" Value="True"><Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
      <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/></Trigger>
     </ControlTemplate.Triggers>
@@ -45,7 +46,7 @@
   </Style>
   <Style TargetType="TabItem" BasedOn="{StaticResource StudioTab}"/>
   <Style x:Key="FaderTile" TargetType="Border" BasedOn="{StaticResource BandTile}">
-   <Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="6"/>
+   <Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="{StaticResource RadiusControl}"/>
    <Style.Triggers><DataTrigger Value="True"><DataTrigger.Binding><MultiBinding Converter="{StaticResource SameBand}">
     <Binding/><Binding Path="SelectedBand" RelativeSource="{RelativeSource AncestorType=local:BandControls}"/>
    </MultiBinding></DataTrigger.Binding><Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
@@ -67,7 +68,7 @@
      <TextBlock Text="Q" Foreground="{DynamicResource WolfMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
      <TextBox Grid.Column="1" Tag="Q" Style="{StaticResource BandInput}" MinWidth="0" Text="{Binding Q, Mode=TwoWay, UpdateSourceTrigger=Explicit, StringFormat={}{0:F2}}" AutomationProperties.Name="Band width Q"/>
     </Grid>
-    <ComboBox Margin="4,6,4,0" MinWidth="0" FontSize="11" Padding="5,4" ItemsSource="{Binding Profile.SupportedFilterTypes, ElementName=Root}" SelectedItem="{Binding FilterType, Mode=TwoWay}" AutomationProperties.Name="Band filter type" ToolTip="Filter shape: Peak targets a range; shelves adjust lows or highs; pass filters remove frequencies outside their range."/>
+    <ComboBox Margin="4,6,4,0" MinWidth="0" FontSize="12" Padding="6,4" ItemsSource="{Binding Profile.SupportedFilterTypes, ElementName=Root}" SelectedItem="{Binding FilterType, Mode=TwoWay}" AutomationProperties.Name="Band filter type" ToolTip="Filter shape: Peak targets a range; shelves adjust lows or highs; pass filters remove frequencies outside their range."/>
     <CheckBox Style="{StaticResource StudioBypass}" IsChecked="{Binding Enabled, Converter={StaticResource InverseBoolean}, Mode=TwoWay}" HorizontalAlignment="Center" Margin="0,7,0,0"/>
    </StackPanel></Border>
   </DataTemplate>
@@ -87,8 +88,9 @@
  <Border Style="{StaticResource PanelBorder}" Padding="0" BorderThickness="0">
   <Expander x:Name="ControlsExpander" IsExpanded="False" HorizontalContentAlignment="Stretch">
    <Expander.Header><DockPanel LastChildFill="False">
-    <TextBlock Text="Band controls" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-    <TextBlock x:Name="Summary" Margin="16,0,0,0" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center"/>
+    <TextBlock Text="Band controls" Style="{StaticResource PanelTitle}" VerticalAlignment="Center"/>
+    <controls:HelpTip Title="Band controls" Text="Faders show each band as a slider you can drag. Table lists every value in rows for exact typing." MouseLeftButtonDown="HelpTip_MouseLeftButtonDown"/>
+    <TextBlock x:Name="Summary" Margin="14,0,0,0" Style="{StaticResource MutedText}" TextWrapping="NoWrap" VerticalAlignment="Center"/>
     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="24,0,0,0">
      <RadioButton Content="Faders" GroupName="BandView" Style="{StaticResource ViewChoice}" IsChecked="{Binding IsSelected, ElementName=FadersTab, Mode=OneWay}" Tag="0" Click="ViewChoice_Click"/>
      <RadioButton Content="Table" GroupName="BandView" Style="{StaticResource ViewChoice}" IsChecked="{Binding IsSelected, ElementName=TableTab, Mode=OneWay}" Tag="1" Click="ViewChoice_Click"/>
@@ -98,7 +100,7 @@
 
     <TabControl x:Name="ViewTabs" SelectedIndex="0">
      <TabItem x:Name="FadersTab" Header="_Faders"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"><ItemsControl ItemsSource="{Binding Source={StaticResource OrderedBands}}" ItemTemplate="{StaticResource Fader}" AlternationCount="1000"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl></ScrollViewer></TabItem>
-     <TabItem x:Name="TableTab" Header="_Table"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><Grid Margin="8,0,8,5"><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Band" Style="{StaticResource DimText}"/><TextBlock Grid.Column="1" Text="State" Style="{StaticResource DimText}"/><TextBlock Grid.Column="2" Text="Filter shape" Style="{StaticResource DimText}"/><TextBlock Grid.Column="3" Text="Frequency (Hz)" Style="{StaticResource DimText}"/><TextBlock Grid.Column="4" Text="Gain (dB)" Style="{StaticResource DimText}"/><TextBlock Grid.Column="5" Text="Width (Q)" Style="{StaticResource DimText}"/></Grid><ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding Source={StaticResource OrderedBands}}" ItemTemplate="{StaticResource TableRow}" AlternationCount="1000"/></ScrollViewer></Grid></TabItem>
+     <TabItem x:Name="TableTab" Header="_Table"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><Grid Margin="8,0,8,5"><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Band" Style="{StaticResource TinyLabel}" Margin="6,0,0,0"/><TextBlock Grid.Column="1" Text="State" Style="{StaticResource TinyLabel}" Margin="6,0,0,0"/><TextBlock Grid.Column="2" Text="Filter shape" Style="{StaticResource TinyLabel}" Margin="4,0,0,0"/><TextBlock Grid.Column="3" Text="Frequency (Hz)" Style="{StaticResource TinyLabel}" HorizontalAlignment="Center"/><TextBlock Grid.Column="4" Text="Gain (dB)" Style="{StaticResource TinyLabel}" HorizontalAlignment="Center"/><TextBlock Grid.Column="5" Text="Width (Q)" Style="{StaticResource TinyLabel}" HorizontalAlignment="Center"/></Grid><ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding Source={StaticResource OrderedBands}}" ItemTemplate="{StaticResource TableRow}" AlternationCount="1000"/></ScrollViewer></Grid></TabItem>
     </TabControl>
    </Grid>
   </Expander>

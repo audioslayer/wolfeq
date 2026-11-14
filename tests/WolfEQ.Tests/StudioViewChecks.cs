@@ -92,7 +92,7 @@ internal static class StudioViewChecks
         model.DeviceUserPresets[0] = unnamedSlot with { LocalEqName = "Evening music" };
         Render(slotContent, 296, 560, "studio-slot-menu");
         Assert.Contains(Descendants(slotContent).OfType<TextBlock>(), text => text.Text == "Evening music");
-        Assert.Contains(Descendants(slotContent).OfType<TextBlock>(), text => text.Text == "No local name yet");
+        Assert.Contains(Descendants(slotContent).OfType<TextBlock>(), text => text.Text == "Not named yet");
         var slotButtons = Descendants((ItemsControl)dock.FindName("SlotItems")).OfType<Button>().ToArray();
         Assert.Equal(model.DeviceUserPresets.Count, slotButtons.Length);
         Assert.All(slotButtons, button => Assert.Same(model.SwitchSlotCommand, button.Command));
@@ -126,7 +126,7 @@ internal static class StudioViewChecks
         Assert.Contains(model.ApplyAutoHeadroomCommand, toolCommands);
         toolsTabs.SelectedIndex = 0;
 
-        foreach (var section in new[] { "Device", "Profile Lights", "Windows Audio", "Integrations", "Appearance", "About" })
+        foreach (var section in new[] { "Your device", "Sound", "Lights", "Windows output", "Shortcuts", "Look", "About" })
         {
             var settings = new SettingsPopover { DataContext = model };
             Layout(settings, 460, 1400);
@@ -136,13 +136,13 @@ internal static class StudioViewChecks
             foreach (var expander in expanders) expander.IsExpanded = Equals(expander.Header, section);
             settings.DataContext = model;
             Layout(settings, 460, 1400);
-            if (section is "Device" or "Integrations")
+            if (section is "Your device" or "Shortcuts")
             {
                 foreach (var expander in Descendants(settings).OfType<Expander>().Where(e => Equals(e.Header, "Model & compatibility") || Equals(e.Header, "Setup & troubleshooting")))
                     expander.IsExpanded = true;
             }
             Render(settings, 460, 1400, "studio-settings-" + section.Replace(' ', '-').ToLowerInvariant());
-            if (section == "Integrations")
+            if (section == "Shortcuts")
             {
                 var setupPopup = (Popup)settings.FindName("StreamDeckSetupPopup");
                 var setupContent = (FrameworkElement)setupPopup.Child;
@@ -238,12 +238,13 @@ internal static class StudioViewChecks
         try
         {
             Layout(settings, 460, 1400);
-            Descendants(settings).OfType<Expander>().Single(e => Equals(e.Header, "Device")).IsExpanded = true;
+            Descendants(settings).OfType<Expander>().Single(e => Equals(e.Header, "Your device")).IsExpanded = true;
             settings.DataContext = model;
             Layout(settings, 460, 1400);
             var accent = (Brush)Application.Current.FindResource("WolfGreenBrush");
-            var icons = Descendants(settings).OfType<PhosphorIcon>().Where(icon => ReferenceEquals(icon.IconBrush, accent)).ToArray();
-            Assert.True(icons.Length >= 8, "Cover section headers and device action icons.");
+            // Only laid-out icons: state-dependent buttons (e.g. Bluetooth setup steps) render when shown.
+            var icons = Descendants(settings).OfType<PhosphorIcon>().Where(icon => icon.ActualWidth > 0 && ReferenceEquals(icon.IconBrush, accent)).ToArray();
+            Assert.True(icons.Length >= 3, "Cover the device action icons (section icons keep fixed colours).");
             foreach (var name in new[] { "AmpUp Green", "Violet", "Wolf Cyan", "AmpUp Green" })
             {
                 model.SelectedAccentColorOption = model.AccentColorOptions.Single(option => option.Name == name);
@@ -312,7 +313,7 @@ internal static class StudioViewChecks
                 Render(content, 1586, 992, "studio-theme-light");
                 var settings = new SettingsPopover { DataContext = model };
                 Layout(settings, 460, 850);
-                foreach (var section in Descendants(settings).OfType<Expander>()) section.IsExpanded = Equals(section.Header, "Appearance");
+                foreach (var section in Descendants(settings).OfType<Expander>()) section.IsExpanded = Equals(section.Header, "Look");
                 Render(settings, 460, 850, "studio-settings-light");
                 var library = new LibraryPanel { DataContext = model };
                 Render(library, 860, 820, "studio-library-light");

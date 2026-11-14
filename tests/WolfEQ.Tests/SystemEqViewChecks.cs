@@ -27,7 +27,7 @@ internal static class SystemEqViewChecks
         StudioViewChecks.Layout(settings, 460, 1400);
         settings.DataContext = null;
         foreach (var expander in StudioViewChecks.Descendants(settings).OfType<Expander>())
-            expander.IsExpanded = Equals(expander.Header, "Device");
+            expander.IsExpanded = Equals(expander.Header, "Your device");
         settings.DataContext = model;
         StudioViewChecks.Layout(settings, 460, 1400);
         StudioViewChecks.Render(settings, 460, 1400, "studio-settings-system-eq");
@@ -46,11 +46,11 @@ internal static class SystemEqViewChecks
         StudioViewChecks.Layout(integrations, 460, 1400);
         integrations.DataContext = null;
         foreach (var expander in StudioViewChecks.Descendants(integrations).OfType<Expander>())
-            expander.IsExpanded = Equals(expander.Header, "Integrations");
+            expander.IsExpanded = Equals(expander.Header, "Shortcuts");
         integrations.DataContext = model;
         StudioViewChecks.Layout(integrations, 460, 1400);
         StudioViewChecks.Render(integrations, 460, 1400, "studio-settings-integrations-system-eq");
-        var integrationsExpander = StudioViewChecks.Descendants(integrations).OfType<Expander>().Single(expander => Equals(expander.Header, "Integrations"));
+        var integrationsExpander = StudioViewChecks.Descendants(integrations).OfType<Expander>().Single(expander => Equals(expander.Header, "Shortcuts"));
         Assert.True(IsShown(integrationsExpander), "Integrations must stay visible in Software EQ mode.");
         var commandBoxes = StudioViewChecks.Descendants(integrationsExpander).OfType<TextBox>().Where(IsShown).ToArray();
         Assert.Contains(commandBoxes, box => box.IsReadOnly && box.Text.Contains("--system-eq-bypass", StringComparison.Ordinal));
@@ -152,7 +152,7 @@ internal static class SystemEqViewChecks
         StudioViewChecks.Layout(settings, 460, 900);
         settings.DataContext = null;
         foreach (var expander in StudioViewChecks.Descendants(settings).OfType<Expander>())
-            expander.IsExpanded = Equals(expander.Header, "Device");
+            expander.IsExpanded = Equals(expander.Header, "Your device");
         settings.DataContext = model;
         StudioViewChecks.Layout(settings, 460, 900);
         Assert.True(IsShown((FrameworkElement)settings.FindName("InstallApoButton")));
@@ -200,14 +200,18 @@ internal static class SystemEqViewChecks
 
     private static bool IsShown(FrameworkElement element)
     {
+        DependencyObject? top = null;
         for (DependencyObject? current = element; current is not null; current = VisualTreeHelper.GetParent(current))
         {
             if (current is UIElement { Visibility: not Visibility.Visible })
             {
                 return false;
             }
+
+            top = current;
         }
 
-        return true;
+        // Content of a never-opened Expander has a logical parent but no visual one: it is not on screen.
+        return top is not FrameworkElement { Parent: not null };
     }
 }

@@ -37,6 +37,6 @@ public sealed class DeviceSlotNameTests
         var readback = slot with { Name = "USER 1" };
         Assert.Equal("USER 1", readback.SlotLabel);
         Assert.Equal("Evening music", readback.LocalEqSubtitle);
-        Assert.Equal("No local name yet", new DeviceUserPresetOption(2, 6).LocalEqSubtitle);
+        Assert.Equal("Not named yet", new DeviceUserPresetOption(2, 6).LocalEqSubtitle);
     }
 }

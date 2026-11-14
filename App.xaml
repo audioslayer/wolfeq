@@ -60,6 +60,26 @@
             <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
         </Style>
 
+        <!-- Shared design tokens: corner radii and a small type scale. Prefer these over literals. -->
+        <CornerRadius x:Key="RadiusControl">8</CornerRadius>
+        <CornerRadius x:Key="RadiusCard">10</CornerRadius>
+        <CornerRadius x:Key="RadiusOverlay">12</CornerRadius>
+        <Style x:Key="PanelTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+        </Style>
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+        </Style>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="17"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -80,8 +100,9 @@
         </Style>
 
         <Style x:Key="TinyLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Foreground" Value="{DynamicResource WolfDimBrush}"/>
+            <!-- 11px muted: the smallest size that stays readable on the dark theme. -->
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
             <Setter Property="TextWrapping" Value="NoWrap"/>
         </Style>
 
@@ -95,7 +116,7 @@
             <Setter Property="Background" Value="{DynamicResource WolfPanelBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource WolfLineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusCard}"/>
             <Setter Property="Padding" Value="16"/>
         </Style>
 
@@ -188,9 +209,10 @@
             </ControlTemplate></Setter.Value></Setter>
         </Style>
 
+        <!-- Secondary button (green outline). Primary = SavePresetButton (solid green, one per surface); ghost = QuietButton. -->
         <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{DynamicResource WolfCyanDimBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
         </Style>
 
         <Style x:Key="SavePresetButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -278,7 +300,7 @@
             <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
             <Setter Property="Padding" Value="12,8"/><Setter Property="MinHeight" Value="34"/><Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
-                <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1" CornerRadius="5" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
+                <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1" CornerRadius="{StaticResource RadiusControl}" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/></Trigger>
                     <Trigger Property="IsChecked" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
@@ -287,7 +309,52 @@
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
-        <Style x:Key="HeaderNavToggle" TargetType="ToggleButton" BasedOn="{StaticResource StudioMenuToggle}"/>
+        <!-- Header Library / Settings buttons. The focus ring shows only for keyboard navigation
+             (FocusVisualStyle), not after a mouse click, which used to draw a tight green outline
+             around the open panel's button that looked clipped. -->
+        <Style x:Key="HeaderNavFocusVisual">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Border Margin="-2" CornerRadius="20" BorderBrush="{DynamicResource WolfGreenBrush}" BorderThickness="1.5"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="HeaderNavToggle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+            <!-- Green icon + label, no outline (thin rounded outlines look jagged at 125%+ scaling).
+                 Open panel = soft green pill behind the whole button. -->
+            <Setter Property="Padding" Value="11,6,15,6"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource HeaderNavFocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="18" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="HeaderHistoryButton" TargetType="Button">
             <Setter Property="Width" Value="30"/>
@@ -823,7 +890,7 @@
                                 Background="{DynamicResource WolfShellBrush}"
                                 BorderBrush="{DynamicResource WolfLineBrush}"
                                 BorderThickness="1"
-                                CornerRadius="6">
+                                CornerRadius="{StaticResource RadiusCard}">
                             <Grid>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <ToggleButton x:Name="HeaderSite"
@@ -837,7 +904,7 @@
                                         <ControlTemplate TargetType="{x:Type ToggleButton}">
                                             <Border x:Name="HeaderChrome"
                                                     Background="{TemplateBinding Background}"
-                                                    CornerRadius="5"
+                                                    CornerRadius="9"
                                                     Padding="{TemplateBinding Padding}">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
@@ -862,7 +929,7 @@
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
                                                     <Setter TargetName="HeaderChrome" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
-                                                    <Setter Property="Foreground" Value="{DynamicResource WolfCyanBrush}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
                                                 </Trigger>
                                                 <Trigger Property="IsChecked" Value="True">
                                                     <Setter TargetName="HeaderChrome" Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>

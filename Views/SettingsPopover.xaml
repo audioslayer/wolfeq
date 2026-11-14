@@ -16,18 +16,92 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <!-- Copied from MainWindow resources; views keep their own converter copies. -->
         <local:ReferenceEqualsMultiConverter x:Key="ReferenceEqualsMultiConverter"/>
+        <controls:StringEqualsConverter x:Key="StringEquals"/>
+        <views:RepeatsTextMultiConverter x:Key="RepeatsText"/>
+
+        <!-- Fixed section colours (independent of the accent theme). -->
+        <SolidColorBrush x:Key="SectionDeviceBrush" Color="#00E676"/>
+        <SolidColorBrush x:Key="SectionSoundBrush" Color="#38BDF8"/>
+        <LinearGradientBrush x:Key="SectionLightsBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFC94A" Offset="0"/>
+            <GradientStop Color="#FF7A90" Offset="0.5"/>
+            <GradientStop Color="#B25CFF" Offset="1"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="SectionWindowsBrush" Color="#A78BFA"/>
+        <SolidColorBrush x:Key="SectionShortcutsBrush" Color="#FF7A90"/>
+        <SolidColorBrush x:Key="SectionLookBrush" Color="#F472B6"/>
+        <SolidColorBrush x:Key="SectionAboutBrush" Color="#94A3B8"/>
+
+        <!-- Status chip in the device hero: green dot when OK, amber when it needs attention. -->
+        <Style x:Key="HeroChip" TargetType="Border">
+            <Setter Property="CornerRadius" Value="13"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="10,0,11,0"/>
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <!-- Chip buttons: drop the app-wide button minimum height so every chip is the same 26 px pill. -->
+        <Style x:Key="HeroChipButton" TargetType="Button">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <!-- Lights editor: Both / Top / Knob underline tabs (same look as Faders / Table in BandControls). -->
+        <Style x:Key="LightZoneChoice" TargetType="RadioButton">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Rail" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="{TemplateBinding Padding}" Background="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Lights editor: rounded chip with a green outline when it is the current choice. -->
+        <Style x:Key="LightChoiceBorder" TargetType="Border">
+            <Setter Property="CornerRadius" Value="15"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfLineBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
 
         <DataTemplate x:Key="SettingsSectionHeader">
             <DockPanel LastChildFill="True">
-                <Border DockPanel.Dock="Left" Width="26" Height="26" CornerRadius="7" Background="{DynamicResource WolfAccentHoverBrush}" Margin="0,0,10,0" VerticalAlignment="Center">
-                    <controls:PhosphorIcon IconName="{Binding Tag, RelativeSource={RelativeSource AncestorType=Expander}}" IconSize="16" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Border>
+                <!-- Icon tile tinted with the section's own colour (SectionColor). -->
+                <Grid DockPanel.Dock="Left" Width="30" Height="30" Margin="0,0,11,0" VerticalAlignment="Center">
+                    <Border CornerRadius="{StaticResource RadiusControl}" Opacity="0.16" Background="{Binding (views:SettingsPopover.SectionColor), RelativeSource={RelativeSource AncestorType=Expander}}"/>
+                    <Border CornerRadius="{StaticResource RadiusControl}" Opacity="0.4" BorderThickness="1" BorderBrush="{Binding (views:SettingsPopover.SectionColor), RelativeSource={RelativeSource AncestorType=Expander}}"/>
+                    <controls:PhosphorIcon IconName="{Binding Tag, RelativeSource={RelativeSource AncestorType=Expander}}" IconSize="17"
+                                           IconBrush="{Binding (views:SettingsPopover.SectionColor), RelativeSource={RelativeSource AncestorType=Expander}}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{Binding}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                     <TextBlock x:Name="SectionSummaryText"
                                Text="{Binding (views:SettingsPopover.SectionSummary), RelativeSource={RelativeSource AncestorType=Expander}}"
                                Style="{StaticResource TinyLabel}"
-                               FontSize="11"
                                FontWeight="Normal"
                                TextTrimming="CharacterEllipsis"
                                Margin="0,2,0,0"/>
@@ -52,10 +126,30 @@
                     <ContentPresenter Content="{Binding}" VerticalAlignment="Center"/>
                 </StackPanel>
             </DataTemplate></Setter.Value></Setter></Style>
-        <Style x:Key="SettingsPrimaryButton" TargetType="Button" BasedOn="{StaticResource SettingsActionButton}">
+        <!-- Button tiers inside Settings (same as the app-wide ones, plus an optional Tag icon):
+             Primary = solid green, at most one visible per section; Secondary = green outline, soft fill;
+             SettingsActionButton = plain button with a green icon; QuietButton = ghost. -->
+        <Style x:Key="SettingsSecondaryButton" TargetType="Button" BasedOn="{StaticResource SettingsActionButton}">
             <Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="SettingsPrimaryButton" TargetType="Button" BasedOn="{StaticResource SettingsActionButton}">
+            <Setter Property="Background" Value="{DynamicResource WolfGreenBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource WolfGreenContrastBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <!-- Icon takes the button's text colour so it stays visible on solid green. -->
+            <Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
+                <StackPanel Orientation="Horizontal">
+                    <controls:PhosphorIcon IconName="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}" IconSize="13" IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <controls:PhosphorIcon.Style><Style TargetType="controls:PhosphorIcon"><Style.Triggers>
+                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        </Style.Triggers></Style></controls:PhosphorIcon.Style>
+                    </controls:PhosphorIcon>
+                    <ContentPresenter Content="{Binding}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </DataTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="SettingsTabs" TargetType="TabControl" BasedOn="{StaticResource StudioTabs}"/>
         <Style x:Key="SettingsTab" TargetType="TabItem" BasedOn="{StaticResource StudioTab}"/>
@@ -69,7 +163,8 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Margin="18,16,14,14">
+            <!-- Same header as the Preset library overlay: 36 px icon tile, title + caption, 32 px close. -->
+            <Grid Grid.Row="0" Margin="18,16,16,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -78,9 +173,9 @@
                 <Border Width="36"
                         Height="36"
                         Background="{DynamicResource WolfAccentHoverBrush}"
-                        BorderBrush="{DynamicResource WolfGreenBrush}"
+                        BorderBrush="{DynamicResource WolfLineSoftBrush}"
                         BorderThickness="1"
-                        CornerRadius="9">
+                        CornerRadius="{StaticResource RadiusControl}">
                     <controls:PhosphorIcon IconName="Gear"
                                            IconSize="18"
                                            IconBrush="{DynamicResource WolfGreenBrush}"
@@ -88,9 +183,8 @@
                                            VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" Margin="11,0,12,0" VerticalAlignment="Center">
-                    <TextBlock Text="Settings"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Settings" Style="{StaticResource PanelTitle}"/>
+                    <TextBlock Text="Your device, sound, lights and shortcuts" Style="{StaticResource DimText}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
                 </StackPanel>
                 <Button x:Name="CloseButton"
                         Grid.Column="2"
@@ -120,10 +214,167 @@
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="2,0,4,0">
 
-                    <Expander Header="Device" Tag="Cpu" views:SettingsPopover.SectionSummary="{Binding DeviceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="True" Margin="0,0,0,8">
+                    <!-- Device hero: your device, its live lights, and connection status at a glance. -->
+                    <Border x:Name="DeviceHero" CornerRadius="{StaticResource RadiusCard}" Padding="14,12,14,14" Margin="0,0,0,8" BorderThickness="1"
+                            BorderBrush="{DynamicResource WolfLineSoftBrush}" Background="{DynamicResource WolfShellBrush}"
+                            Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <!-- Lit drawing for devices with lights; the product photo otherwise. -->
+                            <Grid Width="270" Height="92" HorizontalAlignment="Center"
+                                  Visibility="{Binding SelectedDeviceSupportsBleLighting, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Grid VerticalAlignment="Top" Height="22">
+                                    <Grid.Style>
+                                        <Style TargetType="Grid">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding TopLightPreviewBreathing}" Value="True">
+                                                    <DataTrigger.EnterActions>
+                                                        <BeginStoryboard x:Name="HeroTopBreathing">
+                                                            <Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.2" Duration="0:0:1.6" AutoReverse="True" RepeatBehavior="Forever"/></Storyboard>
+                                                        </BeginStoryboard>
+                                                    </DataTrigger.EnterActions>
+                                                    <DataTrigger.ExitActions><StopStoryboard BeginStoryboardName="HeroTopBreathing"/></DataTrigger.ExitActions>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Grid.Style>
+                                    <Border Width="200" Height="9" CornerRadius="4" Background="{Binding TopLightPreviewBrush}" Opacity="0.75" VerticalAlignment="Bottom" Margin="0,0,0,1">
+                                        <Border.Effect><BlurEffect Radius="14"/></Border.Effect>
+                                    </Border>
+                                    <Border Width="200" Height="5" CornerRadius="3" Background="{Binding TopLightPreviewBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                                </Grid>
+                                <Border Margin="0,22,0,0" CornerRadius="10" Background="#15181D" BorderBrush="#2E343C" BorderThickness="1">
+                                    <Grid>
+                                        <Border Width="84" Height="26" CornerRadius="4" Background="#0B0D10" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="22,0,0,0">
+                                            <TextBlock Text="{Binding SelectedDeviceUserPreset.DeviceName}" FontSize="11" Foreground="#7C8794" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Grid Width="50" Height="50" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,22,0">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding KnobLightPreviewBreathing}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard x:Name="HeroKnobBreathing">
+                                                                    <Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.25" Duration="0:0:1.6" AutoReverse="True" RepeatBehavior="Forever"/></Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions><StopStoryboard BeginStoryboardName="HeroKnobBreathing"/></DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Ellipse Stroke="{Binding KnobLightPreviewBrush}" StrokeThickness="7" Opacity="0.6">
+                                                <Ellipse.Effect><BlurEffect Radius="10"/></Ellipse.Effect>
+                                            </Ellipse>
+                                            <Ellipse Stroke="{Binding KnobLightPreviewBrush}" StrokeThickness="3" Fill="#0E1013" Margin="3"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                            <Image Source="{Binding SelectedDeviceProfile.ProductImagePath}" Height="76" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" HorizontalAlignment="Center">
+                                <Image.Style>
+                                    <Style TargetType="Image">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedDeviceSupportsBleLighting}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Image.Style>
+                            </Image>
+
+                            <DockPanel Margin="0,12,0,0">
+                                <Button Command="{Binding ConnectCommand}" Style="{StaticResource QuietButton}" DockPanel.Dock="Right" ToolTip="Reconnect device" AutomationProperties.Name="Reconnect device" Width="30" Height="28" MinHeight="0" Padding="0" Margin="0" VerticalAlignment="Center">
+                                    <Path Data="M16,6 A7,7 0 1 0 17,12 M16,1 V6 H11" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                </Button>
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding DeviceNickname}" Style="{StaticResource PanelTitle}"/>
+                                        <controls:HelpTip Title="Two connections" Text="USB carries your audio, EQ and USER slots. Bluetooth only drives the lights and the input switch."
+                                                          Visibility="{Binding SelectedDeviceSupportsBleLighting, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                    <!-- Model name only when the user has renamed the device; otherwise just the slot in use. -->
+                                    <TextBlock Margin="0,3,0,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DimText}">
+                                                <Setter Property="Text">
+                                                    <Setter.Value>
+                                                        <MultiBinding StringFormat="{}{0}  ·  Using {1}">
+                                                            <Binding Path="SelectedDeviceProfile.DisplayName"/>
+                                                            <Binding Path="SelectedDeviceUserPreset.DeviceName"/>
+                                                        </MultiBinding>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Value="True">
+                                                        <DataTrigger.Binding>
+                                                            <MultiBinding Converter="{StaticResource RepeatsText}">
+                                                                <Binding Path="DeviceNickname"/>
+                                                                <Binding Path="SelectedDeviceProfile.DisplayName"/>
+                                                            </MultiBinding>
+                                                        </DataTrigger.Binding>
+                                                        <Setter Property="Text" Value="{Binding SelectedDeviceUserPreset.DeviceName, StringFormat='Using {0}'}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <!-- Status chips: green = working; amber = click to fix. -->
+                            <!-- Negative bottom margin cancels the chips' 6 px wrap gap so the card padding stays even. -->
+                            <WrapPanel Margin="0,10,0,-6">
+                                <Button Command="{Binding ConnectCommand}" Style="{StaticResource HeroChipButton}" AutomationProperties.Name="USB status">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Style="{StaticResource HeroChip}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Ellipse x:Name="Dot" Width="7" Height="7" Margin="0,0,7,0" VerticalAlignment="Center" Fill="{DynamicResource WolfWarningBrush}"/>
+                                                    <TextBlock x:Name="Label" Text="USB not found · Reconnect" FontSize="11.5" VerticalAlignment="Center" Foreground="{DynamicResource WolfTextBrush}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource WolfGreenBrush}"/>
+                                                    <Setter TargetName="Label" Property="Text" Value="USB connected"/>
+                                                </DataTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Click="SetUpBluetooth_Click" Style="{StaticResource HeroChipButton}" AutomationProperties.Name="Bluetooth status"
+                                        Visibility="{Binding SelectedDeviceSupportsBleLighting, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Style="{StaticResource HeroChip}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Ellipse x:Name="Dot" Width="7" Height="7" Margin="0,0,7,0" VerticalAlignment="Center" Fill="{DynamicResource WolfWarningBrush}"/>
+                                                    <TextBlock x:Name="Label" Text="Set up Bluetooth" FontSize="11.5" VerticalAlignment="Center" Foreground="{DynamicResource WolfTextBrush}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsBluetoothSaved}" Value="True">
+                                                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource WolfGreenBrush}"/>
+                                                    <Setter TargetName="Label" Property="Text" Value="Bluetooth ready"/>
+                                                </DataTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Expander x:Name="DeviceSection" Header="Your device" Tag="Cpu"
+                              views:SettingsPopover.SectionColor="{StaticResource SectionDeviceBrush}"
+                              views:SettingsPopover.SectionSummary="{Binding DeviceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="False" Margin="0,0,0,8">
  <StackPanel Margin="0,10,0,0">
- <!-- Device picker stays visible in both modes so users can switch between FiiO and Software EQ. -->
+ <!-- Model picker stays visible in both modes so users can switch between FiiO and Software EQ. -->
  <StackPanel Margin="0,0,0,12">
+ <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+     <TextBlock Text="Model" Style="{StaticResource TinyLabel}" VerticalAlignment="Center"/>
+     <controls:HelpTip Title="{Binding SelectedDeviceProfile.DisplayName}" Text="{Binding DeviceModelHelpText}"/>
+ </StackPanel>
  <ComboBox ItemsSource="{Binding DeviceProfiles}" SelectedItem="{Binding SelectedDeviceProfile}" TextSearch.TextPath="DisplayLabel" AutomationProperties.Name="Device">
      <ComboBox.ItemTemplate>
          <DataTemplate>
@@ -134,33 +385,20 @@
          </DataTemplate>
      </ComboBox.ItemTemplate>
  </ComboBox>
- <TextBlock Text="{Binding DeviceProfileCapabilityText}" Style="{StaticResource DimText}" Margin="0,6,0,0"/>
- <TextBlock Text="K13 PEQ: up to 192 kHz / 24-bit PCM. MQA is unavailable while EQ is active; switching EQ may briefly reconnect USB." Style="{StaticResource DimText}" Margin="0,6,0,0" Visibility="{Binding IsK13R2RSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
  </StackPanel>
  <StackPanel Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
- <DockPanel Margin="0,0,0,10">
- <Button Command="{Binding ConnectCommand}" Style="{StaticResource QuietButton}" DockPanel.Dock="Right" ToolTip="Reconnect device" AutomationProperties.Name="Reconnect device" Width="30" Height="28" MinHeight="0" Padding="0" Margin="0">
- <Path Data="M16,6 A7,7 0 1 0 17,12 M16,1 V6 H11" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
- </Button>
- <StackPanel><TextBlock Text="{Binding DeviceNickname}" FontSize="14" FontWeight="SemiBold"/><TextBlock Text="{Binding ConnectionText}" Style="{StaticResource DimText}" Margin="0,2,0,0"/></StackPanel>
- </DockPanel>
- <TabControl Style="{StaticResource SettingsTabs}">
- <TabItem Tag="Link" Header="Connections" Style="{StaticResource SettingsTab}"><StackPanel Margin="0,10,0,0" IsEnabled="{Binding IntegrationControlsEnabled}">
-                            <TextBlock Text="{Binding DeviceBindingSummary}" Style="{StaticResource DimText}" Margin="2,0,2,10"/>
-                            <Grid Margin="2,0,2,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Device name" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding DeviceNickname, UpdateSourceTrigger=PropertyChanged}" Padding="10,6" MinHeight="32" ToolTip="A friendly name for this saved connection"/>
-                            </Grid>
+ <StackPanel IsEnabled="{Binding IntegrationControlsEnabled}">
+                            <!-- Same stacked label-over-field pattern as Model and USER slot name. -->
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="Device name" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                <TextBox Text="{Binding DeviceNickname, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Device name" ToolTip="A friendly name for this saved connection"/>
+                            </StackPanel>
                             <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,8">
                                 <StackPanel>
                                     <DockPanel LastChildFill="True" Margin="0,0,0,6">
                                         <Button Style="{StaticResource SettingsActionButton}" Tag="MagnifyingGlass" Content="Refresh" DockPanel.Dock="Right" Command="{Binding RefreshUsbDevicesCommand}" Padding="10,4" MinHeight="28" Margin="8,0,0,0" ToolTip="Look for connected USB devices"/>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="USB" FontWeight="SemiBold"/>
+                                            <TextBlock Text="USB" Style="{StaticResource CardTitle}"/>
                                             <TextBlock Text="Equalizer &amp; USER slots" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </DockPanel>
@@ -176,68 +414,98 @@
                                     </Grid>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,10">
+                            <DockPanel LastChildFill="True" Margin="0,0,0,12">
+                                <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Link" Content="Save USB device" DockPanel.Dock="Right" Command="{Binding SaveDeviceBindingCommand}" Padding="12,6" Margin="10,0,0,0"/>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="Only this unit is used." Style="{StaticResource DimText}" VerticalAlignment="Center"/><controls:HelpTip Title="Save USB device" Text="Saves the USB device and name above. WolfEQ never talks to another unit. If you move the K13 to a different USB port, pick it again here."/></StackPanel>
+                            </DockPanel>
+
+                            <!-- Bluetooth: guided find → flash → confirm. Saving happens on "Yes, use it". -->
+                            <Border x:Name="BluetoothCard" Style="{StaticResource SourceTileBorder}" Margin="0,0,0,4">
                                 <StackPanel>
-                                    <DockPanel LastChildFill="True" Margin="0,0,0,6">
-                                        <Button Style="{StaticResource SettingsActionButton}" Tag="WifiHigh" Content="Scan" DockPanel.Dock="Right" Command="{Binding ScanBluetoothDevicesCommand}" Padding="10,4" MinHeight="28" Margin="8,0,0,0" ToolTip="Scan for nearby K13 devices (8 seconds)"/>
+                                    <DockPanel LastChildFill="True" Margin="0,0,0,10">
+                                        <Border DockPanel.Dock="Right" CornerRadius="10" Padding="9,3" VerticalAlignment="Top" Margin="8,0,0,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsBluetoothSaved}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="7" Height="7" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="{DynamicResource WolfDimBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsBluetoothSaved}" Value="True">
+                                                                    <Setter Property="Fill" Value="{DynamicResource WolfGreenBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <TextBlock Text="{Binding BluetoothStatusText}" FontSize="11" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="Bluetooth" FontWeight="SemiBold"/>
-                                            <TextBlock Text="Lights &amp; device controls" Style="{StaticResource DimText}" Margin="0,2,0,0"/>
+                                            <TextBlock Text="Bluetooth" Style="{StaticResource CardTitle}"/>
+                                            <TextBlock Text="For lights and input switching." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </DockPanel>
-                                    <Grid>
-                                        <ComboBox ItemsSource="{Binding BluetoothDevices}" SelectedItem="{Binding SelectedBluetoothDevice}" MinHeight="34">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" MaxWidth="305" ToolTip="{Binding Details}"/></DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                        <TextBlock Text="Select a Bluetooth device" Margin="12,0,32,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource WolfDimBrush}">
-                                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedBluetoothDevice}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
-                                        </TextBlock>
-                                    </Grid>
-                                    <DockPanel LastChildFill="True" Margin="0,8,0,0">
-                                        <Button Style="{StaticResource SettingsActionButton}" Tag="Lightbulb" Content="Identify" DockPanel.Dock="Right" Command="{Binding IdentifyBluetoothDeviceCommand}" Padding="10,4" MinHeight="28" Margin="8,0,0,0" ToolTip="Briefly turn the selected unit's lights green, then restore them"/>
-                                        <TextBlock Text="Check this is your USB-connected unit." Style="{StaticResource DimText}" VerticalAlignment="Center"/>
+
+                                    <!-- Not set up -->
+                                    <StackPanel Visibility="{Binding ShowBluetoothFindPrompt, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="Switch your K13 on, then let WolfEQ find it. It takes about 8 seconds and you won't need to pair it in Windows." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                        <Button Style="{StaticResource SettingsSecondaryButton}" Tag="MagnifyingGlass" Content="Find my K13" Command="{Binding FindBluetoothCommand}" HorizontalAlignment="Left" Padding="14,6"/>
+                                    </StackPanel>
+
+                                    <!-- Searching -->
+                                    <DockPanel Visibility="{Binding IsBluetoothSearching, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,2,0,2">
+                                        <ProgressBar IsIndeterminate="True" Width="70" Height="4" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                     Foreground="{DynamicResource WolfGreenBrush}" Background="#1AFFFFFF" BorderThickness="0"/>
+                                        <TextBlock Text="Looking for nearby K13s..." Style="{StaticResource DimText}" VerticalAlignment="Center"/>
                                     </DockPanel>
+
+                                    <!-- Found one: confirm it's this desk's unit -->
+                                    <StackPanel Visibility="{Binding IsBluetoothConfirming, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="Found" Style="{StaticResource TinyLabel}" Margin="0,0,0,3"/>
+                                        <TextBlock Text="{Binding BluetoothCandidateDisplay}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Did your K13 flash green?" Style="{StaticResource CardTitle}" Margin="0,12,0,8"/>
+                                        <WrapPanel>
+                                            <Button Style="{StaticResource SettingsSecondaryButton}" Content="Yes, use it" Command="{Binding ConfirmBluetoothCommand}" Padding="14,6" Margin="0,0,8,6"/>
+                                            <Button Style="{StaticResource SettingsActionButton}" Content="No, try another" Command="{Binding RejectBluetoothCommand}" Padding="12,6" Margin="0,0,8,6"/>
+                                            <Button Style="{StaticResource SettingsActionButton}" Tag="Lightbulb" Content="Flash again" Command="{Binding FlashBluetoothCommand}" Padding="12,6" Margin="0,0,8,6"/>
+                                            <Button Style="{StaticResource QuietButton}" Content="Cancel" Command="{Binding CancelBluetoothSetupCommand}" Margin="0,0,0,6"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+
+                                    <!-- Set up -->
+                                    <StackPanel Visibility="{Binding ShowBluetoothSavedDevice, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="{Binding SavedBluetoothDisplay}" FontWeight="SemiBold"/>
+                                        <WrapPanel Margin="0,10,0,0">
+                                            <Button Style="{StaticResource SettingsActionButton}" Tag="Lightbulb" Content="Flash lights" Command="{Binding FlashBluetoothCommand}" Padding="12,5" Margin="0,0,8,0" ToolTip="Flash the K13's lights green for a moment to check WolfEQ can reach it"/>
+                                            <Button Style="{StaticResource SettingsActionButton}" Tag="MagnifyingGlass" Content="Change" Command="{Binding FindBluetoothCommand}" Padding="12,5" Margin="0,0,8,0" ToolTip="Search again and pick a different K13"/>
+                                            <Button Style="{StaticResource QuietButton}" Content="Forget" Command="{Binding ForgetBluetoothCommand}" ToolTip="Stop using this K13 over Bluetooth"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding BluetoothSetupMessage}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,10,0,0"
+                                               Visibility="{Binding HasBluetoothSetupMessage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                 </StackPanel>
                             </Border>
-                            <DockPanel LastChildFill="True" Margin="2,0">
-                                <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Link" Content="Save connection" DockPanel.Dock="Right" Command="{Binding SaveDeviceBindingCommand}" Padding="12,6" Margin="10,0,0,0"/>
-                                <TextBlock Text="Only these devices will be used." Style="{StaticResource DimText}" VerticalAlignment="Center" ToolTip="WolfEQ never falls back to another unit. If changing USB ports changes the device identity, select it again here."/>
-                            </DockPanel>
-                        </StackPanel></TabItem>
- <TabItem Tag="SlidersHorizontal" Header="Controls" Style="{StaticResource SettingsTab}"><StackPanel Margin="0,12,0,0">
- <DockPanel Margin="0,0,0,10">
- <Button Style="{StaticResource SettingsActionButton}" Tag="MagnifyingGlass" Content="Refresh" Command="{Binding ReadDeviceControlsCommand}" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
- <TextBlock Text="Playback" FontWeight="SemiBold" VerticalAlignment="Center"/>
- </DockPanel>
- <Grid Margin="0,0,0,12" IsEnabled="{Binding SelectedDeviceSupportsBleInput}">
- <Grid.ColumnDefinitions><ColumnDefinition Width="64"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
- <TextBlock Text="Input" VerticalAlignment="Center"/>
- <ComboBox Grid.Column="1" ItemsSource="{Binding DeviceInputSources}" SelectedItem="{Binding SelectedDeviceInputSource}" DisplayMemberPath="DisplayName"/>
- <StackPanel Grid.Column="2" Orientation="Horizontal">
- <Button Command="{Binding ReadInputSourceCommand}" Style="{StaticResource QuietButton}" Margin="6,0,0,0" Padding="6" ToolTip="Read current input"><controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}"/></Button>
- <Button Style="{StaticResource SettingsPrimaryButton}" Tag="ArrowRight" Content="Apply" Command="{Binding SetInputSourceCommand}" Margin="2,0,0,0"/>
  </StackPanel>
- </Grid>
- <StackPanel IsEnabled="{Binding SelectedDeviceSupportsBleDeviceControls}">
-<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceVolume}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/><TextBlock Text="Volume" Foreground="{DynamicResource WolfMutedBrush}"/></DockPanel>
- <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False"  Margin="0,0,0,6"/>
-<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceVolumeLimit}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/><TextBlock Text="Volume limit" Foreground="{DynamicResource WolfMutedBrush}"/></DockPanel>
- <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolumeLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False"  Margin="0,0,0,6"/>
-<DockPanel Margin="0,4,0,0"><TextBlock Text="{Binding DeviceChannelBalanceDisplay}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/><TextBlock Text="Balance" Foreground="{DynamicResource WolfMutedBrush}"/></DockPanel>
- <controls:StyledSlider Minimum="-10" Maximum="10" Value="{Binding DeviceChannelBalance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" CenterOrigin="True" Margin="0,0,0,6"/>
-<CheckBox Content="High gain" IsChecked="{Binding DeviceHighGain, Mode=TwoWay}" Margin="0,6,0,12"/>
+ <Border Height="1" Background="{DynamicResource WolfLineSoftBrush}" Margin="0,14,0,12"/>
+ <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+     <TextBlock Text="USER slot name" Style="{StaticResource TinyLabel}" VerticalAlignment="Center"/>
+     <controls:HelpTip Title="USER slot name" Text="Renames the USER slot that's playing now, up to 8 characters. WolfEQ shows this name; the K13's own screen keeps its built-in label."/>
  </StackPanel>
- <Border Height="1" Background="{DynamicResource WolfLineSoftBrush}" Margin="0,2,0,12"/>
- <TextBlock Text="Active slot name" Style="{StaticResource DimText}" Margin="0,0,0,6"/>
  <DockPanel>
  <Button Style="{StaticResource SettingsActionButton}" Tag="Keyboard" Content="Rename" Command="{Binding RenameUserSlotCommand}" DockPanel.Dock="Right" Margin="8,0,0,0"/>
  <TextBox Text="{Binding DeviceProfileName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="8" ToolTip="Up to 8 characters"/>
  </DockPanel>
- <TextBlock Text="{Binding DeviceControlsStatus}" Style="{StaticResource DimText}" Margin="0,10,0,0"/>
- </StackPanel></TabItem>
- </TabControl>
  </StackPanel>
 
                             <!-- Software EQ card: replaces the hardware Connections/Controls tabs in Software EQ mode. -->
@@ -246,7 +514,7 @@
                                     Background="{DynamicResource WolfShellBrush}"
                                     BorderBrush="{DynamicResource WolfLineSoftBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="10"
+                                    CornerRadius="{StaticResource RadiusCard}"
                                     Visibility="{Binding IsSystemEqSelected, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
                                 <StackPanel>
                                     <Grid>
@@ -255,7 +523,7 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Margin="0,0,12,0">
-                                            <TextBlock Text="Software EQ" FontSize="14" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Software EQ" Style="{StaticResource CardTitle}"/>
                                             <TextBlock Text="{Binding SystemEqStatusText}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" ToolTip="Turn off WolfEQ's effect without losing your EQ">
@@ -271,7 +539,7 @@
                                     <Border Margin="0,12,0,0">
                                         <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SourceTileBorder}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="NeedsInstall"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
                                         <StackPanel>
-                                            <TextBlock Text="Install Equalizer APO" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Install Equalizer APO" Style="{StaticResource CardTitle}"/>
                                             <TextBlock Text="WolfEQ uses the free Equalizer APO engine to apply your EQ to Windows outputs. It isn't installed yet." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,10"/>
                                             <Button x:Name="InstallApoButton" Content="Install Equalizer APO" Command="{Binding InstallEqualizerApoCommand}" HorizontalAlignment="Left" Padding="12,6" Margin="0" Tag="Cloud">
                                                 <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SettingsPrimaryButton}"><Style.Triggers><DataTrigger Binding="{Binding IsSystemEqSetupBusy}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
@@ -283,7 +551,7 @@
                                                 <ProgressBar Height="6" Minimum="0" Maximum="100"
                                                              Value="{Binding SystemEqSetupProgressPercent, Mode=OneWay}"
                                                              IsIndeterminate="{Binding IsSystemEqSetupProgressIndeterminate}"
-                                                             Foreground="{DynamicResource WolfCyanBrush}"
+                                                             Foreground="{DynamicResource WolfGreenBrush}"
                                                              AutomationProperties.Name="Equalizer APO setup progress"/>
                                             </StackPanel>
                                         </StackPanel>
@@ -291,7 +559,7 @@
                                     <Border Margin="0,12,0,0">
                                         <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SourceTileBorder}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="NeedsDeviceSelection"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
                                         <StackPanel>
-                                            <TextBlock Text="Add your outputs" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Add your outputs" Style="{StaticResource CardTitle}"/>
                                             <TextBlock Text="Equalizer APO is installed but not on any output yet. Pick your outputs in its device selector." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,10"/>
                                             <Button Style="{StaticResource SettingsPrimaryButton}" Tag="SpeakerHigh" Content="Add outputs in Equalizer APO" Command="{Binding OpenApoDeviceSelectorCommand}" HorizontalAlignment="Left" Padding="12,6" Margin="0"/>
                                             <TextBlock Text="Windows may need a restart before the EQ is heard." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
@@ -300,13 +568,13 @@
                                     <Border Margin="0,12,0,0">
                                         <Border.Style><Style TargetType="Border" BasedOn="{StaticResource SourceTileBorder}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="Blocked"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
                                         <StackPanel>
-                                            <TextBlock Text="Software EQ is paused" FontWeight="SemiBold" Foreground="{DynamicResource WolfWarningBrush}"/>
+                                            <TextBlock Text="Software EQ is paused" Style="{StaticResource CardTitle}" Foreground="{DynamicResource WolfWarningBrush}"/>
                                             <TextBlock Text="{Binding SystemEqWarningText}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Border>
 
                                     <!-- Double-EQ / enhancements warning. The Blocked step above already shows the reason. -->
-                                    <Border Padding="10,8" Margin="0,12,0,0" BorderBrush="{DynamicResource WolfWarningBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource WolfPanel2Brush}">
+                                    <Border Padding="10,8" Margin="0,12,0,0" BorderBrush="{DynamicResource WolfWarningBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanel2Brush}">
                                         <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="{Binding HasSystemEqWarning, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/><Style.Triggers><DataTrigger Binding="{Binding SystemEqState}" Value="Blocked"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
                                         <TextBlock Text="{Binding SystemEqWarningText}" Foreground="{DynamicResource WolfWarningBrush}" FontSize="12" TextWrapping="Wrap"/>
                                     </Border>
@@ -316,7 +584,7 @@
                                         <Button Style="{StaticResource SettingsActionButton}" Tag="Plus" Content="Add outputs" DockPanel.Dock="Right" Command="{Binding OpenApoDeviceSelectorCommand}" Padding="10,4" MinHeight="28" Margin="6,0,0,0" ToolTip="Install Equalizer APO on more outputs"/>
                                         <Button Style="{StaticResource SettingsActionButton}" Tag="MagnifyingGlass" Content="Refresh" DockPanel.Dock="Right" Command="{Binding RefreshSystemEqEndpointsCommand}" Padding="10,4" MinHeight="28" Margin="6,0,0,0" ToolTip="Look for outputs again"/>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="Outputs" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Outputs" Style="{StaticResource CardTitle}"/>
                                             <TextBlock Text="EQ applies only to ticked outputs." Style="{StaticResource DimText}" Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </DockPanel>
@@ -334,7 +602,7 @@
                                                             <DockPanel LastChildFill="True">
                                                                 <Border DockPanel.Dock="Right" Background="{DynamicResource WolfAccentHoverBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
                                                                         Visibility="{Binding IsFiio, Converter={StaticResource BooleanToVisibilityConverter}}" ToolTip="FiiO device: its own EQ may stack with Software EQ">
-                                                                    <TextBlock Text="FiiO" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource WolfGreenBrush}"/>
+                                                                    <TextBlock Text="FiiO" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource WolfGreenBrush}"/>
                                                                 </Border>
                                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
                                                             </DockPanel>
@@ -364,266 +632,329 @@
  </StackPanel>
  </Expander>
 
-                    <Expander Header="Profile Lights" Tag="Lightbulb" views:SettingsPopover.SectionSummary="{Binding LightsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander x:Name="SoundSection" Header="Sound" Tag="SlidersHorizontal"
+                              views:SettingsPopover.SectionColor="{StaticResource SectionSoundBrush}"
+                              views:SettingsPopover.SectionSummary="{Binding SoundSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}"
-                              Margin="0,0,0,10"
-                              Visibility="{Binding SelectedDeviceSupportsBleLighting, Converter={StaticResource BooleanToVisibilityConverter}}">
+                              Margin="0,0,0,8"
+                              Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Margin="0,10,0,0">
-                            <CheckBox Content="Apply saved lighting when switching USER slots" IsChecked="{Binding AutoSlotLighting}" IsEnabled="{Binding IntegrationControlsEnabled}" Margin="0,0,0,4"/>
-                            <TextBlock Text="Colors are saved per USB device and USER slot. Configure each slot's colors below. Previous global colors are retained on disk; configure colors for this connection once." Style="{StaticResource DimText}" Margin="0,0,0,12"/>
-                            <DockPanel Margin="0,0,0,10" LastChildFill="False">
-                                <Button Style="{StaticResource SettingsActionButton}" Tag="MagnifyingGlass" Content="Refresh"
-                                        Command="{Binding ReadLightsCommand}"
-
-                                        DockPanel.Dock="Right"/>
+                            <DockPanel Margin="0,0,0,12">
+                                <Button Style="{StaticResource QuietButton}" Content="Read from device" Command="{Binding ReadDeviceControlsCommand}" DockPanel.Dock="Right"
+                                        ToolTip="Show the values on your device right now"/>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="On your device" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                    <controls:HelpTip Title="Sound" Text="These settings live on the device itself. Switching input uses Bluetooth; everything else uses USB."/>
+                                </StackPanel>
                             </DockPanel>
 
-                            <StackPanel>
-                                <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <DockPanel Margin="0,0,0,12">
-                                            <StackPanel DockPanel.Dock="Left">
-                                                <TextBlock Text="Top Light" FontWeight="SemiBold" FontSize="14"/>
-                                                <TextBlock Text="{Binding TopLedSummary}"
-                                                           Style="{StaticResource DimText}"
-                                                           Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                            <Button Click="TopLedPower_Click"
-                                                    Style="{StaticResource QuietButton}"
-                                                    DockPanel.Dock="Right"
-                                                    HorizontalAlignment="Right">
-                                                <TextBlock>
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="{x:Type TextBlock}">
-                                                            <Setter Property="Text" Value="Off"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding TopLedOn}" Value="False">
-                                                                    <Setter Property="Text" Value="On"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Button>
-                                        </DockPanel>
+                            <Grid Margin="0,0,0,14" IsEnabled="{Binding SelectedDeviceSupportsBleInput}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="76"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Input" Foreground="{DynamicResource WolfTextBrush}"/>
+                                    <controls:HelpTip Title="Input" Text="Which source the device plays from. Pick one and press Apply. Needs Bluetooth to be set up."/>
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding DeviceInputSources}" SelectedItem="{Binding SelectedDeviceInputSource}" DisplayMemberPath="DisplayName" AutomationProperties.Name="Input"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <Button Command="{Binding ReadInputSourceCommand}" Style="{StaticResource QuietButton}" Margin="6,0,0,0" Padding="6" ToolTip="Check which input is on now" AutomationProperties.Name="Check current input">
+                                        <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}"/>
+                                    </Button>
+                                    <Button Style="{StaticResource SettingsPrimaryButton}" Tag="ArrowRight" Content="Apply" Command="{Binding SetInputSourceCommand}" Margin="2,0,0,0"/>
+                                </StackPanel>
+                            </Grid>
 
-                                        <TextBlock Text="Theme" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
-                                        <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,12">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Click="TopLedColorSwatch_Click"
-                                                            Width="34"
-                                                            Height="34"
-                                                            Margin="0,0,7,7"
-                                                            Padding="0"
-                                                            Cursor="Hand"
-                                                            ToolTip="{Binding Name}"
-                                                            Background="Transparent"
-                                                            BorderBrush="Transparent">
-                                                        <Button.Template>
-                                                            <ControlTemplate TargetType="{x:Type Button}">
-                                                                <Grid Width="34" Height="34">
-                                                                    <Border x:Name="SelectionRing"
-                                                                            Width="34"
-                                                                            Height="34"
-                                                                            CornerRadius="17"
-                                                                            BorderBrush="Transparent"
-                                                                            BorderThickness="0"
-                                                                            HorizontalAlignment="Center"
-                                                                            VerticalAlignment="Center"/>
-                                                                    <Border x:Name="Dot"
-                                                                            Width="24"
-                                                                            Height="24"
-                                                                            CornerRadius="12"
-                                                                            Background="{Binding Brush}"
-                                                                            HorizontalAlignment="Center"
-                                                                            VerticalAlignment="Center"/>
-                                                                </Grid>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
-                                                                    </Trigger>
-                                                                    <DataTrigger Value="True">
-                                                                        <DataTrigger.Binding>
-                                                                            <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
-                                                                                <Binding/>
-                                                                                <Binding Path="DataContext.SelectedTopLedColorOption"
-                                                                                         RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
-                                                                            </MultiBinding>
-                                                                        </DataTrigger.Binding>
-                                                                        <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{DynamicResource WolfTextBrush}"/>
-                                                                        <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
-                                                                    </DataTrigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Button.Template>
-                                                    </Button>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-
-                                        <TextBlock Text="Mode" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
-                                        <ItemsControl ItemsSource="{Binding LedModeOptions}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Content="{Binding Name}"
-                                                            Click="TopLedMode_Click"
-                                                            Style="{StaticResource QuietButton}"/>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                            <StackPanel IsEnabled="{Binding SelectedDeviceSupportsBleDeviceControls}">
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding DeviceVolume}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/>
+                                    <TextBlock Text="Volume" Foreground="{DynamicResource WolfMutedBrush}"/>
+                                </DockPanel>
+                                <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" Margin="0,0,0,6"/>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding DeviceVolumeLimit}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Volume limit" Foreground="{DynamicResource WolfMutedBrush}"/>
+                                        <controls:HelpTip Title="Volume limit" Text="The highest the volume can go. Protects sensitive headphones from a sudden loud turn of the knob."/>
                                     </StackPanel>
-                                </Border>
-
-                                <Border Style="{StaticResource SourceTileBorder}">
-                                    <StackPanel>
-                                        <DockPanel Margin="0,0,0,12">
-                                            <StackPanel DockPanel.Dock="Left">
-                                                <TextBlock Text="Knob Light" FontWeight="SemiBold" FontSize="14"/>
-                                                <TextBlock Text="{Binding KnobLedSummary}"
-                                                           Style="{StaticResource DimText}"
-                                                           Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                            <Button Click="KnobLedPower_Click"
-                                                    Style="{StaticResource QuietButton}"
-                                                    DockPanel.Dock="Right"
-                                                    HorizontalAlignment="Right">
-                                                <TextBlock>
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="{x:Type TextBlock}">
-                                                            <Setter Property="Text" Value="Off"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding KnobLedOn}" Value="False">
-                                                                    <Setter Property="Text" Value="On"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Button>
-                                        </DockPanel>
-
-                                        <TextBlock Text="Theme" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
-                                        <ItemsControl ItemsSource="{Binding LedColorOptions}" Margin="0,0,0,12">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Click="KnobLedColorSwatch_Click"
-                                                            Width="34"
-                                                            Height="34"
-                                                            Margin="0,0,7,7"
-                                                            Padding="0"
-                                                            Cursor="Hand"
-                                                            ToolTip="{Binding Name}"
-                                                            Background="Transparent"
-                                                            BorderBrush="Transparent">
-                                                        <Button.Template>
-                                                            <ControlTemplate TargetType="{x:Type Button}">
-                                                                <Grid Width="34" Height="34">
-                                                                    <Border x:Name="SelectionRing"
-                                                                            Width="34"
-                                                                            Height="34"
-                                                                            CornerRadius="17"
-                                                                            BorderBrush="Transparent"
-                                                                            BorderThickness="0"
-                                                                            HorizontalAlignment="Center"
-                                                                            VerticalAlignment="Center"/>
-                                                                    <Border x:Name="Dot"
-                                                                            Width="24"
-                                                                            Height="24"
-                                                                            CornerRadius="12"
-                                                                            Background="{Binding Brush}"
-                                                                            HorizontalAlignment="Center"
-                                                                            VerticalAlignment="Center"/>
-                                                                </Grid>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
-                                                                    </Trigger>
-                                                                    <DataTrigger Value="True">
-                                                                        <DataTrigger.Binding>
-                                                                            <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
-                                                                                <Binding/>
-                                                                                <Binding Path="DataContext.SelectedKnobLedColorOption"
-                                                                                         RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
-                                                                            </MultiBinding>
-                                                                        </DataTrigger.Binding>
-                                                                        <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{DynamicResource WolfTextBrush}"/>
-                                                                        <Setter TargetName="SelectionRing" Property="BorderThickness" Value="2"/>
-                                                                    </DataTrigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Button.Template>
-                                                    </Button>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-
-                                        <TextBlock Text="Mode" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
-                                        <ItemsControl ItemsSource="{Binding LedModeOptions}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Content="{Binding Name}"
-                                                            Click="KnobLedMode_Click"
-                                                            Style="{StaticResource QuietButton}"/>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                </DockPanel>
+                                <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolumeLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" Margin="0,0,0,6"/>
+                                <DockPanel Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding DeviceChannelBalanceDisplay}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Balance" Foreground="{DynamicResource WolfMutedBrush}"/>
+                                        <controls:HelpTip Title="Balance" Text="Shifts the sound toward the left or right ear. Leave it centred unless one side sounds louder."/>
                                     </StackPanel>
-                                </Border>
+                                </DockPanel>
+                                <controls:StyledSlider Minimum="-10" Maximum="10" Value="{Binding DeviceChannelBalance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" CenterOrigin="True" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
+                                    <CheckBox Content="High gain" IsChecked="{Binding DeviceHighGain, Mode=TwoWay}"/>
+                                    <controls:HelpTip Title="High gain" Text="More power for hard-to-drive headphones. Leave it off for IEMs and most closed-backs."/>
+                                </StackPanel>
                             </StackPanel>
-
-                            <TextBlock Text="Presets"
-                                       Style="{StaticResource TinyLabel}"
-                                       Margin="0,14,0,8"/>
-                            <ItemsControl ItemsSource="{Binding LedSceneOptions}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Content="{Binding Name}"
-                                                Click="LedScene_Click"
-                                                Style="{StaticResource QuietButton}"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <!-- Last read/write result: a quiet status line. Long technical errors are capped at three lines; hover shows all of it. -->
+                            <Border Margin="0,10,0,0" Padding="10,7" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfShellBrush}"
+                                    ToolTip="{Binding DeviceControlsStatus}" ToolTipService.ShowDuration="60000">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DeviceControlsStatus}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding DeviceControlsStatus}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <DockPanel>
+                                    <Ellipse DockPanel.Dock="Left" Width="6" Height="6" Fill="{DynamicResource WolfDimBrush}" VerticalAlignment="Top" Margin="0,5,8,0"/>
+                                    <TextBlock Text="{Binding DeviceControlsStatus}" Style="{StaticResource DimText}" TextWrapping="Wrap"
+                                               LineHeight="15" MaxHeight="45" TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                            </Border>
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="Windows Audio" Tag="SpeakerHigh" views:SettingsPopover.SectionSummary="{Binding WindowsAudioSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander x:Name="LightsSection" Header="Lights" Tag="Lightbulb" views:SettingsPopover.SectionColor="{StaticResource SectionLightsBrush}" views:SettingsPopover.SectionSummary="{Binding LightsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                              IsExpanded="False"
+                              Foreground="{DynamicResource WolfMutedBrush}"
+                              Margin="0,0,0,8"
+                              Visibility="{Binding SelectedDeviceSupportsBleLighting, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel Margin="0,10,0,0">
+
+                            <!-- Lights only work over Bluetooth: say so, and link straight to setup. -->
+                            <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,12"
+                                    BorderBrush="{DynamicResource WolfGreenBrush}" BorderThickness="1"
+                                    Visibility="{Binding LightsNeedBluetooth, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel>
+                                    <TextBlock Text="Set up Bluetooth to change the lights" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Text="The K13's lights work over Bluetooth. Setup is quick and needs no Windows pairing." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,3,0,10"/>
+                                    <Button Style="{StaticResource SettingsPrimaryButton}" Tag="MagnifyingGlass" Content="Set up Bluetooth" Click="SetUpBluetooth_Click" HorizontalAlignment="Left" Padding="14,6"/>
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel IsEnabled="{Binding IsBluetoothSaved}">
+                                <DockPanel Margin="0,0,0,2">
+                                    <Button Style="{StaticResource QuietButton}" Content="Read from K13" Command="{Binding ReadLightsCommand}" DockPanel.Dock="Right"
+                                            ToolTip="Show the colors that are on your K13 right now"/>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="{Binding LightsEditingTitle}" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/><controls:HelpTip Title="Lights" Text="Each USER slot remembers its own lights and shows them when you switch. Changes go to the K13 over Bluetooth."/></StackPanel>
+                                </DockPanel>
+                                
+                                <CheckBox Content="Switch lights when I change USER slot" IsChecked="{Binding AutoSlotLighting}" IsEnabled="{Binding IntegrationControlsEnabled}" Margin="0,0,0,12"/>
+
+                                <!-- Live preview of the K13: top light bar and volume knob ring. Kept small because the
+                                     hero card above already shows the device; this one previews edits as you make them. -->
+                                <Border Style="{StaticResource SourceTileBorder}" Padding="12,10" Margin="0,0,0,14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Viewbox Width="150" Stretch="Uniform" VerticalAlignment="Center">
+                                        <Grid Width="270" Height="96" HorizontalAlignment="Center">
+                                            <Grid VerticalAlignment="Top" Height="22">
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TopLightPreviewBreathing}" Value="True">
+                                                                <DataTrigger.EnterActions>
+                                                                    <BeginStoryboard x:Name="TopBreathing">
+                                                                        <Storyboard>
+                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.2" Duration="0:0:1.6" AutoReverse="True" RepeatBehavior="Forever"/>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </DataTrigger.EnterActions>
+                                                                <DataTrigger.ExitActions>
+                                                                    <StopStoryboard BeginStoryboardName="TopBreathing"/>
+                                                                </DataTrigger.ExitActions>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
+                                                <Border Width="200" Height="9" CornerRadius="4" Background="{Binding TopLightPreviewBrush}" Opacity="0.75" VerticalAlignment="Bottom" Margin="0,0,0,1">
+                                                    <Border.Effect><BlurEffect Radius="14"/></Border.Effect>
+                                                </Border>
+                                                <Border Width="200" Height="5" CornerRadius="3" Background="{Binding TopLightPreviewBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                                            </Grid>
+                                            <Border Margin="0,22,0,0" CornerRadius="10" Background="#15181D" BorderBrush="#2E343C" BorderThickness="1">
+                                                <Grid>
+                                                    <!-- Blank screen: at this scale a label would be too small to read. -->
+                                                    <Border Width="84" Height="26" CornerRadius="4" Background="#0B0D10" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="22,0,0,0"/>
+                                                    <Grid Width="52" Height="52" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,22,0">
+                                                        <Grid.Style>
+                                                            <Style TargetType="Grid">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding KnobLightPreviewBreathing}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard x:Name="KnobBreathing">
+                                                                                <Storyboard>
+                                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.25" Duration="0:0:1.6" AutoReverse="True" RepeatBehavior="Forever"/>
+                                                                                </Storyboard>
+                                                                            </BeginStoryboard>
+                                                                        </DataTrigger.EnterActions>
+                                                                        <DataTrigger.ExitActions>
+                                                                            <StopStoryboard BeginStoryboardName="KnobBreathing"/>
+                                                                        </DataTrigger.ExitActions>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Grid.Style>
+                                                        <Ellipse Stroke="{Binding KnobLightPreviewBrush}" StrokeThickness="7" Opacity="0.6">
+                                                            <Ellipse.Effect><BlurEffect Radius="10"/></Ellipse.Effect>
+                                                        </Ellipse>
+                                                        <Ellipse Stroke="{Binding KnobLightPreviewBrush}" StrokeThickness="3" Fill="#0E1013" Margin="3"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                        </Viewbox>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,0,0">
+                                            <TextBlock Text="Top" Style="{StaticResource TinyLabel}"/>
+                                            <TextBlock Text="{Binding TopLightPreviewText}" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                            <TextBlock Text="Knob" Style="{StaticResource TinyLabel}" Margin="0,8,0,0"/>
+                                            <TextBlock Text="{Binding KnobLightPreviewText}" Foreground="{DynamicResource WolfTextBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Which light to edit, and its power switch. -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding EditorLightOnText}" Foreground="{DynamicResource WolfTextBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ToggleButton Style="{StaticResource BandPowerToggle}" IsChecked="{Binding EditorLightOn, Mode=TwoWay}"
+                                                      AutomationProperties.Name="Light on or off" ToolTip="Turn the selected light on or off" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Edit" Style="{StaticResource TinyLabel}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <RadioButton GroupName="LightZone" Style="{StaticResource LightZoneChoice}" Content="Both"
+                                                     IsChecked="{Binding LightEditZone, Converter={StaticResource StringEquals}, ConverterParameter=Both}"/>
+                                        <RadioButton GroupName="LightZone" Style="{StaticResource LightZoneChoice}" Content="Top"
+                                                     IsChecked="{Binding LightEditZone, Converter={StaticResource StringEquals}, ConverterParameter=Top}"/>
+                                        <RadioButton GroupName="LightZone" Style="{StaticResource LightZoneChoice}" Content="Knob"
+                                                     IsChecked="{Binding LightEditZone, Converter={StaticResource StringEquals}, ConverterParameter=Knob}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <TextBlock Text="Top and knob are set differently. What you pick now applies to both."
+                                           Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,0,0,6"
+                                           Visibility="{Binding LightZonesDiffer, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                <!-- Effects: everything the K13 can do by itself. -->
+                                <TextBlock Text="Effect" Style="{StaticResource TinyLabel}" Margin="0,8,0,8"/>
+                                <ItemsControl ItemsSource="{Binding LightEffectOptions}" Margin="0,0,0,10">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Click="LightEffect_Click" ToolTip="{Binding Description}" AutomationProperties.Name="{Binding Name}" Cursor="Hand" Margin="0,0,5,6">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="Chip" Style="{StaticResource LightChoiceBorder}">
+                                                            <TextBlock x:Name="Label" Text="{Binding Name}" Foreground="{DynamicResource WolfMutedBrush}"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                                            </Trigger>
+                                                            <DataTrigger Value="True">
+                                                                <DataTrigger.Binding>
+                                                                    <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                        <Binding/>
+                                                                        <Binding Path="DataContext.EditorLightEffect" RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
+                                                                    </MultiBinding>
+                                                                </DataTrigger.Binding>
+                                                                <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                                                <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+                                                            </DataTrigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="Chip" Property="Opacity" Value="0.45"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Colors (for Solid and Breathing; picking one leaves Rainbow / Follow audio). -->
+                                <TextBlock Text="Color" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                <ItemsControl ItemsSource="{Binding LightColorChoices}" Margin="0,0,0,10">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Click="LightColor_Click" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}" Cursor="Hand" Width="52" Margin="0,0,2,6">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <StackPanel Background="Transparent">
+                                                            <Grid Width="34" Height="34">
+                                                                <Ellipse x:Name="Ring" Stroke="Transparent" StrokeThickness="2"/>
+                                                                <Ellipse x:Name="Dot" Width="24" Height="24" Fill="{Binding Brush}"/>
+                                                            </Grid>
+                                                            <TextBlock x:Name="Label" Text="{Binding Name}" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" Margin="0,2,0,0"/>
+                                                        </StackPanel>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Dot" Property="Opacity" Value="0.82"/>
+                                                            </Trigger>
+                                                            <DataTrigger Value="True">
+                                                                <DataTrigger.Binding>
+                                                                    <MultiBinding Converter="{StaticResource ReferenceEqualsMultiConverter}">
+                                                                        <Binding/>
+                                                                        <Binding Path="DataContext.EditorLightColor" RelativeSource="{RelativeSource AncestorType={x:Type UserControl}}"/>
+                                                                    </MultiBinding>
+                                                                </DataTrigger.Binding>
+                                                                <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource WolfTextBrush}"/>
+                                                                <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource WolfTextBrush}"/>
+                                                            </DataTrigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="Dot" Property="Opacity" Value="0.4"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Two-tone looks set both lights at once. -->
+                                <TextBlock Text="Two-tone looks" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
+                                <ItemsControl ItemsSource="{Binding LedSceneOptions}">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Click="LightLook_Click" ToolTip="{Binding Description}" AutomationProperties.Name="{Binding Name}" Cursor="Hand" Margin="0,0,5,6">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="Chip" Style="{StaticResource LightChoiceBorder}" Padding="10,6,12,6">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Ellipse Width="10" Height="10" Fill="{Binding TopBrush}" VerticalAlignment="Center"/>
+                                                                <Ellipse Width="10" Height="10" Fill="{Binding KnobBrush}" VerticalAlignment="Center" Margin="3,0,8,0"/>
+                                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource WolfMutedBrush}" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="Chip" Property="Opacity" Value="0.45"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Windows output" Tag="Monitor" views:SettingsPopover.SectionColor="{StaticResource SectionWindowsBrush}" views:SettingsPopover.SectionSummary="{Binding WindowsAudioSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}"
                               Expanded="WindowsAudioExpander_Expanded"
-                              Margin="0,0,0,10">
+                              Margin="0,0,0,8">
                         <StackPanel Margin="0,10,0,0">
-                            <Border Padding="13,12"
-                                    Background="{DynamicResource WolfShellBrush}"
-                                    BorderBrush="{DynamicResource WolfLineSoftBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10">
+                            <!-- Same inner tile as the USB and Bluetooth cards in Your device. -->
+                            <Border Style="{StaticResource SourceTileBorder}" Padding="12">
                                 <StackPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -631,26 +962,28 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
-                                            <TextBlock Text="Default format"
-                                                       Style="{StaticResource TinyLabel}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Default format" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                                <controls:HelpTip Title="Default format" Text="The bit depth and sample rate Windows sends to your default output. Formats the output can't play are greyed out."/>
+                                            </StackPanel>
                                             <TextBlock Text="{Binding WindowsAudioCurrentFormat}"
-                                                       FontSize="15"
-                                                       FontWeight="SemiBold"
+                                                       FontSize="13"
+                                                       Foreground="{DynamicResource WolfTextBrush}"
                                                        Margin="0,4,0,0"/>
                                             <TextBlock Text="{Binding WindowsAudioFormatStatus}"
                                                        Style="{StaticResource DimText}"
                                                        TextWrapping="Wrap"
                                                        Margin="0,4,12,0"/>
                                         </StackPanel>
+                                        <!-- Same refresh glyph as the hero's reconnect button (there is no ArrowClockwise icon geometry). -->
                                         <Button Grid.Column="1"
                                                 Command="{Binding RefreshWindowsAudioFormatsCommand}"
                                                 Style="{StaticResource QuietButton}"
-                                                Padding="10,7"
+                                                Width="30" Height="28" MinHeight="0" Padding="0"
                                                 VerticalAlignment="Top"
-                                                ToolTip="Rescan the Windows default output">
-                                            <controls:PhosphorIcon IconName="ArrowClockwise"
-                                                                   IconSize="15"
-                                                                   IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                                                ToolTip="Rescan the Windows default output"
+                                                AutomationProperties.Name="Rescan Windows output">
+                                            <Path Data="M16,6 A7,7 0 1 0 17,12 M16,1 V6 H11" Width="15" Height="15" Stretch="Uniform" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
                                         </Button>
                                     </Grid>
 
@@ -687,7 +1020,7 @@
                                                                    FontWeight="SemiBold"
                                                                    HorizontalAlignment="Center"/>
                                                         <TextBlock Text="CURRENT"
-                                                                   FontSize="8"
+                                                                   FontSize="11"
                                                                    FontWeight="SemiBold"
                                                                    Margin="0,3,0,0"
                                                                    Foreground="{DynamicResource WolfGreenBrush}"
@@ -701,60 +1034,129 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Padding="13,12"
-                                    Margin="0,8,0,0"
-                                    Background="{DynamicResource WolfShellBrush}"
-                                    BorderBrush="{DynamicResource WolfLineSoftBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10">
+                            <Border Style="{StaticResource SourceTileBorder}" Padding="12" Margin="0,0,0,4">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Margin="0,0,12,0">
-                                        <TextBlock Text="Spatial sound"
-                                                   FontSize="13"
-                                                   FontWeight="SemiBold"/>
+                                        <TextBlock Text="Spatial sound" Style="{StaticResource CardTitle}"/>
                                         <TextBlock Text="Windows Sonic, Dolby Atmos, or DTS"
                                                    Style="{StaticResource DimText}"
                                                    Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <Button Grid.Column="1"
                                             Content="Manage"
+                                            Tag="ArrowRight"
                                             Command="{Binding OpenWindowsOutputSettingsCommand}"
-                                            Style="{StaticResource AccentButton}"
+                                            Style="{StaticResource SettingsActionButton}"
+                                            ToolTip="Open Windows output settings"
                                             VerticalAlignment="Center"/>
                                 </Grid>
-                            </Border>
-
-                            <Border Padding="10,8"
-                                    Margin="0,8,0,0"
-                                    Background="{DynamicResource WolfPanel2Brush}"
-                                    CornerRadius="8">
-                                <TextBlock Text="Applies to the Windows default output. Unsupported formats stay disabled."
-                                           Foreground="{DynamicResource WolfMutedBrush}"
-                                           FontSize="10"
-                                           TextWrapping="Wrap"/>
                             </Border>
                         </StackPanel>
                     </Expander>
 
                     <!-- Integrations show in both modes: USER slot switching is hardware-only, while
                          Software EQ mode has its own bypass and preset commands. -->
-                    <Expander Header="Integrations" Tag="Keyboard" views:SettingsPopover.SectionSummary="{Binding IntegrationsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,10">
-                        <StackPanel Margin="4,10">
+                    <Expander Header="Shortcuts" Tag="Keyboard" views:SettingsPopover.SectionColor="{StaticResource SectionShortcutsBrush}" views:SettingsPopover.SectionSummary="{Binding IntegrationsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,8">
+                        <StackPanel Margin="0,10,0,0">
                         <StackPanel x:Name="HardwareStreamDeckPanel" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="Stream Deck" FontWeight="SemiBold" FontSize="14"/>
-                            <TextBlock Text="Switch to an EQ already stored in a USER slot with one key press." Style="{StaticResource MutedText}" Margin="0,6,0,10"/>
-                            <ToggleButton x:Name="StreamDeckSetupButton" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=StreamDeckSetupPopup, Mode=TwoWay}" Margin="0,0,0,12" HorizontalContentAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Stream Deck keys" Style="{StaticResource CardTitle}"/>
+                                <controls:HelpTip Title="Stream Deck keys" Text="Each key switches your device to a USER slot that's already saved on it, with WolfEQ open or closed. The lights follow when that's turned on in Lights."/>
+                            </StackPanel>
+                            <TextBlock Text="Pick a slot, then set up its key." Style="{StaticResource DimText}" Margin="0,4,0,12"/>
+
+                            <!-- One Stream Deck-style key per USER slot; the strip glows in that slot's top-light colour. -->
+                            <!-- Five keys per row (5 x 2 for ten slots, like the wizard). The grid shares the panel
+                                 width; the negative margin keeps the outer keys flush with the text above. -->
+                            <ItemsControl ItemsSource="{Binding StreamDeckKeys}" Margin="-3,0,-3,4">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="5"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Click="StreamDeckKey_Click" Height="70" Margin="3,0,3,6" Cursor="Hand" MinHeight="0" Padding="0"
+                                                ToolTip="{Binding Label}" AutomationProperties.Name="{Binding Label}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="Key" CornerRadius="13" Background="#0C1013" BorderBrush="#2A323A" BorderThickness="1.5">
+                                                        <Grid>
+                                                            <Border Height="6" CornerRadius="3" Background="{Binding Glow}" Opacity="0.7" VerticalAlignment="Top" Margin="14,7,14,0">
+                                                                <Border.Effect><BlurEffect Radius="8"/></Border.Effect>
+                                                            </Border>
+                                                            <Border Height="3" CornerRadius="2" Background="{Binding Glow}" VerticalAlignment="Top" Margin="16,9,16,0"/>
+                                                            <StackPanel VerticalAlignment="Center" Margin="4,8,4,0">
+                                                                <TextBlock Text="{Binding Label}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{DynamicResource WolfTextBrush}"/>
+                                                                <!-- Local EQ name; hidden when it only repeats the slot ("From USER 1" under "USER 1"). -->
+                                                                <TextBlock Text="{Binding Subtitle}" FontSize="11" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="62" Foreground="{DynamicResource WolfMutedBrush}" Margin="0,2,0,0">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Value="True">
+                                                                                    <DataTrigger.Binding>
+                                                                                        <MultiBinding Converter="{StaticResource RepeatsText}" ConverterParameter="From ">
+                                                                                            <Binding Path="Subtitle"/>
+                                                                                            <Binding Path="Label"/>
+                                                                                        </MultiBinding>
+                                                                                    </DataTrigger.Binding>
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Key" Property="Background" Value="#141A1F"/>
+                                                        </Trigger>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter TargetName="Key" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                                            <Setter TargetName="Key" Property="BorderThickness" Value="2"/>
+                                                        </DataTrigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Style="{StaticResource SourceTileBorder}">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Keyboard" Content="Set up this key" Click="OpenStreamDeckWizard_Click"
+                                                DockPanel.Dock="Right" VerticalAlignment="Center" Padding="12,6" Margin="10,0,0,0"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SelectedStreamDeckKey.Label, StringFormat='{}{0} key', FallbackValue='Pick a slot'}" Style="{StaticResource CardTitle}"/>
+                                            <TextBlock Text="A short guide, about a minute." Style="{StaticResource DimText}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding StreamDeckSetupNote}" Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                    <WrapPanel Margin="0,10,0,0">
+                                        <Button Style="{StaticResource SettingsSecondaryButton}" Tag="Folder" Content="Save shortcut..." Command="{Binding SaveStreamDeckShortcutCommand}" Margin="0,0,8,0"
+                                                ToolTip="Already know the steps? Save this slot's shortcut straight away."/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Expander Header="Advanced &amp; troubleshooting" Margin="0,12,0,0"><StackPanel Margin="0,8,0,0">
+                                <TextBlock Text="Command for this key" Style="{StaticResource TinyLabel}" Margin="0,0,0,6"/>
+                                <TextBox Text="{Binding StreamDeckCommand, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Margin="0,0,0,8"/>
+                                <WrapPanel Margin="0,0,0,12">
+                                    <Button Style="{StaticResource SettingsActionButton}" Tag="AppWindow" Content="Copy command" Command="{Binding CopyStreamDeckCommand}" Margin="0,0,8,0"/>
+                                </WrapPanel>
+                            <ToggleButton x:Name="StreamDeckSetupButton" Style="{StaticResource StudioMenuToggle}" IsChecked="{Binding IsOpen, ElementName=StreamDeckSetupPopup, Mode=TwoWay}" Margin="0,0,0,10" HorizontalContentAlignment="Left">
                                 <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="Keyboard" IconSize="18" IconBrush="{DynamicResource WolfGreenBrush}" Margin="0,0,10,0"/><TextBlock Text="Windows ScriptDeck setup"/></StackPanel>
                             </ToggleButton>
                             <Popup x:Name="StreamDeckSetupPopup" PlacementTarget="{Binding ElementName=StreamDeckSetupButton}" Placement="Left" HorizontalOffset="-10" StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                <Border Width="420" Padding="18" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" PreviewKeyDown="StreamDeckSetup_KeyDown">
+                                <Border Width="420" Padding="18" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusOverlay}" PreviewKeyDown="StreamDeckSetup_KeyDown">
                                     <ScrollViewer MaxHeight="540" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel>
-                                            <DockPanel Margin="0,0,0,12"><Button DockPanel.Dock="Right" Content="&#x00D7;" Style="{StaticResource QuietButton}" Click="CloseStreamDeckSetup_Click" AutomationProperties.Name="Close Stream Deck setup"/><TextBlock Text="One-button EQ switching" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
+                                            <DockPanel Margin="0,0,0,12"><Button DockPanel.Dock="Right" Content="&#x00D7;" Style="{StaticResource QuietButton}" Click="CloseStreamDeckSetup_Click" AutomationProperties.Name="Close Stream Deck setup"/><TextBlock Text="One-button EQ switching" Style="{StaticResource PanelTitle}" VerticalAlignment="Center"/></DockPanel>
                                             <TextBlock Text="1. Install Windows ScriptDeck" FontWeight="SemiBold"/>
                                             <TextBlock Text="Get the Windows ScriptDeck plugin by Start-Automating from Elgato Marketplace." TextWrapping="Wrap" Style="{StaticResource DimText}" Margin="0,5,0,8"/>
                                             <Button Content="Open plugin in Marketplace" Command="{Binding OpenWindowsScriptDeckCommand}" Style="{StaticResource AccentButton}" HorizontalAlignment="Left"/>
@@ -772,18 +1174,9 @@
                                     </ScrollViewer>
                                 </Border>
                             </Popup>
-                            <TextBlock Text="USER slot"/>
-                            <ComboBox ItemsSource="{Binding IntegrationSlots}" SelectedItem="{Binding IntegrationSlot}" Margin="0,4,0,8"/>
-                            <TextBox Text="{Binding StreamDeckCommand, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,4,0,8"/>
-                            <WrapPanel>
-                                <Button Style="{StaticResource SettingsActionButton}" Tag="AppWindow" Content="Copy command" Command="{Binding CopyStreamDeckCommand}"/>
-                                <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Folder" Content="Save shortcut..." Command="{Binding SaveStreamDeckShortcutCommand}"/>
-                            </WrapPanel>
-                            <Expander Header="Setup &amp; troubleshooting" Margin="0,10,0,0"><StackPanel Margin="0,6,0,0">
-                            <TextBlock Style="{StaticResource MutedText}" Margin="0,10" Text="1. In Device > Connections, save the intended USB and Bluetooth connection.&#10;2. Choose a USER slot above and click Save shortcut.&#10;3. In Stream Deck, drag System > Open onto a key.&#10;4. Choose the saved .lnk shortcut in App / File and name the key for your headphones.&#10;5. Repeat for each headphone EQ slot."/>
-                            <TextBlock Text="Works with WolfEQ open or closed without bringing the editor forward. Use a current Stream Deck release that supports shortcut arguments. Recreate shortcuts if you move WolfEQ or change the device connection." Style="{StaticResource DimText}" Margin="0,4"/>
-                            <TextBlock Text="Save or discard unsaved editor changes before using a key. Commands never overwrite a slot with a library preset. Lighting follows the slot when enabled in Profile Lights." Style="{StaticResource DimText}" Margin="0,4"/>
-                            <TextBlock Text="Troubleshooting: the latest command result is in %LOCALAPPDATA%\WolfEQ\automation-result.json. For scripts: --help and --list-devices. Exit codes: 0 success, 1 failure, 2 invalid arguments, 3 busy or unsaved edits, 4 slot switched but lighting failed." Style="{StaticResource DimText}" Margin="0,4"/>
+                                <TextBlock Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4" Text="Shortcut method: in Stream Deck, drag System > Open onto a key and pick the saved .lnk in App / File. Works with WolfEQ open or closed. Recreate shortcuts if you move WolfEQ or change the USB device."/>
+                                <TextBlock Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4" Text="Keys never overwrite a slot with a library preset. Save or discard unsaved editor changes before pressing one."/>
+                                <TextBlock Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,4" Text="Troubleshooting: the latest result is in %LOCALAPPDATA%\WolfEQ\automation-result.json. For scripts: --help and --list-devices. Exit codes: 0 success, 1 failure, 2 invalid arguments, 3 busy or unsaved edits, 4 slot switched but lighting failed."/>
                             </StackPanel></Expander>
                         </StackPanel>
 
@@ -800,8 +1193,8 @@
                                                     <DataTemplate>
                                                         <Border Style="{StaticResource SourceTileBorder}">
                                                             <StackPanel>
-                                                                <TextBlock Text="Stream Deck and shortcuts" FontWeight="SemiBold" FontSize="14"/>
-                                                                <TextBlock Text="Bypass Software EQ or apply a library preset from a Stream Deck key, shortcut or script. WolfEQ can be open or closed." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,10"/>
+                                                                <TextBlock Text="Stream Deck and shortcuts" Style="{StaticResource CardTitle}"/>
+                                                                <TextBlock Text="Bypass Software EQ or apply a library preset from a Stream Deck key, shortcut or script. WolfEQ can be open or closed." Style="{StaticResource Caption}" Margin="0,6,0,10"/>
                                                                 <TextBlock Text="Bypass (on, off or toggle)" FontWeight="SemiBold"/>
                                                                 <TextBox Text="{Binding StreamDeckExecutable, Mode=OneWay, StringFormat='&quot;{0}&quot; --system-eq-bypass toggle', FallbackValue='WolfEQ.exe --system-eq-bypass toggle'}"
                                                                          IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Margin="0,4,0,10"
@@ -825,19 +1218,17 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="Appearance" Tag="Palette" views:SettingsPopover.SectionSummary="{Binding AppearanceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander Header="Look" Tag="Palette" views:SettingsPopover.SectionColor="{StaticResource SectionLookBrush}" views:SettingsPopover.SectionSummary="{Binding AppearanceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}"
-                              Margin="0,0,0,10">
+                              Margin="0,0,0,8">
                         <StackPanel Margin="0,10,0,0">
                             <TextBlock Text="Background" Style="{StaticResource TinyLabel}" Margin="0,0,0,8"/>
-                            <ComboBox ItemsSource="{Binding BackgroundModes}" SelectedItem="{Binding SelectedBackgroundMode}" AutomationProperties.Name="Background mode" Margin="0,0,0,8"/>
-                            <TextBlock Text="Choose light or dark surfaces. Your accent palette works with either." Style="{StaticResource DimText}" Margin="0,0,0,18"/>
+                            <ComboBox ItemsSource="{Binding BackgroundModes}" SelectedItem="{Binding SelectedBackgroundMode}" AutomationProperties.Name="Background mode" Margin="0,0,0,16"/>
                             <TextBlock Text="Accent theme"
                                        Style="{StaticResource TinyLabel}"
                                        Margin="0,0,0,8"/>
-                            <TextBlock Text="Choose a solid color or a multicolor palette." TextWrapping="Wrap" Style="{StaticResource DimText}" Margin="0,0,0,10"/>
-                            <ItemsControl ItemsSource="{Binding AccentColorOptions}" Margin="0,0,0,12">
+                            <ItemsControl ItemsSource="{Binding AccentColorOptions}" Margin="0,0,0,8">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel/>
@@ -900,35 +1291,30 @@
                         </StackPanel>
                     </Expander>
 
-                    <Expander Header="About" Tag="AppWindow" views:SettingsPopover.SectionSummary="{Binding AboutSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
+                    <Expander Header="About" Tag="AppWindow" views:SettingsPopover.SectionColor="{StaticResource SectionAboutBrush}" views:SettingsPopover.SectionSummary="{Binding AboutSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}"
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}">
                         <StackPanel Margin="0,10,0,0">
-                            <DockPanel Margin="0,0,0,10" LastChildFill="False">
-                                <Button Style="{StaticResource SettingsActionButton}" Tag="ArrowRight" Content="Releases"
-                                        Command="{Binding OpenReleasesCommand}"
-
-                                        DockPanel.Dock="Right"/>
-                            </DockPanel>
-
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="WolfEQ"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="WolfEQ" Style="{StaticResource CardTitle}"/>
                                     <TextBlock Text="{Binding AppVersionText}"
                                                Style="{StaticResource DimText}"
                                                Margin="0,3,0,0"/>
                                 </StackPanel>
-                                <Button Style="{StaticResource SettingsActionButton}" Tag="Cloud" Grid.Column="1"
-                                        Content="Check for Updates"
-                                        Command="{Binding CheckForUpdatesCommand}"
-
-                                        VerticalAlignment="Center"/>
+                                <!-- Both update actions side by side, next to the version they relate to. -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource SettingsActionButton}" Tag="ArrowRight" Content="Releases"
+                                            Command="{Binding OpenReleasesCommand}" Margin="0,0,6,0"
+                                            ToolTip="See what's new in each version"/>
+                                    <Button Style="{StaticResource SettingsActionButton}" Tag="Cloud"
+                                            Content="Check for updates"
+                                            Command="{Binding CheckForUpdatesCommand}"/>
+                                </StackPanel>
                             </Grid>
 
                             <TextBlock Text="{Binding UpdateStatus}"
@@ -939,11 +1325,11 @@
                             <Button x:Name="DiscordChannelButton" Command="{Binding OpenDiscordCommand}" Style="{StaticResource QuietButton}" HorizontalContentAlignment="Stretch" Padding="12" Margin="0,0,0,10" ToolTip="Open the WolfEQ app channel in Discord" AutomationProperties.Name="Open WolfEQ Discord channel">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <Border Width="40" Height="40" Background="{DynamicResource WolfAccentHoverBrush}" CornerRadius="10" Margin="0,0,12,0">
+                                    <Border Width="40" Height="40" Background="{DynamicResource WolfAccentHoverBrush}" CornerRadius="{StaticResource RadiusControl}" Margin="0,0,12,0">
                                         <Path Data="{StaticResource DiscordLogoGeometry}" Fill="{DynamicResource WolfGreenBrush}" Width="26" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="WolfEQ on Discord" FontSize="14" FontWeight="SemiBold"/>
+                                        <TextBlock Text="WolfEQ on Discord" Style="{StaticResource CardTitle}"/>
                                         <TextBlock Text="Open our app channel" Style="{StaticResource DimText}" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <Path Grid.Column="2" Data="M2,12 L12,2 M4,2 H12 V10" Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.5" VerticalAlignment="Center" Margin="10,0,0,0"/>

@@ -86,7 +86,7 @@ public partial class DeviceDock : UserControl
         {
             // Design time / no DataContext yet: neutral text, no tooltip.
             SyncStateText.Foreground = BrushResource("WolfMutedBrush", Brushes.Gray);
-            WriteToDeviceButton.ToolTip = "Write the editor's EQ to the device slot";
+            WriteToDeviceButton.ToolTip = "Save this EQ to the selected USER slot on your device";
             return;
         }
 
@@ -104,7 +104,7 @@ public partial class DeviceDock : UserControl
         var reason = _viewModel.WriteToDeviceCommand.CanExecute(null)
             ? null
             : DescribeWriteBlocker(_viewModel);
-        WriteToDeviceButton.ToolTip = reason ?? "Write the editor's EQ to the device slot";
+        WriteToDeviceButton.ToolTip = reason ?? "Save this EQ to the selected USER slot on your device";
     }
 
     /// <summary>
@@ -185,18 +185,9 @@ public partial class DeviceDock : UserControl
         e.Handled = true;
     }
 
-    private void LiveSyncHelp_Click(object sender, RoutedEventArgs e)
-    {
-        if (LiveSyncHelp.ToolTip is ToolTip tip)
-        {
-            tip.PlacementTarget = LiveSyncHelp;
-            tip.IsOpen = true;
-        }
-    }
-
     private void SlotMenuItem_Click(object sender, RoutedEventArgs e) => SlotPopup.IsOpen = false;
 
-    // The slot name lives in Settings > Device, so the footer row simply opens Settings.
+    // The slot name lives in Settings > Your device, so the footer row simply opens Settings.
     private void NameSlot_Click(object sender, RoutedEventArgs e)
     {
         SlotPopup.IsOpen = false;

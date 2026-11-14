@@ -47,11 +47,11 @@ public sealed class SettingsSummaryTests : IDisposable
         Assert.Equal("Lights off", model.LightsSectionSummary);
 
         SetPrivate(model, nameof(MainViewModel.SelectedTopLedColorOption), model.LedColorOptions.Single(option => option.Name == "Green"));
-        SetPrivate(model, nameof(MainViewModel.SelectedTopLedModeOption), model.LedModeOptions.Single(option => option.Name == "Pulse"));
+        SetPrivate(model, nameof(MainViewModel.SelectedTopLedModeOption), model.LedModeOptions.Single(option => option.Name == "Breathing"));
         var raised = Track(model);
         SetPrivate(model, nameof(MainViewModel.TopLedOn), true);
 
-        Assert.Equal("Top Green pulse · Knob off", model.LightsSectionSummary);
+        Assert.Equal("Top Green breathing · Knob off", model.LightsSectionSummary);
         Assert.Contains(nameof(MainViewModel.LightsSectionSummary), raised);
     }
 

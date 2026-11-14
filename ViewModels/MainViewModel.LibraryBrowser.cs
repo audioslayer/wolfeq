@@ -172,7 +172,7 @@ public sealed partial class MainViewModel
 
     public string LibraryDetailFitText => LibraryDetailPreset is not { } preset
         ? "—"
-        : preset.Bands.Count <= SelectedDeviceProfile.BandCount ? "Yes" : "Needs trim";
+        : preset.Bands.Count <= SelectedDeviceProfile.BandCount ? "Yes" : "Too many filters";
 
     public bool LibraryDetailFits => LibraryDetailPreset is { } preset && preset.Bands.Count <= SelectedDeviceProfile.BandCount;
 

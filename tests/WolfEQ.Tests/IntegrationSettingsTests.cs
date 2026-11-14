@@ -29,7 +29,7 @@ public sealed class IntegrationSettingsTests
                 view.Measure(new Size(460, 1000));
                 view.Arrange(new Rect(0, 0, 460, 1000));
                 view.UpdateLayout();
-                var integration = Descendants(view).OfType<Expander>().Single(e => Equals(e.Header, "Integrations"));
+                var integration = Descendants(view).OfType<Expander>().Single(e => Equals(e.Header, "Shortcuts"));
                 integration.IsExpanded = true;
                 view.UpdateLayout();
                 var setup = Descendants(integration).OfType<Expander>().Single();
@@ -46,7 +46,7 @@ public sealed class IntegrationSettingsTests
                 using var output = File.Create(Path.Combine(AppContext.BaseDirectory, "integration-settings.png"));
                 encoder.Save(output);
                 integration.IsExpanded = false;
-                var devices = Descendants(view).OfType<Expander>().Single(e => Equals(e.Header, "Device"));
+                var devices = Descendants(view).OfType<Expander>().Single(e => Equals(e.Header, "Your device"));
                 devices.IsExpanded = true;
                 model.UsbDevices.Clear();
                 model.UsbDevices.Add(new UsbDeviceChoice(@"\\?\hid#vid_2972&pid_0120#test", "FiiO K13 R2R"));
@@ -64,17 +64,19 @@ public sealed class IntegrationSettingsTests
                 deviceEncoder.Frames.Add(BitmapFrame.Create(deviceBitmap));
                 using var deviceOutput = File.Create(Path.Combine(AppContext.BaseDirectory, "device-settings.png"));
                 deviceEncoder.Save(deviceOutput);
-                var tabs = Descendants(devices).OfType<TabControl>().Single();
-                tabs.SelectedIndex = 1;
+                // Device controls moved from a Device tab into their own Sound section.
+                var sound = Descendants(view).OfType<Expander>().Single(e => Equals(e.Header, "Sound"));
+                sound.IsExpanded = true;
                 view.UpdateLayout();
-                Assert.Contains(Descendants(devices).OfType<TextBlock>(), t => t.Text == "Input");
-                Assert.Contains(Descendants(devices).OfType<TextBlock>(), t => t.Text == "Volume limit");
+                Assert.Contains(Descendants(sound).OfType<TextBlock>(), t => t.Text == "Input");
+                Assert.Contains(Descendants(sound).OfType<TextBlock>(), t => t.Text == "Volume limit");
                 var controlsBitmap = new RenderTargetBitmap(460, 1000, 96, 96, PixelFormats.Pbgra32);
                 controlsBitmap.Render(view);
                 var controlsEncoder = new PngBitmapEncoder();
                 controlsEncoder.Frames.Add(BitmapFrame.Create(controlsBitmap));
                 using var controlsOutput = File.Create(Path.Combine(AppContext.BaseDirectory, "device-controls-settings.png"));
                 controlsEncoder.Save(controlsOutput);
+                VerifyStreamDeckWizard(model);
                 VerifyTrayFlyout(model);
                 BandControlsViewChecks.Verify(model);
                 StudioViewChecks.Verify(model);
@@ -88,6 +90,39 @@ public sealed class IntegrationSettingsTests
         thread.Start();
         Assert.True(thread.Join(TimeSpan.FromSeconds(20)), "Settings render timed out.");
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static void VerifyStreamDeckWizard(MainViewModel model)
+    {
+        var wizard = new StreamDeckSetupWizard(model);
+        var next = (Button)wizard.FindName("NextButton");
+        var back = (Button)wizard.FindName("BackButton");
+        string[] steps = ["Step1", "Step2", "Step3", "Step4"];
+        void AssertOnly(int index)
+        {
+            Assert.Equal(index, wizard.CurrentStep);
+            for (var i = 0; i < steps.Length; i++)
+                Assert.Equal(i == index ? Visibility.Visible : Visibility.Collapsed, ((FrameworkElement)wizard.FindName(steps[i])).Visibility);
+        }
+
+        AssertOnly(0);
+        Assert.Equal(Visibility.Hidden, back.Visibility);
+        // One key per USER slot, with the selected slot marked.
+        Assert.Equal(model.DeviceUserPresets.Count, model.StreamDeckKeys.Count);
+        model.SelectStreamDeckKey(3);
+        Assert.Equal(3, model.SelectedStreamDeckKey!.Slot);
+        Assert.Single(model.StreamDeckKeys, key => key.IsSelected);
+
+        for (var i = 1; i < steps.Length; i++)
+        {
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AssertOnly(i);
+        }
+        Assert.Equal("Finish", next.Content);
+        back.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        AssertOnly(2);
+        Assert.Equal("Next", next.Content);
+        wizard.Close();
     }
 
     private static void VerifyTrayFlyout(MainViewModel model)

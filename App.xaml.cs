@@ -11,6 +11,7 @@ public partial class App : Application
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private MainViewModel? _viewModel;
     private TrayIconService? _tray;
+    private DevModeServer? _devMode;
     /// <summary>Hidden flag the uninstaller passes to remove WolfEQ's block and file from Equalizer APO.</summary>
     internal const string RemoveSoftwareEqArgument = "--remove-software-eq";
 
@@ -21,10 +22,13 @@ public partial class App : Application
     {
         base.OnStartup(e);
         AppUpdateService.OnShutdownRequested = () => Dispatcher.Invoke(() => { IsExiting = true; Shutdown(); });
+        // --dev (passed by deploy.bat) turns on the local UI control server; strip it so the
+        // automation parser and the "no arguments = open the window" check never see it.
+        var args = DevModeServer.ExtractFlag(e.Args, out var devMode);
         try
         {
-            if (e.Args.Length > 0) AttachConsole(unchecked((uint)-1));
-            if (e.Args.Length == 1 && string.Equals(e.Args[0], RemoveSoftwareEqArgument, StringComparison.OrdinalIgnoreCase))
+            if (args.Length > 0) AttachConsole(unchecked((uint)-1));
+            if (args.Length == 1 && string.Equals(args[0], RemoveSoftwareEqArgument, StringComparison.OrdinalIgnoreCase))
             {
                 // Run by the uninstaller: take WolfEQ's EQ out of Equalizer APO so it doesn't keep
                 // playing after WolfEQ is gone. No window, no automation pipe.
@@ -33,12 +37,12 @@ public partial class App : Application
                 return;
             }
 
-            var request = AutomationRequest.Parse(e.Args);
+            var request = AutomationRequest.Parse(args);
             if (request.Help) { Finish(new(0, AutomationRequest.Usage)); return; }
             _automation = new AutomationHost();
             if (!_automation.TryOwn())
             {
-                Finish(await _automation.SendAsync(e.Args));
+                Finish(await _automation.SendAsync(args));
                 return;
             }
             BackgroundThemeService.Apply(BackgroundThemeService.Load());
@@ -46,12 +50,17 @@ public partial class App : Application
             MainWindow = window;
             _viewModel = (MainViewModel)window.DataContext;
             _ = _automation.RunAsync(HandleRequestAsync);
-            if (e.Args.Length == 0)
+            if (args.Length == 0)
             {
                 ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 window.Show();
                 try { _tray = new TrayIconService(window, _viewModel, RequestQuit); }
                 catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Tray initialization failed: {ex.Message}"); }
+                if (devMode)
+                {
+                    var viewModel = _viewModel;
+                    _devMode = DevModeServer.Start(window, () => viewModel.Status);
+                }
                 await _viewModel.AutoConnectAndReadDeviceAsync();
                 _ready.TrySetResult();
             }
@@ -136,6 +145,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _tray?.Dispose();
+        _devMode?.Dispose();
         _automation?.Dispose();
         base.OnExit(e);
     }

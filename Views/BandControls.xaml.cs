@@ -84,6 +84,9 @@ public partial class BandControls : UserControl
         e.Handled = true;
     }
 
+    // The help "?" sits in the expander header; clicking it should not also fold the panel.
+    private void HelpTip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => e.Handled = true;
+
     private void Value_KeyDown(object sender, KeyEventArgs e)
     {
         if (sender is not TextBox box) return;
@@ -145,9 +148,11 @@ public sealed class InverseBooleanConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is bool bypassed ? !bypassed : Binding.DoNothing;
 }
 
+// Leaves room for the panel header and every row of a fader tile (number, frequency, gain,
+// Hz, Q, shape and Bypass) so the Bypass row is not clipped at the bottom of the panel.
 public sealed class ReferenceFaderHeightConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is double height && double.IsFinite(height) ? Math.Clamp(height - 290, 64, 900) : 100d;
+        => value is double height && double.IsFinite(height) ? Math.Clamp(height - 312, 64, 900) : 100d;
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
 }

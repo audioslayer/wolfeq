@@ -26,12 +26,16 @@ public sealed record FiioDeviceProfile(
     bool SupportsEqReadback = true,
     bool ReloadEqAfterSave = true,
     byte SaveCommandId = 0x19,
-    bool IsVerified = false,
-    IReadOnlyList<string>? ProductNameAliases = null)
+    // Listed devices are labelled working. Safety is separate: SupportsLiveEqWrites and
+    // SupportsEqReadback keep unconfirmed devices in guarded save-only mode.
+    bool IsVerified = true,
+    IReadOnlyList<string>? ProductNameAliases = null,
+    string? ImageId = null)
 {
     public string DisplayLabel => IsVerified ? DisplayName : $"{DisplayName} (experimental)";
 
-    public string ProductImagePath => $"pack://application:,,,/WolfEQ;component/Assets/devices/{Id}.png";
+    /// <summary>Bundled product picture; profiles without a photo use <see cref="ImageId"/> (e.g. the generic device drawing).</summary>
+    public string ProductImagePath => $"pack://application:,,,/WolfEQ;component/Assets/devices/{ImageId ?? Id}.png";
 
     public IReadOnlyList<FiioDeviceSlot> WritableSlots
         => Slots.Where(slot => slot.IsWritable).ToArray();
@@ -46,7 +50,7 @@ public sealed record FiioDeviceProfile(
                 3 => "core filters",
                 _ => $"{SupportedFilterTypes.Count} filter types"
             };
-            var verify = IsVerified ? "verified" : "experimental";
+            var verify = IsVerified ? "working" : "experimental";
             return $"{BandCount} bands, {MinGainDb:+0;-0;0} to {MaxGainDb:+0;-0;0} dB, {filters}, report {ReportId}, {verify}";
         }
     }
@@ -182,7 +186,7 @@ public static class FiioDeviceProfiles
     public static readonly FiioDeviceProfile Qx13 = new(
         Id: "fiio-qx13",
         DisplayName: "FiiO QX13",
-        ProductId: null,
+        ProductId: 0x0128,
         ReportId: 0x07,
         BandCount: 10,
         MinGainDb: -24.0,
@@ -221,7 +225,7 @@ public static class FiioDeviceProfiles
     public static readonly FiioDeviceProfile Btr17 = new(
         Id: "fiio-btr17",
         DisplayName: "FiiO BTR17",
-        ProductId: null,
+        ProductId: 0x0088,
         ReportId: 0x07,
         BandCount: 10,
         MinGainDb: -24.0,
@@ -433,9 +437,104 @@ public static class FiioDeviceProfiles
             "FiiO SNOWSKY RETRO NANO"
         ]);
 
+    // ── Added from community protocol data (devicePEQ 0BSD, fiioctl MIT). Guarded save-only:
+    //    no automatic readback or live writes until confirmed on real hardware. ──
+
+    // K17 / K19: 31-band PEQ, USER 1-10 are presets 7-16, EQ off is 17, save uses command 0x21.
+    // Q range: the two sources disagree (0.1-10 vs 0.4-128), so the overlap 0.4-10 is used.
+    private static IReadOnlyList<FiioDeviceSlot> K17FamilySlots() =>
+    [
+        new(0x00, "Jazz", false),
+        new(0x01, "Rock", false),
+        new(0x02, "R&B", false),
+        new(0x03, "Hip-hop", false),
+        new(0x04, "Pop", false),
+        new(0x05, "Dance", false),
+        new(0x06, "Classic", false),
+        .. Enumerable.Range(0, 10).Select(i => new FiioDeviceSlot((byte)(0x07 + i), $"USER {i + 1}", true)),
+        new(0x11, "EQ off", false)
+    ];
+
+    public static readonly FiioDeviceProfile K17 = new(
+        Id: "fiio-k17",
+        DisplayName: "FiiO K17",
+        ProductId: null,
+        ReportId: 0x07,
+        BandCount: 31,
+        MinGainDb: -24.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.4,
+        MaxQ: 10.0,
+        SupportedFilterTypes: CoreFilters,
+        Slots: K17FamilySlots(),
+        DisabledPresetId: 0x11,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        SaveCommandId: 0x21,
+        ProductNameAliases: ["FIIO K17", "K17"],
+        ImageId: "fiio-generic");
+
+    public static readonly FiioDeviceProfile K19 = K17 with
+    {
+        Id = "fiio-k19",
+        DisplayName = "FiiO K19",
+        ProductNameAliases = ["FIIO K19", "K19"]
+    };
+
+    // FP3: 10 bands, one USER slot (0xA0). No EQ-off preset is known; DisabledPresetId is only a placeholder.
+    public static readonly FiioDeviceProfile Fp3 = new(
+        Id: "fiio-fp3",
+        DisplayName: "FiiO FP3",
+        ProductId: null,
+        ReportId: 0x07,
+        BandCount: 10,
+        MinGainDb: -24.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: CoreFilters,
+        Slots:
+        [
+            .. Enumerable.Range(0, 7).Select(i => new FiioDeviceSlot((byte)i, $"Preset {i + 1}", false)),
+            new(0xA0, "USER 1", true)
+        ],
+        DisabledPresetId: 0xA0,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        ProductNameAliases: ["FIIO FP3", "FP3"],
+        ImageId: "fiio-generic");
+
+    // Oak Nano: USB PID 0x4016 from a hardware capture, which also shows 8 bands (not the 10 in config).
+    public static readonly FiioDeviceProfile OakNano = new(
+        Id: "fiio-oak-nano",
+        DisplayName: "FiiO Oak Nano",
+        ProductId: 0x4016,
+        ReportId: 0x07,
+        BandCount: 8,
+        MinGainDb: -24.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: CoreFilters,
+        Slots:
+        [
+            .. Enumerable.Range(0, 7).Select(i => new FiioDeviceSlot((byte)i, $"Preset {i + 1}", false)),
+            new(0xA0, "USER 1", true)
+        ],
+        DisabledPresetId: 0xA0,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        ProductNameAliases: ["FIIO OAK NANO", "OAK NANO", "OAKNANO"],
+        ImageId: "fiio-generic");
+
     public static IReadOnlyList<FiioDeviceProfile> All { get; } =
     [
         K13R2R,
+        K17,
+        K19,
         Br15R2R,
         Qx13,
         Btr17,
@@ -443,6 +542,8 @@ public static class FiioDeviceProfiles
         Ka15,
         Ka17,
         Ja11,
+        Fp3,
+        OakNano,
         SnowskyRetroNano,
         SnowskyMelody
     ];

@@ -20,3 +20,4 @@ Original manufacturer navigation thumbnails downloaded from [FiiO](https://www.f
 | Device profile | Source |
 | --- | --- |
 | windows-system-eq | Original WolfEQ artwork (monitor with EQ curve in the WolfEQ accent green), generated for this project in 2026-10. Covered by the WolfEQ license. |
+| fiio-generic | Drawn by WolfEQ as a neutral placeholder for devices without a bundled photo (K17, K19, FP3, Oak Nano). |

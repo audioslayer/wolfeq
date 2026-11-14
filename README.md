@@ -139,7 +139,7 @@ In **Settings → Integrations**, open **Windows ScriptDeck setup**:
 3. Copy the generated PowerShell script. WolfEQ fills in its executable location and saved USB device path, with argument quoting handled for you.
 4. Add the plugin's script action to a Stream Deck key and paste the script into **On Press**. Repeat for other slots.
 
-Re-copy scripts if you move WolfEQ or change its saved connection. For lighting, save the Bluetooth connection and enable **Apply saved lighting when switching USER slots** under **Profile Lights**.
+Re-copy scripts if you move WolfEQ or change its saved connection. For lighting, save the Bluetooth connection and enable **Switch lights when I change USER slot** under **Lights**.
 
 The existing **Save shortcut** workflow is also available: assign the exported `.lnk` to Stream Deck's **System → Open** action.
 
@@ -172,23 +172,27 @@ Results are also written to `%LOCALAPPDATA%\WolfEQ\automation-result.json`. Use 
 | Device | Status | Notes |
 |-|-|-|
 | Software EQ | 🆕 Beta | Any Windows playback output through Equalizer APO 1.4.2 (bundled installer). Live edits, bypass, 10-band PEQ, no USER slots. See [Software EQ](#-windows-system-eq). |
-| FiiO K13 R2R | ✅ WolfEQ verified | Main tested target. USB detection, EQ readback, USER slot switching, PEQ writes, global preamp writes, preset storage, LED cues, USB/COAX input switching. |
-| FiiO BR15 R2R | ⚠️ Experimental | Community-sourced 10-band layout and USER 1-10 save path. Save-only until WolfEQ readback is physically verified. |
-| FiiO QX13 | ⚠️ Experimental | Community-sourced 10-band layout and USER 1-10 save path. Save-only until WolfEQ readback is physically verified. |
-| FiiO BTR17 | ⚠️ Experimental | Community-sourced 10-band USER 1-10 layout with V2 `0x21` save command. Save-only until physically verified. |
-| FiiO BTR13 | ⚠️ Experimental | Community-sourced 10-band layout with USER 1-3. Save-only until WolfEQ readback is physically verified. |
-| FiiO KA15 | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
-| FiiO KA17 | ⚠️ Experimental | Device profile, slot map, 10-band PEQ layout, USB EQ path. Needs real-device testing. |
-| FiiO JA11 | ⚠️ Experimental | Device profile, 5-band PEQ layout, core filter support. Needs real-device testing. |
-| Snowsky Melody | ⚠️ Experimental | 10-band PEQ and USER 1-3 writes. Automatic EQ readback and Load from slot are disabled because the device does not answer the required read command. Readback remains unavailable by design. |
-| Snowsky Retro Nano | ⚠️ Experimental | Product-name matched profile, slot map, 10-band PEQ layout. Needs real-device testing. |
+| FiiO K13 R2R | ✅ Working · hardware-tested | Main tested target. USB detection, EQ readback, USER slot switching, PEQ writes, global preamp writes, preset storage, LED cues, USB/COAX input switching. |
+| FiiO K17 | ✅ Working · save-only | 31-band PEQ, USER 1-10, `0x21` save command. Matched by product name. |
+| FiiO K19 | ✅ Working · save-only | Same 31-band layout as the K17. Matched by product name. |
+| FiiO BR15 R2R | ✅ Working · save-only | 10-band layout, USER 1-10. |
+| FiiO QX13 | ✅ Working · save-only | 10-band layout, USER 1-10. USB ID `0x0128`. |
+| FiiO BTR17 | ✅ Working · save-only | 10-band USER 1-10 layout with `0x21` save command. USB ID `0x0088`. |
+| FiiO BTR13 | ✅ Working · save-only | 10-band layout, USER 1-3. |
+| FiiO KA15 | ✅ Working | 10-band PEQ, USER 1-3. |
+| FiiO KA17 | ✅ Working | 10-band PEQ, USER 1-3. |
+| FiiO JA11 | ✅ Working | 5-band PEQ, core filters. |
+| FiiO FP3 | ✅ Working · save-only | 10-band PEQ, one USER slot. Matched by product name. |
+| FiiO Oak Nano | ✅ Working · save-only | 8-band PEQ, one USER slot. USB ID `0x4016`. |
+| Snowsky Melody | ✅ Working | 10-band PEQ and USER 1-3 writes. The device does not answer EQ readback, so Load from slot is unavailable by design. |
+| Snowsky Retro Nano | ✅ Working | 10-band PEQ, USER 1-3. |
 
 For full Windows audio format support, set the K13 to **UAC2.0** mode.
 FiiO documents that enabling K13 R2R PEQ limits playback to PCM 192 kHz/24-bit, disables MQA processing, and can briefly reconnect USB when switching between EQ Off and an active EQ mode.
 
-The BR15 R2R, QX13, BTR17, and BTR13 layouts are adapted from the 0BSD-licensed [DevicePEQ](https://github.com/jeromeof/devicePEQ) project and cross-checked against FiiO's published PEQ documentation. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Upstream configuration is evidence for an experimental profile, not a substitute for WolfEQ hardware verification.
+The BR15 R2R, QX13, BTR17, and BTR13 layouts are adapted from the 0BSD-licensed [DevicePEQ](https://github.com/jeromeof/devicePEQ) project and cross-checked against FiiO's published PEQ documentation. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Profiles for the K17, K19, FP3 and Oak Nano, and the QX13 and BTR17 USB IDs, also come from DevicePEQ (0BSD) and fiioctl (MIT) captures. **Save-only** means WolfEQ writes EQ to a USER slot but keeps live sync and automatic readback off until that model has been checked on real hardware.
 
-K15, K17, and K19 are not listed as supported because their dedicated serial/RS232 control path needs a separate transport implementation. K11 R2R support likewise needs the separate WalkPlay protocol rather than WolfEQ's current FiiO HID handler.
+The K15 is not listed yet because its control path may use USB serial instead of HID. If a K17 or K19 turns out to use serial too, it will not be detected over HID. K11 R2R support likewise needs the separate WalkPlay protocol rather than WolfEQ's current FiiO HID handler.
 
 ---
 
@@ -209,9 +213,9 @@ WolfEQ does not upload local presets or device data. Online search and update ch
 
 ## 🧪 Beta Notes
 
-This is beta software, and every profile except K13 R2R is intentionally marked **experimental** in WolfEQ. The BR15 R2R, QX13, BTR17, and BTR13 profiles begin in save-only mode: automatic readback and live writes stay disabled until their Windows HID behavior is confirmed on physical hardware.
+This is beta software. Every listed device is supported, and the K13 R2R is the one tested on hardware by WolfEQ. Devices marked **save-only** keep automatic readback and live writes off until their Windows HID behavior is confirmed on physical hardware.
 
-If you test an experimental profile:
+If you use a device other than the K13 R2R, please help confirm it:
 
 1. Select the exact device model in Settings and use **Reconnect device**.
 2. Start with a flat or low-gain profile and an unused USER slot.

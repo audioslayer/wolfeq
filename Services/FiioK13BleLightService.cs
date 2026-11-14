@@ -768,12 +768,64 @@ public sealed class FiioK13BleLightService
     private async Task<BleSession> ConnectAsync(List<string> transportLog, CancellationToken cancellationToken)
     {
         var address = SelectedAddress ?? throw new InvalidOperationException(
-            "Choose and save your K13 Bluetooth device in Settings > Device > Connections. Previous automatic selections must be confirmed.");
+            "Choose and save your K13 Bluetooth device in Settings > Your device. Previous automatic selections must be confirmed.");
         return await TryCreateSessionAsync(address, transportLog, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("The selected Bluetooth device is unavailable. No other device was contacted.");
     }
 
     private static async Task<BleSession?> TryCreateSessionAsync(
+        ulong address,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        // Fast path: works when Windows already knows the device (e.g. a scan ran earlier this session).
+        var session = await TryCreateSessionCoreAsync(address, transportLog, cancellationToken).ConfigureAwait(false);
+        if (session is not null)
+        {
+            return session;
+        }
+
+        // Slow path: do the same thing the manual Scan button does, but only for the saved address,
+        // then retry once. Only the selected device is waited on; nothing else is contacted.
+        await WaitForAdvertisementAsync(address, TimeSpan.FromSeconds(8), transportLog, cancellationToken)
+            .ConfigureAwait(false);
+        return await TryCreateSessionCoreAsync(address, transportLog, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task WaitForAdvertisementAsync(
+        ulong address,
+        TimeSpan timeout,
+        List<string> transportLog,
+        CancellationToken cancellationToken)
+    {
+        transportLog.Add($"Saved K13 not reachable yet; scanning for {address:X12} (up to {timeout.TotalSeconds:F0}s).");
+
+        var seen = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var watcher = new BluetoothLEAdvertisementWatcher { ScanningMode = BluetoothLEScanningMode.Active };
+        watcher.Received += (_, args) =>
+        {
+            if (args.BluetoothAddress == address)
+            {
+                seen.TrySetResult(true);
+            }
+        };
+
+        try
+        {
+            watcher.Start();
+            var finished = await Task.WhenAny(seen.Task, Task.Delay(timeout, cancellationToken)).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            transportLog.Add(finished == seen.Task
+                ? "Saved K13 advertisement seen."
+                : "Saved K13 advertisement not seen before timeout; retrying anyway.");
+        }
+        finally
+        {
+            watcher.Stop();
+        }
+    }
+
+    private static async Task<BleSession?> TryCreateSessionCoreAsync(
         ulong address,
         List<string> transportLog,
         CancellationToken cancellationToken)

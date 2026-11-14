@@ -14,22 +14,32 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
+        <!-- Keyboard-only focus ring for the text tabs (a mouse click does not show it). -->
+        <Style x:Key="TabFocusRing">
+            <Setter Property="Control.Template"><Setter.Value><ControlTemplate>
+                <Border Margin="1" CornerRadius="6" BorderThickness="1" BorderBrush="{DynamicResource WolfGreenBrush}" SnapsToDevicePixels="True"/>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+
         <Style x:Key="PreviewViewChoice" TargetType="RadioButton">
             <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource TabFocusRing}"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
                 <Border x:Name="Rail" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="10,7">
                     <ContentPresenter VerticalAlignment="Center"/>
                 </Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsChecked" Value="True"><Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
-                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/></Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/></Trigger>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
         <!-- Copied from MainWindow resources; views keep their own template copies. -->
         <DataTemplate x:Key="LibraryPresetListItemTemplate" DataType="{x:Type models:EqPreset}">
-            <Grid Margin="2,3">
+            <Grid Margin="2,4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -51,7 +61,7 @@
                         Command="{Binding DataContext.ToggleLibraryFavoriteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="{StaticResource RadiusControl}">
                                 <Path x:Name="Glyph" Data="M10,1 L12.6,7 L19,7.6 L14.1,11.8 L15.6,18 L10,14.7 L4.4,18 L5.9,11.8 L1,7.6 L7.4,7 Z" Width="15" Height="15" Stretch="Uniform" StrokeThickness="1.4" StrokeLineJoin="Round"
                                       Stroke="{DynamicResource WolfMutedBrush}" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
@@ -90,7 +100,7 @@
                         ToolTip="Rename preset (F2)" AutomationProperties.Name="Rename preset">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="{StaticResource RadiusControl}">
                                 <Path x:Name="Glyph" Data="M3,17 L3,13.5 L13,3.5 L16.5,7 L6.5,17 Z M11,5.5 L14.5,9" Width="14" Height="14" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
                                       Stroke="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
@@ -118,7 +128,7 @@
                         ToolTip="Delete preset" AutomationProperties.Name="Delete preset">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="{StaticResource RadiusControl}">
                                 <Path x:Name="Glyph" Data="M3,5 H17 M7,5 V2 H13 V5 M5,5 V18 H15 V5 M8,8 V15 M12,8 V15" Width="14" Height="14" Stretch="Uniform"
                                       Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
@@ -152,7 +162,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="OnlineProfileListItemTemplate">
-            <Grid Margin="2,5">
+            <Grid Margin="2,4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -174,7 +184,7 @@
                 <!-- Provider badge: AutoEq green, OPRA cyan. -->
                 <Border Grid.Column="1" Grid.RowSpan="2" VerticalAlignment="Center" Margin="10,0,0,0" CornerRadius="9" BorderThickness="1" Padding="7,1">
                     <Border.Style><Style TargetType="Border"><Setter Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/><Style.Triggers><DataTrigger Binding="{Binding Provider}" Value="OPRA"><Setter Property="BorderBrush" Value="{DynamicResource WolfCyanBrush}"/></DataTrigger></Style.Triggers></Style></Border.Style>
-                    <TextBlock Text="{Binding Provider}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=Border}}"/>
+                    <TextBlock Text="{Binding Provider}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding BorderBrush, RelativeSource={RelativeSource AncestorType=Border}}"/>
                 </Border>
                 <!-- Row save: download this result into My Library (shown on hover or selection). -->
                 <Button x:Name="RowSaveButton" Grid.Column="2" Grid.RowSpan="2" Click="RowSaveButton_Click"
@@ -182,7 +192,7 @@
                         ToolTip="Save to My Library" AutomationProperties.Name="Save to My Library">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="7">
+                            <Border x:Name="Chrome" Background="Transparent" CornerRadius="{StaticResource RadiusControl}">
                                 <Path x:Name="Glyph" Data="M10,2 V13 M5,8 L10,13 L15,8 M3,15 V18 H17 V15" Width="14" Height="14" Stretch="Uniform"
                                       Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -215,7 +225,8 @@
             <sys:String>OPRA</sys:String>
         </x:Array>
 
-        <!-- Small pill chips for category and source filters (ListBox items). -->
+        <!-- Pill chips for category and source filters (ListBox items). Selected = green outline + soft fill, not a solid
+             call-to-action; unselected = subtle outline. Fixed 28px height so every chip row lines up. -->
         <Style x:Key="FilterChipList" TargetType="ListBox">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -230,16 +241,18 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Border x:Name="Chip" CornerRadius="999" BorderThickness="1" BorderBrush="{DynamicResource WolfLineBrush}" Background="Transparent" Padding="10,3">
-                                        <ContentPresenter TextElement.FontSize="11.5" TextElement.Foreground="{DynamicResource WolfMutedBrush}"/>
+                                    <Border x:Name="Chip" Height="28" CornerRadius="14" BorderThickness="1" BorderBrush="{DynamicResource WolfLineBrush}" Background="Transparent" Padding="12,0">
+                                        <ContentPresenter x:Name="Label" VerticalAlignment="Center" TextElement.FontSize="12" TextElement.Foreground="{DynamicResource WolfMutedBrush}"/>
                                     </Border>
                                     <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/></Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Chip" Property="Background" Value="{DynamicResource WolfGreenBrush}"/>
-                                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
-                                            <Setter Property="TextElement.Foreground" Value="{DynamicResource WolfGreenContrastBrush}"/>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/>
+                                            <Setter TargetName="Label" Property="TextElement.Foreground" Value="{DynamicResource WolfTextBrush}"/>
                                         </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Chip" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
+                                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/>
+                                            <Setter TargetName="Label" Property="TextElement.Foreground" Value="{DynamicResource WolfTextBrush}"/>                                        </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Setter.Value>
@@ -256,6 +269,7 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource TabFocusRing}"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
                 <Border x:Name="Rail" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" Padding="12,8,12,10">
                     <ContentPresenter VerticalAlignment="Center"/>
@@ -263,7 +277,6 @@
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
                     <Trigger Property="IsChecked" Value="True"><Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/><Setter Property="Foreground" Value="{DynamicResource WolfTextBrush}"/></Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Rail" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
@@ -271,7 +284,7 @@
         <!-- Fact tile in the detail pane. -->
         <Style x:Key="FactTile" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource WolfPanel2Brush}"/>
-            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusCard}"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
@@ -286,55 +299,31 @@
             <Setter Property="Margin" Value="4,0,0,0"/>
         </Style>
 
-        <!-- My Library / Online source chip (mutually exclusive, chip-styled radios). -->
-        <Style x:Key="SourceChip" TargetType="{x:Type RadioButton}">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource WolfMutedBrush}"/>
-            <Setter Property="Padding" Value="14,5"/>
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="MinHeight" Value="44"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Cursor" Value="Hand"/>
+        <!-- Search box with a leading icon and an overlaid placeholder. The shared TextBox template also binds
+             Padding onto PART_ContentHost.Margin, and WPF applies TextBox.Padding to the host itself, so the inset
+             doubled (typed text sat ~32px right of the placeholder). This template applies Padding once. -->
+        <Style x:Key="LibrarySearchTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="32,0,10,0"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type RadioButton}">
-                        <Grid>
-                            <Border x:Name="Chrome"
-                                    Background="{TemplateBinding Background}"
-                                    CornerRadius="7"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  VerticalAlignment="Center"/>
-                            </Border>
-                            <Border x:Name="ActiveRail"
-                                    Height="2"
-                                    Margin="12,0"
-                                    VerticalAlignment="Bottom"
-                                    Background="{DynamicResource WolfGreenBrush}"
-                                    CornerRadius="2"
-                                    Visibility="Collapsed"/>
-                        </Grid>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource RadiusControl}">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource WolfAccentHoverBrush}"/>
-                            </Trigger>
-                            <!-- Checked wins over hover; declared last. -->
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="Transparent"/>
-                                <Setter TargetName="ActiveRail" Property="Visibility" Value="Visible"/>
-                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfLineSoftBrush}"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource WolfGreenBrush}"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.42"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
+        <!-- Placeholder inset = 1px border + 32px padding + the 2px caret gutter WPF adds before the first glyph. -->
+        <Thickness x:Key="SearchPlaceholderMargin">35,0,10,0</Thickness>
+
     </UserControl.Resources>
 
     <Border Style="{StaticResource OverlayPanelBorder}">
@@ -346,7 +335,8 @@
             </Grid.RowDefinitions>
 
             <!-- 1. Header: title, counts, Import / Export menus, close -->
-            <Grid Grid.Row="0" Margin="18,16,16,12">
+            <!-- Same header geometry as Settings: 36px tile (radius 9, green outline), PanelTitle, 32px close. -->
+            <Grid Grid.Row="0" Margin="18,16,14,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -354,12 +344,12 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="36" Height="36" Background="{DynamicResource WolfAccentHoverBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="9">
+                <Border Width="36" Height="36" Background="{DynamicResource WolfAccentHoverBrush}" BorderBrush="{DynamicResource WolfGreenBrush}" BorderThickness="1" CornerRadius="9">
                     <controls:PhosphorIcon IconName="Folder" IconSize="18" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" Margin="11,0,12,0" VerticalAlignment="Center">
-                    <TextBlock Text="Preset library" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding Presets.Count, StringFormat={}{0} saved presets · AutoEq and OPRA online}" Style="{StaticResource DimText}" Margin="0,3,0,0"/>
+                    <TextBlock Text="Preset library" Style="{StaticResource PanelTitle}"/>
+                    <TextBlock Text="{Binding Presets.Count, StringFormat={}{0} in My Library · find more under Discover online}" Style="{StaticResource Caption}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                 </StackPanel>
 
                 <ToggleButton x:Name="ImportMenuButton" Grid.Column="2" Style="{StaticResource StudioMenuToggle}" Margin="0,0,6,0" MinHeight="34"
@@ -368,14 +358,14 @@
                 </ToggleButton>
                 <Popup x:Name="ImportPopup" PlacementTarget="{Binding ElementName=ImportMenuButton}" Placement="Bottom" HorizontalOffset="-300" VerticalOffset="6"
                        StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                    <Border Width="420" Padding="12" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" Effect="{StaticResource WolfComboShadow}" Margin="0,0,10,10">
+                    <Border Width="420" Padding="12" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusOverlay}" Effect="{StaticResource WolfComboShadow}" Margin="0,0,10,10">
                         <StackPanel x:Name="ImportRows">
                             <TextBlock Text="Import" FontWeight="SemiBold" Margin="2,0,0,2"/>
                             <TextBlock Text="Imported presets are added to My Library." Style="{StaticResource TinyLabel}" Margin="2,0,0,10"/>
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -391,7 +381,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="Cpu" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -406,7 +396,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="MusicNote" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -421,7 +411,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="Folder" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -443,7 +433,7 @@
                 </ToggleButton>
                 <Popup x:Name="ExportPopup" PlacementTarget="{Binding ElementName=ExportMenuButton}" Placement="Bottom" HorizontalOffset="-320" VerticalOffset="6"
                        StaysOpen="False" AllowsTransparency="True" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                    <Border Width="420" Padding="12" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="10" Effect="{StaticResource WolfComboShadow}" Margin="0,0,10,10">
+                    <Border Width="420" Padding="12" Background="{DynamicResource WolfPanelBrush}" BorderBrush="{DynamicResource WolfLineSoftBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusOverlay}" Effect="{StaticResource WolfComboShadow}" Margin="0,0,10,10">
                         <StackPanel x:Name="ExportRows">
                             <TextBlock Text="Export" FontWeight="SemiBold" Margin="2,0,0,2"/>
                             <TextBlock Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,0,0,10">
@@ -453,7 +443,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -469,7 +459,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="Cpu" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -484,7 +474,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="MusicNote" IconSize="15" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -499,7 +489,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="Folder" IconSize="15" IconBrush="{DynamicResource WolfCyanBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -514,7 +504,7 @@
                         <Border Style="{StaticResource SourceTileBorder}" Margin="0,0,0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Border Width="30" Height="30" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfPanelBrush}" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <controls:PhosphorIcon IconName="AppWindow" IconSize="15" IconBrush="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
@@ -536,7 +526,7 @@
             </Grid>
 
             <!-- 2. Tabs -->
-            <Border Grid.Row="1" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,0,0,1" Padding="14,0">
+            <Border Grid.Row="1" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="0,0,0,1" Padding="6,0">
                 <StackPanel Orientation="Horizontal">
                     <RadioButton x:Name="MyLibrarySourceChip" Style="{StaticResource LibraryTab}" GroupName="LibraryTabs" Content="My Library"
                                  IsChecked="{Binding LibraryTab, Converter={StaticResource StringEquals}, ConverterParameter=Mine}"/>
@@ -567,15 +557,15 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <Grid>
-                                    <TextBox x:Name="LibrarySearchBox" Text="{Binding ProfileSearchText, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="32,0,10,0"
+                                    <TextBox x:Name="LibrarySearchBox" Text="{Binding ProfileSearchText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource LibrarySearchTextBox}"
                                              AutomationProperties.Name="Search saved presets" ToolTip="Filter saved presets"/>
                                     <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="11,0,0,0" IsHitTestVisible="False"/>
-                                    <TextBlock Text="Search presets" Margin="32,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" IsHitTestVisible="False">
+                                    <TextBlock Text="Search presets" Margin="{StaticResource SearchPlaceholderMargin}" VerticalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" IsHitTestVisible="False">
                                         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=LibrarySearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                     </TextBlock>
                                 </Grid>
-                                <Button Grid.Column="1" Command="{Binding CreateFlatPresetCommand}" Style="{StaticResource QuietButton}" Height="38" Margin="8,0,0,0" Padding="12,0"
-                                        Background="{DynamicResource WolfAccentHoverBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" ToolTip="Create a new flat preset" AutomationProperties.Name="New preset">
+                                <Button Grid.Column="1" Command="{Binding CreateFlatPresetCommand}" Style="{StaticResource AccentButton}" Height="38" Margin="8,0,0,0" Padding="12,0"
+                                        ToolTip="Create a new flat preset" AutomationProperties.Name="New preset">
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="M0,6 H12 M6,0 V12" Width="12" Height="12" Stretch="Uniform" Stroke="{DynamicResource WolfGreenBrush}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center" Margin="0,0,7,0"/>
                                         <TextBlock Text="New" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -592,18 +582,32 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <Grid>
-                                    <TextBox x:Name="OnlineSearchBox" Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="32,0,10,0"
+                                    <TextBox x:Name="OnlineSearchBox" Text="{Binding GitHubProfileSearchText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource LibrarySearchTextBox}"
                                              KeyDown="OnlineSearchBox_KeyDown" AutomationProperties.Name="Search online headphone profiles" ToolTip="Search AutoEq and OPRA headphone presets"/>
                                     <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="14" IconBrush="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="11,0,0,0" IsHitTestVisible="False"/>
-                                    <TextBlock Text="Headphone name, e.g. Ananda" Margin="32,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" IsHitTestVisible="False">
+                                    <TextBlock Text="Headphone name, e.g. Ananda" Margin="{StaticResource SearchPlaceholderMargin}" VerticalAlignment="Center" Foreground="{DynamicResource WolfDimBrush}" IsHitTestVisible="False">
                                         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=OnlineSearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                     </TextBlock>
                                 </Grid>
-                                <Button Grid.Column="1" Content="Search" Command="{Binding SearchGitHubProfilesCommand}" Style="{StaticResource FiioButton}" Height="38" Margin="8,0,0,0"/>
+                                <Button Grid.Column="1" Content="Search" Command="{Binding SearchGitHubProfilesCommand}" Style="{StaticResource FiioButton}" Height="38" Margin="8,0,0,0" Padding="14,0" FontWeight="SemiBold" ToolTip="Search AutoEq and OPRA"/>
                             </Grid>
-                            <ListBox x:Name="OnlineSourceChips" Style="{StaticResource FilterChipList}" Margin="0,10,0,0" ItemsSource="{StaticResource OnlineSourceOptions}" SelectedItem="{Binding OnlineSourceFilter}"
-                                     AutomationProperties.Name="Online source"/>
-                            <TextBlock Text="{Binding GitHubProfileStatus}" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,2,0,0"/>
+                            <DockPanel Margin="0,10,0,0">
+                            <!-- Centered on the 28px chip row. -->
+                            <controls:HelpTip DockPanel.Dock="Right" VerticalAlignment="Top" Margin="8,6,2,0" AutomationProperties.Name="About AutoEq and OPRA"
+                                              Title="Where results come from" Text="AutoEq and OPRA are free, community-run collections of headphone measurements. Each result is an EQ preset that tunes those headphones toward a neutral sound."/>
+                            <ListBox x:Name="OnlineSourceChips" Style="{StaticResource FilterChipList}" ItemsSource="{StaticResource OnlineSourceOptions}" SelectedItem="{Binding OnlineSourceFilter}"
+                                     AutomationProperties.Name="Online source">
+                                <!-- Show "AutoEq" (the spelling used everywhere else); the filter value stays "AutoEQ". -->
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="{Binding}"/><Style.Triggers><DataTrigger Binding="{Binding}" Value="AutoEQ"><Setter Property="Text" Value="AutoEq"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            </DockPanel>
+                            <TextBlock Text="{Binding GitHubProfileStatus}" Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,0,0,0"/>
                         </StackPanel>
 
                         <!-- Saved presets (My Library and Favorites share the filtered view) -->
@@ -612,13 +616,18 @@
                                  ItemTemplate="{StaticResource LibraryPresetListItemTemplate}" BorderThickness="0" Background="Transparent"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Saved presets"
                                  Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" Margin="20">
+                        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" Margin="24">
                             <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
                                 <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding HasItems, ElementName=SavedPresetList}" Value="False"/><Condition Binding="{Binding IsLocalLibraryTab}" Value="True"/></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible"/></MultiDataTrigger>
                             </Style.Triggers></Style></StackPanel.Style>
-                            <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="24" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                            <TextBlock Text="No presets found" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Try another search, or star presets to see them in Favorites." Style="{StaticResource DimText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/>
+                            <controls:PhosphorIcon IconName="MagnifyingGlass" IconSize="26" IconBrush="{DynamicResource WolfGreenBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                            <!-- Copy follows the tab: Favorites explains how to add one. -->
+                            <TextBlock FontWeight="SemiBold" HorizontalAlignment="Center">
+                                <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="No presets found"/><Style.Triggers><DataTrigger Binding="{Binding IsChecked, ElementName=FavoritesSourceChip}" Value="True"><Setter Property="Text" Value="No favorites yet"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock TextAlignment="Center" Margin="0,5,0,0">
+                                <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource DimText}"><Setter Property="Text" Value="Try a different search or category."/><Style.Triggers><DataTrigger Binding="{Binding IsChecked, ElementName=FavoritesSourceChip}" Value="True"><Setter Property="Text" Value="Click the star on a preset in My Library to add it here."/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
 
                         <!-- Online results -->
@@ -652,7 +661,7 @@
                                             Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="8">
+                                                <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusControl}">
                                                     <Path x:Name="Glyph" Data="M3,17 L3,13.5 L13,3.5 L16.5,7 L6.5,17 Z M11,5.5 L14.5,9" Width="14" Height="14" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
                                                           Stroke="{DynamicResource WolfMutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
@@ -677,7 +686,7 @@
                                             Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="8">
+                                                <Border x:Name="Chrome" Background="Transparent" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusControl}">
                                                     <Path x:Name="Glyph" Data="M10,1 L12.6,7 L19,7.6 L14.1,11.8 L15.6,18 L10,14.7 L4.4,18 L5.9,11.8 L1,7.6 L7.4,7 Z" Width="15" Height="15" Stretch="Uniform" StrokeThickness="1.4" StrokeLineJoin="Round"
                                                           Stroke="{DynamicResource WolfMutedBrush}" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
@@ -707,6 +716,9 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
+                                    <!-- Divider: preset actions on the left, Curve / Bands view switch on the right. -->
+                                    <Rectangle Width="1" Height="20" Margin="0,0,10,0" VerticalAlignment="Center" Fill="{DynamicResource WolfLineBrush}"
+                                               Visibility="{Binding IsLocalLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                     <RadioButton x:Name="PreviewCurveChoice" GroupName="LibraryPreview" Style="{StaticResource PreviewViewChoice}" IsChecked="True" Content="Curve" Tag="0" Click="PreviewView_Click"/>
                                     <RadioButton x:Name="PreviewTableChoice" GroupName="LibraryPreview" Style="{StaticResource PreviewViewChoice}" Content="Bands" Tag="1" Click="PreviewView_Click"/>
                                 </StackPanel>
@@ -716,7 +728,7 @@
                                 </StackPanel>
                             </DockPanel>
 
-                            <Border Margin="0,14,0,0" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="12" Padding="6">
+                            <Border Margin="0,14,0,0" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="6">
                                 <TabControl x:Name="OnlinePreviewTabs" Height="270" SelectedIndex="0" BorderThickness="0" Background="Transparent" Padding="0">
                                     <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
                                     <TabItem x:Name="PreviewCurveTab" Header="Curve">
@@ -744,7 +756,8 @@
                             <UniformGrid Columns="4" Margin="0,12,-8,0">
                                 <Border Style="{StaticResource FactTile}"><StackPanel><TextBlock Text="PREAMP" Style="{StaticResource TinyLabel}"/><TextBlock Text="{Binding LibraryDetailPreset.PreampDb, StringFormat={}{0:+0.0;-0.0;0.0} dB, TargetNullValue=—, FallbackValue=—}" FontWeight="SemiBold" Margin="0,3,0,0"/></StackPanel></Border>
                                 <Border Style="{StaticResource FactTile}"><StackPanel><TextBlock Text="FILTERS" Style="{StaticResource TinyLabel}"/><TextBlock Text="{Binding LibraryDetailFilterCount}" FontWeight="SemiBold" Margin="0,3,0,0"/></StackPanel></Border>
-                                <Border Style="{StaticResource FactTile}"><StackPanel><TextBlock Text="{Binding SelectedDeviceProfile.BandCount, StringFormat=FITS {0}-BAND}" Style="{StaticResource TinyLabel}"/>
+                                <Border Style="{StaticResource FactTile}"><StackPanel><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding SelectedDeviceProfile.BandCount, StringFormat=FITS {0} BANDS}" Style="{StaticResource TinyLabel}" VerticalAlignment="Center"/>
+                                    <controls:HelpTip Width="13" Height="13" Margin="5,0,0,0" Title="Fits your device" Text="Yes means every filter in this preset fits on your device. Too many filters means the preset has more filters than your device has bands."/></StackPanel>
                                     <TextBlock Text="{Binding LibraryDetailFitText}" FontWeight="SemiBold" Margin="0,3,0,0">
                                         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource WolfWarningBrush}"/><Style.Triggers><DataTrigger Binding="{Binding LibraryDetailFits}" Value="True"><Setter Property="Foreground" Value="{DynamicResource WolfGreenBrush}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
                                     </TextBlock></StackPanel></Border>
@@ -754,7 +767,7 @@
                                     </TextBlock></StackPanel></Border>
                             </UniformGrid>
 
-                            <TextBlock Text="Online presets are saved to My Library before they are opened or written." Style="{StaticResource TinyLabel}" TextWrapping="Wrap" Margin="2,12,0,0"
+                            <TextBlock Text="Opening or writing an online preset also saves a copy to My Library." Style="{StaticResource DimText}" TextWrapping="Wrap" Margin="0,12,0,0"
                                        Visibility="{Binding IsOnlineLibraryTab, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                         </StackPanel>
                     </ScrollViewer>
@@ -768,8 +781,8 @@
                                     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SavePresetButton}"><Style.Triggers><DataTrigger Binding="{Binding LibrarySelection}" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></Button.Style>
                                     <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="16" IconBrush="{DynamicResource WolfGreenContrastBrush}" Margin="0,0,8,0"/><TextBlock Text="Open in editor" Foreground="{DynamicResource WolfGreenContrastBrush}"/></StackPanel>
                                 </Button>
-                                <Button Content="Duplicate" Command="{Binding DuplicatePresetCommand}" Padding="14,9" Margin="0,0,8,0" ToolTip="Make a copy of this preset"/>
-                                <Button Content="Write to USER slot" Command="{Binding WriteLibraryPresetToSlotCommand}" Padding="14,9" ToolTip="Write this preset to the selected device slot"
+                                <Button Content="Duplicate" Command="{Binding DuplicatePresetCommand}" Style="{StaticResource AccentButton}" Padding="14,9" Margin="0,0,8,0" ToolTip="Make a copy of this preset"/>
+                                <Button Content="Write to USER slot" Command="{Binding WriteLibraryPresetToSlotCommand}" Style="{StaticResource AccentButton}" Padding="14,9" ToolTip="Write this preset to the selected device slot"
                                         Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                 <Button DockPanel.Dock="Right" Content="Delete" Command="{Binding DeletePresetCommand}" Style="{StaticResource QuietButton}" Foreground="{DynamicResource WolfDangerBrush}" Padding="12,9" ToolTip="Delete this preset" AutomationProperties.Name="Delete preset"/>
                             </DockPanel>
@@ -778,10 +791,10 @@
                                 <Button Command="{Binding LoadOnlineProfileIntoEditorCommand}" Style="{StaticResource SavePresetButton}" Padding="16,9" Margin="0,0,8,0" ToolTip="Save this profile and open it in the editor">
                                     <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="16" IconBrush="{DynamicResource WolfGreenContrastBrush}" Margin="0,0,8,0"/><TextBlock Text="Open in editor" Foreground="{DynamicResource WolfGreenContrastBrush}"/></StackPanel>
                                 </Button>
-                                <Button Command="{Binding ImportGitHubProfileCommand}" Padding="14,9" Margin="0,0,8,0" ToolTip="Save this profile to My Library">
+                                <Button Command="{Binding ImportGitHubProfileCommand}" Style="{StaticResource AccentButton}" Padding="14,9" Margin="0,0,8,0" ToolTip="Save this profile to My Library">
                                     <StackPanel Orientation="Horizontal"><controls:PhosphorIcon IconName="Plus" IconSize="13" IconBrush="{DynamicResource WolfGreenBrush}" Margin="0,0,7,0"/><TextBlock Text="Save to My Library"/></StackPanel>
                                 </Button>
-                                <Button Content="Write to USER slot" Command="{Binding WriteOnlineProfileToSlotCommand}" Padding="14,9" ToolTip="Save this profile and write it to the selected device slot"
+                                <Button Content="Write to USER slot" Command="{Binding WriteOnlineProfileToSlotCommand}" Style="{StaticResource AccentButton}" Padding="14,9" ToolTip="Save this profile and write it to the selected device slot"
                                         Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             </DockPanel>
                         </Grid>

@@ -55,6 +55,17 @@ public sealed partial class MainViewModel
         }
     }
 
+    /// <summary>Collapsed summary for Settings › Sound (controls that live on the device).</summary>
+    public string SoundSectionSummary
+        => SelectedDeviceSupportsBleInput
+            ? $"{SelectedDeviceInputSource.DisplayName} input{SummarySeparator}volume {DeviceVolume:0}"
+            : $"Volume {DeviceVolume:0}";
+
+    /// <summary>"?" help text for the model picker: replaces the spec fine print that used to sit in the panel.</summary>
+    public string DeviceModelHelpText => IsK13R2RSelected
+        ? $"{DeviceProfileCapabilityText}. Plays up to 192 kHz / 24-bit. MQA turns off while EQ is on, and switching EQ can briefly reconnect USB."
+        : DeviceProfileCapabilityText;
+
     public string WindowsAudioSectionSummary
     {
         get
@@ -152,6 +163,18 @@ public sealed partial class MainViewModel
             nameof(TopLedOn), nameof(KnobLedOn), nameof(TopLedSummary), nameof(KnobLedSummary),
             nameof(SelectedTopLedColorOption), nameof(SelectedKnobLedColorOption),
             nameof(SelectedTopLedModeOption), nameof(SelectedKnobLedModeOption));
+        foreach (var editorProperty in LightEditorProperties())
+        {
+            Add(editorProperty,
+                nameof(TopLedOn), nameof(KnobLedOn), nameof(SelectedTopLedColorOption), nameof(SelectedKnobLedColorOption),
+                nameof(SelectedTopLedModeOption), nameof(SelectedKnobLedModeOption));
+        }
+        Add(nameof(LightsEditingTitle), nameof(SelectedDeviceUserPreset));
+        Add(nameof(StreamDeckKeys), nameof(SlotLightingSummary), nameof(IntegrationSlots), nameof(DeviceUserPresets));
+        Add(nameof(SelectedStreamDeckKey), nameof(SlotLightingSummary), nameof(IntegrationSlots), nameof(DeviceUserPresets));
+        Add(nameof(SoundSectionSummary), nameof(SelectedDeviceInputSource), nameof(DeviceVolume), nameof(SelectedDeviceProfile));
+        Add(nameof(DeviceModelHelpText), nameof(SelectedDeviceProfile), nameof(DeviceProfileCapabilityText), nameof(IsK13R2RSelected));
+        Add(nameof(LightsNeedBluetooth), nameof(SelectedDeviceProfile), nameof(SelectedDeviceSupportsBleLighting), nameof(IsBluetoothSaved));
         Add(nameof(WindowsAudioSectionSummary), nameof(WindowsAudioCurrentFormat));
         Add(nameof(IntegrationsSectionSummary),
             nameof(IsSystemEqSelected), nameof(SelectedDeviceProfile), nameof(IntegrationSlot),

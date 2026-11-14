@@ -72,7 +72,7 @@ public sealed class MainViewModelHistoryTests
 
         Assert.Equal(-4.0, viewModel.PreampDb);
         Assert.Equal("0.0 dB margin", viewModel.HeadroomMarginText);
-        Assert.Equal("Safe Headroom", viewModel.HeadroomGuardianTitle);
+        Assert.Equal("Safe headroom", viewModel.HeadroomGuardianTitle);
     }
 
     [Fact]

@@ -41,7 +41,7 @@ public sealed partial class MainViewModel
         ? StreamDeckScriptBuilder.Build(StreamDeckExecutable, IntegrationSlot, _binding.UsbPath!) : string.Empty;
     public string StreamDeckSetupNote => CanCopyStreamDeckPowerShell
         ? $"Ready for USER {IntegrationSlot} on {_binding.Name}."
-        : "Save your USB device in Device > Connections, then choose a supported USER slot.";
+        : "Save your USB device in Settings > Your device, then choose a supported USER slot.";
     private string _streamDeckCopyStatus = string.Empty;
     public string StreamDeckCopyStatus { get => _streamDeckCopyStatus; private set => SetField(ref _streamDeckCopyStatus, value); }
     public ICommand CopyStreamDeckPowerShellCommand => new RelayCommand(() =>
@@ -52,8 +52,48 @@ public sealed partial class MainViewModel
     public ICommand OpenWindowsScriptDeckCommand => new RelayCommand(() => OpenUrl(
         "https://marketplace.elgato.com/product/windows-scriptdeck-857f01dd-8fd4-44d5-8ec7-67ac850b21d3", "Windows ScriptDeck"));
 
+    /// <summary>One Stream Deck-style key per USER slot, glowing in that slot's saved top-light colour.</summary>
+    public IReadOnlyList<StreamDeckKeyOption> StreamDeckKeys => DeviceUserPresets
+        .Where(preset => !string.Equals(preset.Name, "No writable slots", StringComparison.OrdinalIgnoreCase))
+        .Select(preset =>
+        {
+            var lighting = GetSlotLightingProfile(preset.Slot);
+            var glow = lighting.TopOn ? LedBrushes.For(lighting.TopColor) : LedBrushes.Off;
+            return new StreamDeckKeyOption(preset.Slot, preset.SlotLabel,
+                // "From USER n" just repeats the key's own label, so it adds nothing under it.
+                string.IsNullOrWhiteSpace(preset.LocalEqName)
+                    || preset.LocalEqName!.Trim().Equals($"From {preset.SlotLabel}", StringComparison.OrdinalIgnoreCase)
+                    ? string.Empty
+                    : preset.LocalEqName!,
+                glow, preset.Slot == IntegrationSlot);
+        })
+        .ToArray();
+
+    public StreamDeckKeyOption? SelectedStreamDeckKey => StreamDeckKeys.FirstOrDefault(key => key.IsSelected);
+
+    public void SelectStreamDeckKey(int slot)
+    {
+        if (IntegrationSlots.Contains(slot)) IntegrationSlot = slot;
+    }
+
+    private string _lastSavedShortcutPath = string.Empty;
+
+    /// <summary>The .lnk saved most recently (shown as a tick in the Stream Deck wizard).</summary>
+    public string LastSavedShortcutPath
+    {
+        get => _lastSavedShortcutPath;
+        private set
+        {
+            if (SetField(ref _lastSavedShortcutPath, value)) OnPropertyChanged(nameof(HasSavedShortcut));
+        }
+    }
+
+    public bool HasSavedShortcut => _lastSavedShortcutPath.Length > 0;
+
     private void RefreshStreamDeckScript()
     {
+        OnPropertyChanged(nameof(StreamDeckKeys));
+        OnPropertyChanged(nameof(SelectedStreamDeckKey));
         OnPropertyChanged(nameof(StreamDeckCommand));
         OnPropertyChanged(nameof(StreamDeckArguments));
         OnPropertyChanged(nameof(StreamDeckPowerShell));
@@ -64,31 +104,176 @@ public sealed partial class MainViewModel
     }
 
     public string DeviceBindingSummary => string.IsNullOrEmpty(_binding.UsbPath)
-        ? "Choose the USB and Bluetooth connections for your DAC."
-        : _binding.BluetoothAddress is not null
-            ? "USB and Bluetooth connections saved."
-            : "USB saved. Select Bluetooth to enable lighting controls.";
+        ? "Choose the USB device for your DAC and save it."
+        : "USB device saved.";
     public ICommand RefreshUsbDevicesCommand => new AsyncRelayCommand(RefreshUsbDevicesAsync);
-    public ICommand ScanBluetoothDevicesCommand => new AsyncRelayCommand(() => IntegrationOperationAsync(async () =>
+    // ── Guided Bluetooth setup: find → flash → "did it flash?" → saved. No separate save step. ──
+
+    private bool _bluetoothSearching;
+    private BleDeviceChoice? _bluetoothCandidate;
+    private readonly Queue<BleDeviceChoice> _bluetoothCandidates = new();
+    private string _bluetoothSetupMessage = string.Empty;
+
+    public bool IsBluetoothSearching => _bluetoothSearching;
+    public bool IsBluetoothConfirming => _bluetoothCandidate is not null && !_bluetoothSearching;
+    public bool ShowBluetoothFindPrompt => !IsBluetoothSaved && !_bluetoothSearching && _bluetoothCandidate is null;
+    public bool ShowBluetoothSavedDevice => IsBluetoothSaved && !_bluetoothSearching && _bluetoothCandidate is null;
+    public string BluetoothStatusText => _bluetoothSearching ? "Searching" : _bluetoothCandidate is not null ? "Check your K13" : IsBluetoothSaved ? "Set up" : "Not set up";
+    public string SavedBluetoothDisplay => _binding.BluetoothAddress is ulong address ? $"{_binding.BluetoothName}  ·  ends in {address & 0xFFFFFF:X6}" : string.Empty;
+    public string BluetoothCandidateDisplay => _bluetoothCandidate is { } c ? $"{c.Name}  ·  ends in {c.Address & 0xFFFFFF:X6}" : string.Empty;
+    public string BluetoothSetupMessage => _bluetoothSetupMessage;
+    public bool HasBluetoothSetupMessage => _bluetoothSetupMessage.Length > 0;
+
+    public ICommand FindBluetoothCommand => new AsyncRelayCommand(() => IntegrationOperationAsync(FindBluetoothAsync));
+    public ICommand ConfirmBluetoothCommand => new RelayCommand(ConfirmBluetoothCandidate);
+    public ICommand RejectBluetoothCommand => new AsyncRelayCommand(() => IntegrationOperationAsync(RejectBluetoothCandidateAsync));
+    public ICommand CancelBluetoothSetupCommand => new RelayCommand(() => EndBluetoothSetup(string.Empty));
+    public ICommand FlashBluetoothCommand => new AsyncRelayCommand(() => IntegrationOperationAsync(FlashBluetoothAsync));
+    public ICommand ForgetBluetoothCommand => new RelayCommand(ForgetBluetooth);
+
+    private async Task FindBluetoothAsync()
     {
-        Status = "Scanning for K13 Bluetooth devices (8 seconds)...";
-        var choices = await _bleLightService.DiscoverAsync();
+        _bluetoothCandidates.Clear();
+        _bluetoothCandidate = null;
+        _bluetoothSearching = true;
+        SetBluetoothMessage(string.Empty);
+        Status = "Looking for your K13 over Bluetooth...";
+        try
+        {
+            var found = await _bleLightService.DiscoverAsync();
+            if (found.Count == 0)
+            {
+                SetBluetoothMessage("No K13 found nearby. Make sure it's switched on and within a few metres of this PC, then try again.");
+                Status = "No K13 found over Bluetooth.";
+                return;
+            }
+
+            // Offer the strongest signal first; it's most likely the unit on this desk.
+            foreach (var choice in found.OrderByDescending(c => c.Signal == 0 ? short.MinValue : c.Signal)) _bluetoothCandidates.Enqueue(choice);
+        }
+        finally
+        {
+            _bluetoothSearching = false;
+            RaiseBluetoothSetupChanged();
+        }
+
+        await OfferNextBluetoothCandidateAsync();
+    }
+
+    private async Task OfferNextBluetoothCandidateAsync()
+    {
+        if (!_bluetoothCandidates.TryDequeue(out var candidate))
+        {
+            EndBluetoothSetup("That was the only K13 nearby. Check your K13 is switched on, then search again.");
+            return;
+        }
+
+        _bluetoothCandidate = candidate;
+        RaiseBluetoothSetupChanged();
+        await FlashCandidateAsync(candidate);
+    }
+
+    private async Task FlashCandidateAsync(BleDeviceChoice candidate)
+    {
+        try
+        {
+            await new FiioK13BleLightService { SelectedAddress = candidate.Address }.IdentifyAsync();
+            SetBluetoothMessage("Its lights just flashed green for a moment, then went back to normal.");
+        }
+        catch (Exception ex)
+        {
+            SetBluetoothMessage($"Found it, but it didn't respond to a test flash ({(ex.InnerException ?? ex).Message}). Try Flash again, or use it anyway if it's the only K13 here.");
+        }
+        Status = "Did your K13 flash green?";
+    }
+
+    private void ConfirmBluetoothCandidate()
+    {
+        if (_bluetoothCandidate is not { } candidate) return;
+        _binding.BluetoothAddress = candidate.Address;
+        _binding.BluetoothName = candidate.Name;
+        SaveBinding();
+        ApplyBinding();
         BluetoothDevices.Clear();
-        foreach (var choice in choices) BluetoothDevices.Add(choice);
-        SelectedBluetoothDevice = choices.FirstOrDefault(d => d.Address == _binding.BluetoothAddress);
-        Status = choices.Count == 0 ? "No K13 advertisements found. Check Bluetooth and device power." : "Select your K13, identify it, then save the connection.";
-    }));
-    public ICommand IdentifyBluetoothDeviceCommand => new AsyncRelayCommand(() => IntegrationOperationAsync(async () =>
+        BluetoothDevices.Add(candidate);
+        SelectedBluetoothDevice = candidate;
+        EndBluetoothSetup("Bluetooth is set up. You can change the lights now.");
+        Status = "Bluetooth saved. Lights are ready.";
+        AddLog($"Bluetooth device saved: {candidate.DisplayName}.");
+    }
+
+    private async Task RejectBluetoothCandidateAsync()
     {
-        if (SelectedBluetoothDevice is null) throw new InvalidOperationException("Select a Bluetooth device first.");
-        var service = new FiioK13BleLightService { SelectedAddress = SelectedBluetoothDevice.Address };
-        await service.IdentifyAsync();
-        Status = "Identification complete; previous lighting restored.";
-    }));
+        _bluetoothCandidate = null;
+        RaiseBluetoothSetupChanged();
+        await OfferNextBluetoothCandidateAsync();
+    }
+
+    private async Task FlashBluetoothAsync()
+    {
+        if (_bluetoothCandidate is { } candidate)
+        {
+            await FlashCandidateAsync(candidate);
+            return;
+        }
+
+        if (!IsBluetoothSaved) return;
+        try
+        {
+            await _bleLightService.IdentifyAsync();
+            SetBluetoothMessage("Flashed green. That's the K13 WolfEQ is using.");
+        }
+        catch (Exception ex)
+        {
+            SetBluetoothMessage($"Couldn't reach your K13 ({(ex.InnerException ?? ex).Message}). Make sure it's switched on and nearby.");
+        }
+    }
+
+    private void ForgetBluetooth()
+    {
+        _binding.BluetoothAddress = null;
+        SaveBinding();
+        ApplyBinding();
+        BluetoothDevices.Clear();
+        SelectedBluetoothDevice = null;
+        EndBluetoothSetup("Bluetooth forgotten. The lights won't change until you set it up again.");
+    }
+
+    private void EndBluetoothSetup(string message)
+    {
+        _bluetoothCandidates.Clear();
+        _bluetoothCandidate = null;
+        _bluetoothSearching = false;
+        SetBluetoothMessage(message);
+    }
+
+    private void SetBluetoothMessage(string message)
+    {
+        _bluetoothSetupMessage = message;
+        RaiseBluetoothSetupChanged();
+    }
+
+    private void RaiseBluetoothSetupChanged()
+    {
+        foreach (var name in new[]
+                 {
+                     nameof(IsBluetoothSearching), nameof(IsBluetoothConfirming), nameof(ShowBluetoothFindPrompt),
+                     nameof(ShowBluetoothSavedDevice), nameof(BluetoothStatusText), nameof(SavedBluetoothDisplay),
+                     nameof(BluetoothCandidateDisplay), nameof(BluetoothSetupMessage), nameof(HasBluetoothSetupMessage),
+                     nameof(IsBluetoothSaved)
+                 })
+        {
+            OnPropertyChanged(name);
+        }
+    }
     public ICommand SaveDeviceBindingCommand => new AsyncRelayCommand(() => IntegrationOperationAsync(async () =>
     {
         if (SelectedUsbDevice is null) throw new InvalidOperationException("Choose a USB device first.");
-        if (EditorSession.WouldReplaceUnsavedEdits) throw new InvalidOperationException("Save or discard editor changes before changing the device connection.");
+        // Only a different USB device can replace the editor's content; saving a Bluetooth
+        // selection or a new nickname for the same USB device must not be blocked by EQ edits.
+        var usbChanged = !string.Equals(SelectedUsbDevice.Path, _binding.UsbPath, StringComparison.OrdinalIgnoreCase);
+        if (usbChanged && EditorSession.WouldReplaceUnsavedEdits)
+            throw new InvalidOperationException("Save or discard editor changes before switching to a different USB device.");
         var name = DeviceNickname.Trim();
         if (name.Length is < 1 or > 80 || name.Any(char.IsControl)) throw new InvalidOperationException("Use a device name of 1–80 characters.");
         _liveDeviceEqSyncTimer.Stop();
@@ -99,8 +284,9 @@ public sealed partial class MainViewModel
         {
             UsbPath = SelectedUsbDevice.Path,
             Name = name,
-            BluetoothAddress = SelectedBluetoothDevice?.Address,
-            BluetoothName = SelectedBluetoothDevice?.Name ?? "K13",
+            // Bluetooth is saved by its own guided setup; keep whatever is saved.
+            BluetoothAddress = _binding.BluetoothAddress,
+            BluetoothName = _binding.BluetoothName,
             AutoSlotLighting = _binding.AutoSlotLighting
         };
         updated.Save();
@@ -143,6 +329,7 @@ public sealed partial class MainViewModel
         _slotLightingProfileService.SetDevice(_binding.UsbPath);
         RefreshLocalSlotNames();
         OnPropertyChanged(nameof(DeviceBindingSummary));
+        RaiseBluetoothSetupChanged();
         RefreshStreamDeckScript();
         OnPropertyChanged(nameof(IntegrationSlots));
     }
@@ -203,6 +390,7 @@ public sealed partial class MainViewModel
             link.WorkingDirectory = Path.GetDirectoryName(StreamDeckExecutable);
             link.Description = $"Switch WolfEQ to USER {IntegrationSlot}";
             link.Save();
+            LastSavedShortcutPath = dialog.FileName;
             Status = "Shortcut saved. Assign it to System > Open in Stream Deck.";
         }
         catch (Exception ex) { Status = $"Could not save shortcut: {ex.Message}"; }
@@ -231,8 +419,8 @@ public sealed partial class MainViewModel
         if (request.Device is not null &&
             !string.Equals(request.Device, _binding.Name, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(request.Device, _binding.UsbPath, StringComparison.OrdinalIgnoreCase))
-            return new(1, "Device does not match the saved connection. Select it in Settings > Device > Connections first.");
-        if (string.IsNullOrWhiteSpace(_binding.UsbPath)) return new(1, "Choose and save a USB device in Settings > Device > Connections first.");
+            return new(1, "Device does not match the saved connection. Select it in Settings > Your device first.");
+        if (string.IsNullOrWhiteSpace(_binding.UsbPath)) return new(1, "Choose and save a USB device in Settings > Your device first.");
         // Discover metadata only so cold commands use the saved device's actual slot limits.
         var detection = await _deviceService.DetectUsbAsync();
         if (!detection.IsDetected || detection.MatchedProfile is null)
@@ -246,6 +434,9 @@ public sealed partial class MainViewModel
         return new(!_lastSlotSwitchConfirmed ? 1 : _lastSlotLightingSucceeded ? 0 : 4, Status);
     }
 }
+
+/// <summary>A USER slot drawn as a Stream Deck key in Settings › Shortcuts and the setup wizard.</summary>
+public sealed record StreamDeckKeyOption(int Slot, string Label, string Subtitle, System.Windows.Media.Brush Glow, bool IsSelected);
 
 public sealed record UsbDeviceChoice(string Path, string Name)
 {

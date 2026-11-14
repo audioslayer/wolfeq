@@ -1101,6 +1101,15 @@ public sealed class FiioK13DeviceService
                 scannedDeviceCount++;
 
                 var devicePath = GetDevicePath(deviceInfoSet, ref interfaceData);
+
+                // Opening an unrelated HID device and reading its strings can block for seconds
+                // per request on some hardware (issue #5: ~76 s per operation). When the path
+                // already names a USB vendor ID that is not supported, skip it without opening.
+                if (ParseHexId(devicePath, "vid") is not null && !PathHasSupportedHidDeviceId(devicePath))
+                {
+                    continue;
+                }
+
                 var device = ReadHidMetadata(devicePath);
 
                 if (IsSupportedHidDevice(device) || PathHasSupportedHidDeviceId(devicePath))
