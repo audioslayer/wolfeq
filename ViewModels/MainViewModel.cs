@@ -1559,7 +1559,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            var snapshot = await _windowsVolumeService.ReadVolumeAsync("RETRO NANO");
+            var snapshot = await _windowsVolumeService.ReadVolumeAsync(WindowsVolumeEndpointNames);
             ApplyEndpointVolumeSnapshot(snapshot);
             Status = $"Volume: {snapshot.Volume}/99 via {snapshot.EndpointName}.";
             AddLog(Status);
@@ -1600,7 +1600,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            var snapshot = await _windowsVolumeService.SetVolumeAsync("RETRO NANO", (byte)DeviceVolume);
+            var snapshot = await _windowsVolumeService.SetVolumeAsync(WindowsVolumeEndpointNames, (byte)DeviceVolume);
             ApplyEndpointVolumeSnapshot(snapshot);
             Status = $"Volume set: {snapshot.Volume}/99 via {snapshot.EndpointName}.";
             AddLog(Status);
@@ -1624,14 +1624,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private async Task ReadDeviceControlsAsync()
     {
-        Status = $"Reading {SelectedDeviceProfile.DisplayName} volume. Other Retro Nano settings are not mapped yet.";
-        AddLog("Retro Nano device controls read requested. Volume uses Windows playback endpoint; gain/DRE/limit HID packets are not verified.");
+        Status = $"Reading {SelectedDeviceProfile.DisplayName} volume...";
+        AddLog($"{SelectedDeviceProfile.DisplayName} device controls read requested. Volume uses the Windows playback output; gain/DRE/limit packets are not verified.");
 
         try
         {
-            var volumeSnapshot = await _windowsVolumeService.ReadVolumeAsync("RETRO NANO");
+            var volumeSnapshot = await _windowsVolumeService.ReadVolumeAsync(WindowsVolumeEndpointNames);
             ApplyEndpointVolumeSnapshot(volumeSnapshot);
-            DeviceControlsStatus = $"Volume {volumeSnapshot.Volume}/99 via {volumeSnapshot.EndpointName}. Gain, DRE, volume limit, and channel balance still need verified Retro Nano packets.";
+            DeviceControlsStatus = $"Volume {volumeSnapshot.Volume}/99 via {volumeSnapshot.EndpointName}.";
             Status = DeviceControlsStatus;
             AddLog(Status);
         }
@@ -1651,13 +1651,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private async Task ApplyDeviceControlsAsync()
     {
         Status = $"Applying {SelectedDeviceProfile.DisplayName} volume only. Other settings are not mapped yet.";
-        AddLog("Retro Nano device controls write requested. Applying volume only to avoid sending unverified HID packets.");
+        AddLog($"{SelectedDeviceProfile.DisplayName} device controls write requested. Applying volume only to avoid sending unverified packets.");
 
         try
         {
-            var volumeSnapshot = await _windowsVolumeService.SetVolumeAsync("RETRO NANO", (byte)DeviceVolume);
+            var volumeSnapshot = await _windowsVolumeService.SetVolumeAsync(WindowsVolumeEndpointNames, (byte)DeviceVolume);
             ApplyEndpointVolumeSnapshot(volumeSnapshot);
-            DeviceControlsStatus = $"Volume set to {volumeSnapshot.Volume}/99. Gain, DRE, volume limit, and channel balance are waiting on verified Retro Nano packets.";
+            DeviceControlsStatus = $"Volume set to {volumeSnapshot.Volume}/99.";
             Status = DeviceControlsStatus;
             AddLog(Status);
         }
@@ -1870,7 +1870,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        DeviceControlsStatus = "This Retro Nano setting is not mapped yet. Volume writes are active; gain/DRE/limit/balance need verified packets.";
+        DeviceControlsStatus = "That setting isn't supported on this device yet. Volume works; gain, volume limit and balance are coming later.";
     }
 
     private void ApplyReadbackSlotName(K13EqReadback snapshot)

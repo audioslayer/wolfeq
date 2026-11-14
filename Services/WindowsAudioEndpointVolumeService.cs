@@ -13,21 +13,21 @@ public sealed class WindowsAudioEndpointVolumeService
         Guid.Parse("A45C254E-DF1C-4EFD-8020-67D146A850E0"),
         14);
 
-    public Task<WindowsEndpointVolumeSnapshot> ReadVolumeAsync(string endpointNameFragment, CancellationToken cancellationToken = default)
+    public Task<WindowsEndpointVolumeSnapshot> ReadVolumeAsync(IReadOnlyList<string> endpointNameFragments, CancellationToken cancellationToken = default)
         => Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var endpoint = OpenEndpointVolume(endpointNameFragment);
+            using var endpoint = OpenEndpointVolume(endpointNameFragments);
             var hr = endpoint.Volume.GetMasterVolumeLevelScalar(out var scalar);
             ThrowIfFailed(hr, "Unable to read Windows endpoint volume.");
             return new WindowsEndpointVolumeSnapshot(endpoint.Name, ToPercent(scalar));
         }, cancellationToken);
 
-    public Task<WindowsEndpointVolumeSnapshot> SetVolumeAsync(string endpointNameFragment, byte volume, CancellationToken cancellationToken = default)
+    public Task<WindowsEndpointVolumeSnapshot> SetVolumeAsync(IReadOnlyList<string> endpointNameFragments, byte volume, CancellationToken cancellationToken = default)
         => Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var endpoint = OpenEndpointVolume(endpointNameFragment);
+            using var endpoint = OpenEndpointVolume(endpointNameFragments);
             var scalar = Math.Clamp(volume, (byte)0, (byte)99) / 99.0f;
             var hr = endpoint.Volume.SetMasterVolumeLevelScalar(scalar, Guid.Empty);
             ThrowIfFailed(hr, "Unable to set Windows endpoint volume.");
@@ -36,7 +36,8 @@ public sealed class WindowsAudioEndpointVolumeService
             return new WindowsEndpointVolumeSnapshot(endpoint.Name, ToPercent(readback));
         }, cancellationToken);
 
-    private static EndpointVolumeHandle OpenEndpointVolume(string endpointNameFragment)
+    /// <summary>Opens the first active playback endpoint whose name contains any of the given fragments.</summary>
+    private static EndpointVolumeHandle OpenEndpointVolume(IReadOnlyList<string> endpointNameFragments)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -61,7 +62,7 @@ public sealed class WindowsAudioEndpointVolumeService
                 var name = GetFriendlyName(device);
                 fallbackNames.Add(name);
 
-                if (name.Contains(endpointNameFragment, StringComparison.OrdinalIgnoreCase))
+                if (endpointNameFragments.Any(fragment => !string.IsNullOrWhiteSpace(fragment) && name.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
                 {
                     selectedDevice = device;
                     break;
@@ -73,7 +74,7 @@ public sealed class WindowsAudioEndpointVolumeService
             if (selectedDevice is null)
             {
                 throw new InvalidOperationException(
-                    $"No active Windows playback endpoint matched '{endpointNameFragment}'. Active endpoints: {string.Join(", ", fallbackNames)}");
+                    $"Windows has no active playback output named like this device ({string.Join(" / ", endpointNameFragments)}). Active outputs: {string.Join(", ", fallbackNames)}");
             }
 
             var endpointVolumeId = IAudioEndpointVolumeId;

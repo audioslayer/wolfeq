@@ -61,6 +61,26 @@ public sealed partial class MainViewModel
             ? $"{SelectedDeviceInputSource.DisplayName} input{SummarySeparator}volume {DeviceVolume:0}"
             : $"Volume {DeviceVolume:0}";
 
+    /// <summary>
+    /// Names that identify the selected device's Windows playback output, e.g. "Speakers (FIIO K13 R2R)"
+    /// matches "K13 R2R". Used by Sound › Volume, which sets the Windows output volume.
+    /// </summary>
+    internal IReadOnlyList<string> WindowsVolumeEndpointNames
+    {
+        get
+        {
+            var profile = SelectedDeviceProfile;
+            var names = new List<string>(profile.ProductNameAliases ?? []) { profile.DisplayName };
+            foreach (var brand in new[] { "FiiO ", "Snowsky " })
+            {
+                if (profile.DisplayName.StartsWith(brand, StringComparison.OrdinalIgnoreCase))
+                    names.Add(profile.DisplayName[brand.Length..]);
+            }
+
+            return names.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+    }
+
     /// <summary>"?" help text for the model picker: replaces the spec fine print that used to sit in the panel.</summary>
     public string DeviceModelHelpText => IsK13R2RSelected
         ? $"{DeviceProfileCapabilityText}. Plays up to 192 kHz / 24-bit. MQA turns off while EQ is on, and switching EQ can briefly reconnect USB."
