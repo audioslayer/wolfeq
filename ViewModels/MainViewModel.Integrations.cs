@@ -288,6 +288,8 @@ public sealed partial class MainViewModel
             BluetoothName = _binding.BluetoothName,
             AutoSlotLighting = _binding.AutoSlotLighting
         };
+        if (IsMovedDevice(SelectedUsbDevice.Path, UsbDevices.Select(device => (string?)device.Path)))
+            CarryOverDeviceData(_binding.UsbPath!, SelectedUsbDevice.Path);
         updated.Save();
         _binding = updated;
         ApplyBinding();

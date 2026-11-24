@@ -9,20 +9,26 @@ public sealed class SlotLightingProfileService
 
     public SlotLightingProfileService()
     {
-        StoragePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WolfEQ",
-            "slot-lighting.json");
+        StoragePath = Path.Combine(DeviceBindingSettings.DataDirectory, "slot-lighting.json");
     }
 
     public string StoragePath { get; private set; }
 
-    public void SetDevice(string? devicePath)
+    public void SetDevice(string? devicePath) => StoragePath = PathFor(devicePath);
+
+    /// <summary>Carries a device's lights to its new USB path. Never replaces lights already there.</summary>
+    public static void CopyToNewPath(string oldPath, string newPath)
+    {
+        var source = PathFor(oldPath);
+        var target = PathFor(newPath);
+        if (File.Exists(source) && !File.Exists(target)) File.Copy(source, target);
+    }
+
+    private static string PathFor(string? devicePath)
     {
         var key = string.IsNullOrEmpty(devicePath) ? "unassigned" : Convert.ToHexString(
             System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(devicePath.ToUpperInvariant())))[..24];
-        StoragePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WolfEQ", $"slot-lighting-{key}.json");
+        return Path.Combine(DeviceBindingSettings.DataDirectory, $"slot-lighting-{key}.json");
     }
 
     public IReadOnlyDictionary<int, SlotLightingProfileData> Load()

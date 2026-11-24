@@ -2,19 +2,32 @@
 
 ## v1.0.0
 
+WolfEQ reaches 1.0. Every band has its own color, your cursor becomes part of the knob you turn, and 19 devices are supported, including the first from outside FiiO.
+
 ### ✨ New
 
-- 🌈 **A color for every band** — Graph nodes, faders, knobs and the band editor share one color per band, warm lows to cool highs. The band you select or hover shows its own shaded shape.
-- 🎚️ **Knobs view** — The new default Band controls view, ahead of Faders and Table. Turn gain, frequency and width, or type exact values. Tiles keep their place while you turn a knob.
-- 🎧 **More devices** — Added the JadeAudio JIEZI and Snowsky Tiny A, and corrected the Retro Nano's width limits and filter list. Measurements by the Contour project.
-- **Tidier settings** — Settings only show what your device supports. Volume limit, balance and high gain are gone: the K13 does not accept them from a PC.
-- 🎧 **First non-FiiO DACs** — Added the TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II. Every save is read back and checked.
+- 🌈 **A color for every band** — Graph points, knobs, faders and the band editor share one color per band, warm lows to cool highs.
+- 🎚️ **Knobs** — The new default Band controls view. Your cursor flies into the knob and the light follows it around the dial. Type exact values any time.
+- 🪽 **Width wings** — The selected band's wings follow the curve. Drag a tip, or scroll even while dragging a point, to make it wider or narrower.
+- 🔢 **Live readout** — Frequency, gain and Q appear beside a point as you drag it.
+- 🎧 **More devices** — TRN Black Pearl, CrinEar Protocol Max, Tanchjim SPACE II, JadeAudio JIEZI and Snowsky Tiny A. On the first three, every save is read back and checked.
+- 🖼️ **Real pictures** — Every device has its own picture.
+- 🎛️ **Tidier settings** — Settings show only what your device supports. Volume limit, balance and high gain are gone: the K13 did not respond to them from a PC.
 
 ### 🐞 Fixed
 
-- 🔊 **KA15, JA11 and Melody level** — Saved EQs played 12 dB too quiet. The preamp now matches what you set, from -24 to 0 dB. **Expect these to sound louder after your next save, so turn the volume down first.**
-- 🛡️ **Safer saving on BTR17, K17 and K19** — These now save with FiiO's standard command. The old one is a factory reset on other FiiO models.
-- **KA15 and JA11** — Loading from a slot no longer waits on a command these devices never answer.
+- 🔊 **KA15, JA11 and Melody level** — Saved EQs played 12 dB too quiet. The preamp now matches what you set, from -24 to 0 dB.
+- 🛡️ **Safer saving on BTR17, K17 and K19** — These now save with FiiO's standard command. The old one is a factory reset on other FiiO models, so please update before saving to these.
+- 📶 **Bluetooth stays saved** — If Windows gives your device a new USB path, picking it again keeps its Bluetooth, slot names and lights.
+- ⏱️ **KA15 and JA11** — Loading from a slot no longer waits on a command these devices never answer.
+- 📏 **Retro Nano** — Corrected width limits and filter list.
+
+### ⚠️ Good to know
+
+- **KA15, JA11 and Melody owners:** your next save will sound about 12 dB louder than before. **Turn the volume down first.**
+- WolfEQ is developed on the K13 R2R. The other devices build on published work by Contour, DevicePEQ and fiioctl. Using one? Start with a low-gain EQ and tell us how it goes, especially on the BTR17, K17 and K19: check that your EQ is still there after a power cycle.
+- The TRN Black Pearl only appears in Windows with headphones plugged in.
+- **Coming from 0.9?** If WolfEQ says your saved device is unavailable, pick it again from the device menu.
 
 ## v0.9.0-beta
 

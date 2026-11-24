@@ -152,6 +152,27 @@ public sealed partial class MainViewModel
         return options;
     }
 
+    /// <summary>Same model, and neither the old unit nor a second identical one is plugged in.</summary>
+    private bool IsMovedDevice(string? newPath, IEnumerable<string?> pluggedIn)
+        => DeviceBindingSettings.IsSameModelOnNewPath(_binding.UsbPath, newPath)
+           && !pluggedIn.Any(path => !string.Equals(path, newPath, StringComparison.OrdinalIgnoreCase)
+               && (string.Equals(path, _binding.UsbPath, StringComparison.OrdinalIgnoreCase)
+                   || DeviceBindingSettings.IsSameModelOnNewPath(newPath, path)));
+
+    private void CarryOverDeviceData(string oldPath, string newPath)
+    {
+        try
+        {
+            _slotNames.CopyToNewPath(oldPath, newPath, SelectedDeviceProfile.Id);
+            SlotLightingProfileService.CopyToNewPath(oldPath, newPath);
+            AddLog("Same device on a new USB path: kept its Bluetooth, slot names and lights.");
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            AddLog($"Could not carry over slot names or lights: {ex.Message}");
+        }
+    }
+
     private async Task SwitchToQuickDeviceAsync(QuickDeviceOption option)
     {
         if (option.IsCurrent)
@@ -185,11 +206,16 @@ public sealed partial class MainViewModel
 
         if (!string.Equals(option.UsbPath, _binding.UsbPath, StringComparison.OrdinalIgnoreCase))
         {
-            // A different physical unit: its Bluetooth pairing would belong to the old one.
+            // The same unit on a new USB path keeps its Bluetooth, slot names and lights. A different unit
+            // does not: the Bluetooth pairing would belong to the old one.
+            var moved = IsMovedDevice(option.UsbPath, QuickDevices.Select(device => device.UsbPath));
+            if (moved) CarryOverDeviceData(_binding.UsbPath!, option.UsbPath!);
             _binding = new DeviceBindingSettings
             {
                 UsbPath = option.UsbPath,
-                Name = option.Profile.DisplayName,
+                Name = moved ? _binding.Name : option.Profile.DisplayName,
+                BluetoothAddress = moved ? _binding.BluetoothAddress : null,
+                BluetoothName = moved ? _binding.BluetoothName : new DeviceBindingSettings().BluetoothName,
                 AutoSlotLighting = _binding.AutoSlotLighting
             };
             SaveBinding();

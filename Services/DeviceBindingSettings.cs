@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace WolfEQ.Services;
 
@@ -10,8 +11,30 @@ public sealed class DeviceBindingSettings
     public string BluetoothName { get; set; } = "K13";
     public string Name { get; set; } = "Desk K13";
     public bool AutoSlotLighting { get; set; }
-    private static string SettingsPath => Path.Combine(Environment.GetFolderPath(
-        Environment.SpecialFolder.LocalApplicationData), "WolfEQ", "device-binding.json");
+    /// <summary>Test hook: keeps tests away from the user's saved device, slot names and lights.</summary>
+    internal static string? DataDirectoryOverride { get; set; }
+
+    internal static string DataDirectory => DataDirectoryOverride ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WolfEQ");
+
+    private static string SettingsPath => Path.Combine(DataDirectory, "device-binding.json");
+
+    /// <summary>
+    /// True when a USB path changed but still names the same model and interface. Windows changes the rest of the path
+    /// after a driver update or on another port, and may add a revision (rev_0115).
+    /// </summary>
+    internal static bool IsSameModelOnNewPath(string? oldPath, string? newPath)
+    {
+        if (string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath)
+            || string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase)) return false;
+        static string? Part(string path, string key)
+        {
+            var match = Regex.Match(path, $@"[#&]{key}_?([0-9a-f]+)(?=[#&])", RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[1].Value.ToUpperInvariant() : null;
+        }
+        return Part(oldPath, "vid") is not null && Part(oldPath, "pid") is not null
+            && new[] { "vid", "pid", "mi", "col" }.All(key => Part(oldPath, key) == Part(newPath, key));
+    }
 
     public static DeviceBindingSettings Load()
     {

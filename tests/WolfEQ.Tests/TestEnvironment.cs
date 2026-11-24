@@ -23,6 +23,8 @@ internal static class TestEnvironment
         WolfEQ.Services.BackgroundThemeService.PreferencePathOverride = Path.Combine(root, "background-theme.txt");
         // View checks star, rename and delete presets; never let that touch the real library.
         WolfEQ.Services.LocalPresetLibraryService.DefaultPathOverride = Path.Combine(root, "profiles.json");
+        // Saved device, slot names and lights.
+        WolfEQ.Services.DeviceBindingSettings.DataDirectoryOverride = root;
         SystemEqServices.DefaultOverride = () => new SystemEqServices(
             new NullEqOutputBackend(),
             new EmptyAudioEndpointCatalog(),

@@ -8,8 +8,7 @@ namespace WolfEQ.Services;
 /// <summary>Local labels for the last EQ written to each physical device's slots.</summary>
 public sealed class DeviceSlotNameService(string? directory = null)
 {
-    private readonly string _directory = directory ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WolfEQ");
+    private readonly string _directory = directory ?? DeviceBindingSettings.DataDirectory;
 
     private string FilePath(string devicePath, string profileId)
     {
@@ -25,6 +24,14 @@ public sealed class DeviceSlotNameService(string? directory = null)
         if (!File.Exists(path)) return [];
         var json = BoundedTextReader.ReadAllText(path, BoundedTextReader.SettingsMaxBytes, "Device slot names");
         return JsonSerializer.Deserialize<Dictionary<byte, string>>(json) ?? [];
+    }
+
+    /// <summary>Carries a device's names to its new USB path. Never replaces names already there.</summary>
+    public void CopyToNewPath(string oldPath, string newPath, string profileId)
+    {
+        var source = FilePath(oldPath, profileId);
+        var target = FilePath(newPath, profileId);
+        if (File.Exists(source) && !File.Exists(target)) File.Copy(source, target);
     }
 
     public void Save(string devicePath, string profileId, byte slotId, string name)

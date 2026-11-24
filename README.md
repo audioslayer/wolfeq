@@ -35,7 +35,7 @@ Every band has its own color, and the light follows your hand. Grab a knob or a 
 <table>
   <tr>
     <td width="50%"><img src="docs/images/settings-1.0.png" alt="Settings with the device card and color-coded sections" /></td>
-    <td width="50%"><img src="docs/images/lights-0.9.png" alt="Lights editor with K13 preview, effects and colors" /></td>
+    <td width="50%"><img src="docs/images/lights-1.0.png" alt="Lights editor with K13 preview, effects and colors" /></td>
   </tr>
   <tr>
     <td align="center"><em>Settings: your device first</em></td>
@@ -70,10 +70,10 @@ Choose **Settings → Look → Background**. Background mode is saved, and accen
 
 ## 🚀 Download
 
-**[Get the latest release](https://github.com/audioslayer/wolfeq/releases/latest)** — 1.0 is on its way; the current download is 0.9.0 beta.
+**[Get the latest release](https://github.com/audioslayer/wolfeq/releases/latest)**
 
-- **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v0.9.0-beta/WolfEQ-Setup-0.9.0-beta.exe)** — normal installation and shortcuts.
-- **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v0.9.0-beta/WolfEQ-0.9.0-beta-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
+- **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v1.0.0/WolfEQ-Setup-1.0.0.exe)** — normal installation and shortcuts.
+- **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v1.0.0/WolfEQ-1.0.0-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
 - Both include the .NET runtime and the official Equalizer APO 1.4.2 x64 installer for Software EQ. SHA-256 checksums are supplied with the release.
 
 ## 🔌 First session
