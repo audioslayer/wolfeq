@@ -1,5 +1,6 @@
 <UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:controls="clr-namespace:WolfEQ.Controls" xmlns:views="clr-namespace:WolfEQ.Views" x:Class="WolfEQ.Views.EditorWorkspace" mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="700" Foreground="{DynamicResource WolfTextBrush}">
     <UserControl.Resources>
+        <controls:BandBrushConverter x:Key="BandBrush"/>
         <views:InverseBooleanConverter x:Key="InverseBoolean"/>
         <!-- Band step arrows: no border; the glyph and a soft tint show hover and keyboard focus. -->
         <Style x:Key="BandArrowButton" TargetType="Button">
@@ -185,7 +186,7 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <TextBlock Text="20 Hz to 20 kHz" Style="{StaticResource TinyLabel}" VerticalAlignment="Center" Margin="0,0,18,0"/>
                             <TextBlock Text="Drag a point to adjust" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center"/>
-                            <controls:HelpTip Title="Editing the curve" Text="Drag a numbered point to change its frequency and gain. Scroll the mouse wheel over a point to make it wider or narrower. Alt-click a point to turn that band off or on."/>
+                            <controls:HelpTip Title="Editing the curve" Text="Drag a numbered point to change its frequency and gain. Drag the lights at the ends of its wings to make it wider or narrower, or turn the mouse wheel over it, even while dragging. Alt-click a point to turn that band off or on."/>
                         </StackPanel>
                     </DockPanel>
                     <Grid Grid.Row="1" ClipToBounds="True">
@@ -212,8 +213,8 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Band" Foreground="{DynamicResource WolfMutedBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                <Border Width="34" Height="34" CornerRadius="17" BorderBrush="{DynamicResource WolfGreenBrush}" BorderThickness="2">
-                                    <TextBlock Text="{Binding SelectedBandDisplayNumber, ElementName=Graph}" Foreground="{DynamicResource WolfGreenBrush}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Border Width="34" Height="34" CornerRadius="17" BorderBrush="{Binding Foreground, ElementName=BandNumberText}" BorderThickness="2">
+                                    <TextBlock x:Name="BandNumberText" Text="{Binding SelectedBandDisplayNumber, ElementName=Graph}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"><TextBlock.Foreground><MultiBinding Converter="{StaticResource BandBrush}" ConverterParameter="Display"><Binding Path="SelectedBandDisplayNumber" ElementName="Graph"/><Binding Path="Bands.Count" ElementName="Graph"/><Binding Path="Tag" ElementName="BandPanel"/></MultiBinding></TextBlock.Foreground></TextBlock>
                                 </Border>
                                 <Button Content="‹" Style="{StaticResource BandArrowButton}" Click="PreviousBand_Click" ToolTip="Previous band" AutomationProperties.Name="Previous band"/>
                                 <Button Content="›" Style="{StaticResource BandArrowButton}" Click="NextBand_Click" ToolTip="Next band" AutomationProperties.Name="Next band"/>
@@ -309,7 +310,7 @@
                         <TextBlock Text="Preamp" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                         <controls:HelpTip Title="Preamp" Text="Raises or lowers the whole EQ at once. When bands boost, lower the preamp so loud parts do not distort."/>
                     </StackPanel>
-                    <controls:StyledSlider Grid.Column="1" Minimum="{Binding SelectedDeviceProfile.MinGainDb}" Maximum="{Binding SelectedDeviceProfile.MaxGainDb}" Value="{Binding PreampDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="0.5" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" VerticalAlignment="Center"/>
+                    <controls:StyledSlider Grid.Column="1" Minimum="{Binding SelectedDeviceProfile.MinPreampDb}" Maximum="{Binding SelectedDeviceProfile.MaxPreampDb}" Value="{Binding PreampDb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="0.5" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" VerticalAlignment="Center"/>
                     <Border Grid.Column="2" Width="96" Background="{DynamicResource WolfBgBrush}" BorderBrush="{DynamicResource WolfLineBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusControl}" MinHeight="42" Padding="12,0" Margin="16,0,20,0" VerticalAlignment="Center">
                         <TextBlock Text="{Binding PreampDb, StringFormat={}{0:+0.0;-0.0;0.0} dB}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>

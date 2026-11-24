@@ -23,7 +23,7 @@ A friendlier WolfEQ. Settings has been rebuilt around **your device**: one glanc
 | | New in 0.9.0 |
 |---|---|
 | 🎛️ **Settings at a glance** | A device card with a live drawing of your K13, USB and Bluetooth status chips, and colour-coded sections: Your device, Sound, Lights, Windows output, Shortcuts, Look and About. |
-| ❔ **Help where you need it** | Hover any **?** for a short, plain explanation. Preamp, Live sync, band count, volume limit, high gain and more. |
+| ❔ **Help where you need it** | Hover any **?** for a short, plain explanation. Preamp, Live sync, band count and more. |
 | 🌈 **A real lights editor** | Preview the top bar and knob, edit Both, Top or Knob, and pick any built-in effect: Solid, Breathing, Rainbow, Rainbow breathing or Follow audio. Two-tone looks set both at once. |
 | 📶 **Bluetooth in one click** | **Find my K13** flashes your unit green and saves it when you say yes. No pairing in Windows and no separate save step. |
 | ⌨️ **Stream Deck made easy** | Pick a slot from Stream Deck-style keys, then follow a four-step guide to save the shortcut and add it to a key. |
@@ -193,26 +193,31 @@ Results are also written to `%LOCALAPPDATA%\WolfEQ\automation-result.json`. Use 
 |-|-|-|
 | Software EQ | 🆕 Beta | Any Windows playback output through Equalizer APO 1.4.2 (bundled installer). Live edits, bypass, 10-band PEQ, no USER slots. See [Software EQ](#-windows-system-eq). |
 | FiiO K13 R2R | ✅ Working · hardware-tested | Main tested target. USB detection, EQ readback, USER slot switching, PEQ writes, global preamp writes, preset storage, LED cues, USB/COAX input switching. |
-| FiiO K17 | ✅ Working · save-only | 31-band PEQ, USER 1-10, `0x21` save command. Matched by product name. |
+| FiiO K17 | ✅ Working · save-only | 31-band PEQ, USER 1-10. Matched by product name. |
 | FiiO K19 | ✅ Working · save-only | Same 31-band layout as the K17. Matched by product name. |
 | FiiO BR15 R2R | ✅ Working · save-only | 10-band layout, USER 1-10. |
 | FiiO QX13 | ✅ Working · save-only | 10-band layout, USER 1-10. USB ID `0x0128`. |
-| FiiO BTR17 | ✅ Working · save-only | 10-band USER 1-10 layout with `0x21` save command. USB ID `0x0088`. |
+| FiiO BTR17 | ✅ Working · save-only | 10-band USER 1-10 layout. USB ID `0x0088`. |
 | FiiO BTR13 | ✅ Working · save-only | 10-band layout, USER 1-3. |
 | FiiO KA15 | ✅ Working | 10-band PEQ, USER 1-3. |
 | FiiO KA17 | ✅ Working | 10-band PEQ, USER 1-3. |
 | FiiO JA11 | ✅ Working | 5-band PEQ, core filters. |
 | FiiO FP3 | ✅ Working · save-only | 10-band PEQ, one USER slot. Matched by product name. |
 | FiiO Oak Nano | ✅ Working · save-only | 8-band PEQ, one USER slot. USB ID `0x4016`. |
+| JadeAudio JIEZI | ✅ Working · save-only | 10-band PEQ, USER 1-3. USB ID `0x0151`. |
+| Snowsky Tiny A | ✅ Working · save-only | 10-band PEQ, USER 1-3. USB ID `0x0147`. |
 | Snowsky Melody | ✅ Working | 10-band PEQ and USER 1-3 writes. The device does not answer EQ readback, so Load from slot is unavailable by design. |
 | Snowsky Retro Nano | ✅ Working | 10-band PEQ, USER 1-3. |
+| TRN Black Pearl | ✅ Working · save-only | 10-band PEQ, one slot. USB ID `3302:43E8`. Windows only sees it with headphones plugged in. |
+| CrinEar Protocol Max | ✅ Working · save-only | 10-band PEQ, one slot. USB ID `3302:43CC`. |
+| Tanchjim SPACE II | ✅ Working · save-only | 10-band PEQ, one slot. USB ID `3302:4381`. |
 
 For full Windows audio format support, set the K13 to **UAC2.0** mode.
 FiiO documents that enabling K13 R2R PEQ limits playback to PCM 192 kHz/24-bit, disables MQA processing, and can briefly reconnect USB when switching between EQ Off and an active EQ mode.
 
 The BR15 R2R, QX13, BTR17, and BTR13 layouts are adapted from the 0BSD-licensed [DevicePEQ](https://github.com/jeromeof/devicePEQ) project and cross-checked against FiiO's published PEQ documentation. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Profiles for the K17, K19, FP3 and Oak Nano, and the QX13 and BTR17 USB IDs, also come from DevicePEQ (0BSD) and fiioctl (MIT) captures. **Save-only** means WolfEQ writes EQ to a USER slot but keeps live sync and automatic readback off until that model has been checked on real hardware.
 
-The K15 is not listed yet because its control path may use USB serial instead of HID. If a K17 or K19 turns out to use serial too, it will not be detected over HID. K11 R2R support likewise needs the separate WalkPlay protocol rather than WolfEQ's current FiiO HID handler.
+The K15 is not listed yet because its control path may use USB serial instead of HID. If a K17 or K19 turns out to use serial too, it will not be detected over HID. The TRN, CrinEar and Tanchjim DACs use the WalkPlay protocol: they can load their EQ and every save is read back and checked, but WolfEQ has not tested them on hardware yet. The K11 R2R also uses WalkPlay and is not added yet.
 
 ---
 

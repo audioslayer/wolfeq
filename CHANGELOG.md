@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.0.0
+
+### ✨ New
+
+- 🌈 **A color for every band** — Graph nodes, faders, knobs and the band editor share one color per band, warm lows to cool highs. The band you select or hover shows its own shaded shape.
+- 🎚️ **Knobs view** — The new default Band controls view, ahead of Faders and Table. Turn gain, frequency and width, or type exact values. Tiles keep their place while you turn a knob.
+- 🎧 **More devices** — Added the JadeAudio JIEZI and Snowsky Tiny A (save-only), and corrected the Retro Nano's width limits and filter list. Measurements by the Contour project.
+- **Tidier settings** — Settings only show what your device supports. Volume limit, balance and high gain are gone: the K13 does not accept them from a PC.
+- 🎧 **First non-FiiO DACs** — Added the TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II. Every save is read back and checked. Not yet tested by WolfEQ on hardware.
+
+### 🐞 Fixed
+
+- 🔊 **KA15, JA11 and Melody level** — Saved EQs played 12 dB too quiet. The preamp now matches what you set, from -24 to 0 dB. **Expect these to sound louder after your next save, so turn the volume down first.**
+- 🛡️ **Safer saving on BTR17, K17 and K19** — These now save with FiiO's standard command. The old one is a factory reset on other FiiO models.
+- **KA15 and JA11** — Loading from a slot no longer waits on a command these devices never answer.
+
 ## v0.9.0-beta
 
 Settings rebuilt around **your device**, a real lights editor, one-click Bluetooth, a Stream Deck guide, four more FiiO devices, and a faster, calmer app everywhere.

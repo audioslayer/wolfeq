@@ -28,6 +28,8 @@ public partial class BandControls : UserControl
 
     private readonly HashSet<EqBand> _observed = [];
     private ObservableCollection<EqBand>? _observedCollection;
+    private bool _holdKnobOrder;
+    private bool _knobSortQueued;
 
     public BandControls()
     {
@@ -64,7 +66,24 @@ public partial class BandControls : UserControl
     }
 
     private void CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => ObserveBands();
-    private void BandChanged(object? sender, PropertyChangedEventArgs e) => UpdateSummary();
+    private void BandChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        UpdateSummary();
+        if (!_holdKnobOrder && e.PropertyName is (nameof(EqBand.FrequencyHz) or nameof(EqBand.Number))) QueueKnobSort();
+    }
+
+    // Loading a preset changes many bands at once; sort once afterwards.
+    private void QueueKnobSort()
+    {
+        if (_knobSortQueued) return;
+        _knobSortQueued = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _knobSortQueued = false;
+            if (!_holdKnobOrder) HoldKnobOrder(false);
+        });
+    }
+
     private void UpdateSummary()
     {
         if (Summary is not null)
@@ -74,6 +93,35 @@ public partial class BandControls : UserControl
     private void SelectBand_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: EqBand band }) SelectedBand = band;
+    }
+
+    // Turning a knob also selects its band, so the graph shows which curve is moving.
+    private void Knob_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: EqBand band }) SelectedBand = band;
+    }
+
+    // Clicking a knob must not scroll the row, or the dial would slide out from under the pointer.
+    private void Knob_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
+    {
+        if (Mouse.LeftButton == MouseButtonState.Pressed) e.Handled = true;
+    }
+
+    private void KnobsPanel_MouseChanged(object sender, MouseEventArgs e) => UpdateKnobOrder();
+    private void KnobsPanel_Changed(object sender, DependencyPropertyChangedEventArgs e) => UpdateKnobOrder();
+
+    private void UpdateKnobOrder()
+        => HoldKnobOrder(KnobsPanel.IsMouseOver
+            || (KnobsPanel.IsKeyboardFocusWithin && InputManager.Current.MostRecentInputDevice is KeyboardDevice));
+
+    /// <summary>Tiles sort by frequency, but never while a knob is in use: crossing a neighbour would swap the tiles mid-turn.</summary>
+    private void HoldKnobOrder(bool hold)
+    {
+        _holdKnobOrder = hold;
+        if (hold || ((CollectionViewSource)Resources["KnobBands"]).View is not { } view) return;
+        var shown = view.Cast<EqBand>().ToArray();
+        // A refresh rebuilds every tile, so only do it when the order really changed.
+        if (!shown.SequenceEqual(shown.OrderBy(b => b.FrequencyHz).ThenBy(b => b.Number))) view.Refresh();
     }
 
     private void ViewChoice_Click(object sender, RoutedEventArgs e)
@@ -153,6 +201,6 @@ public sealed class InverseBooleanConverter : IValueConverter
 public sealed class ReferenceFaderHeightConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is double height && double.IsFinite(height) ? Math.Clamp(height - 312, 64, 900) : 100d;
+        => value is double height && double.IsFinite(height) ? Math.Clamp(height - 326, 64, 900) : 100d;
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
 }

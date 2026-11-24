@@ -55,6 +55,25 @@ public sealed class SettingsSummaryTests : IDisposable
         Assert.Contains(nameof(MainViewModel.LightsSectionSummary), raised);
     }
 
+    [Theory]
+    //             bluetooth, sound, slot names, shortcuts
+    [InlineData("fiio-k13-r2r", true, true, true, true)]
+    [InlineData("snowsky-retro-nano", false, true, true, true)]
+    [InlineData("fiio-ka15", false, false, false, true)]
+    [InlineData("trn-black-pearl", false, false, false, false)]
+    public void SettingsShowOnlyWhatTheDeviceSupports(string id, bool bluetooth, bool sound, bool names, bool shortcuts)
+    {
+        var model = HardwareModel();
+        var raised = Track(model);
+
+        model.SelectedDeviceProfile = FiioDeviceProfiles.All.Single(profile => profile.Id == id);
+
+        Assert.Equal((bluetooth, sound, names, shortcuts),
+            (model.ShowBluetoothSettings, model.ShowSoundSettings, model.ShowSlotNameSettings, model.ShowShortcutSettings));
+        Assert.Equal(id == "fiio-k13-r2r", model.SelectedDeviceSupportsBleLighting);
+        if (id != "fiio-k13-r2r") Assert.Contains(nameof(MainViewModel.ShowShortcutSettings), raised);
+    }
+
     [Fact]
     public void IntegrationsSummaryShowsReadySlotWhenUsbIsSaved()
     {

@@ -8,7 +8,7 @@ using WolfEQ.Models;
 
 namespace WolfEQ.Services;
 
-public sealed class FiioK13DeviceService
+public sealed partial class FiioK13DeviceService
 {
     public const int VendorId = 0x2972;
     public const int ExpectedHidInterface = 3;
@@ -21,6 +21,9 @@ public sealed class FiioK13DeviceService
         new(0x3302, 0x3BC0),
         new(0x3302, 0x3BC1),
         new(0x3302, 0x3BC2),
+        new(0x3302, 0x43E8),
+        new(0x3302, 0x43CC),
+        new(0x3302, 0x4381),
         new(0x0A12, 0x4007),
         new(0x0666, 0x0888),
         new(0x31B2, 0xFFF8)
@@ -151,6 +154,11 @@ public sealed class FiioK13DeviceService
     public async Task<K13EqReadback> ReadCurrentEqAsync(CancellationToken cancellationToken = default)
     {
         var profile = SelectedProfile;
+        if (profile.WalkPlay is not null)
+        {
+            return await ReadWalkPlayEqAsync(profile, cancellationToken).ConfigureAwait(false);
+        }
+
         var transportLog = new List<string>
         {
             $"Readback mode: {profile.DisplayName}, sending GET packets only. No SET/save commands will be sent."
@@ -224,16 +232,25 @@ public sealed class FiioK13DeviceService
         var globalGainDb = globalGainResponse.Length > 7
             ? ParseSignedTenths(globalGainResponse[6], globalGainResponse[7])
             : 0.0;
+        // The offset was measured on USER presets only.
+        if (profile.WritableSlots.Any(slot => slot.Id == presetId))
+        {
+            globalGainDb = profile.DecodePreampRegister(globalGainDb);
+        }
 
-        var eqSwitchResponse = await SendGetAsync(
-            stream,
-            inputReportLength,
-            outputReportLength,
-            CmdEqSwitch,
-            [],
-            transportLog,
-            cancellationToken).ConfigureAwait(false);
-        var eqEnabled = eqSwitchResponse.Length > 6 && eqSwitchResponse[6] != 0;
+        var eqEnabled = true;
+        if (profile.SupportsEqSwitchRead)
+        {
+            var eqSwitchResponse = await SendGetAsync(
+                stream,
+                inputReportLength,
+                outputReportLength,
+                CmdEqSwitch,
+                [],
+                transportLog,
+                cancellationToken).ConfigureAwait(false);
+            eqEnabled = eqSwitchResponse.Length > 6 && eqSwitchResponse[6] != 0;
+        }
 
         string? presetName = null;
         if (profile.SupportsUsbPresetNames)
@@ -427,6 +444,11 @@ public sealed class FiioK13DeviceService
             throw new InvalidOperationException($"Device save is limited to writable {profile.DisplayName} USER slots.");
         }
 
+        if (profile.WalkPlay is not null)
+        {
+            return await SaveWalkPlayPresetAsync(profile, preset, presetId, cancellationToken).ConfigureAwait(false);
+        }
+
         var bands = preset.Bands
             .OrderBy(band => band.Number)
             .Take(profile.BandCount)
@@ -438,10 +460,7 @@ public sealed class FiioK13DeviceService
             throw new InvalidOperationException("Preset has no bands to save.");
         }
 
-        var requestedPreamp = Math.Clamp(
-            Math.Round(double.IsFinite(preset.PreampDb) ? preset.PreampDb : 0, 1),
-            profile.MinGainDb,
-            profile.MaxGainDb);
+        var requestedPreamp = profile.NormalizePreamp(preset.PreampDb);
         var transportLog = new List<string>
         {
             $"Device save mode: writing {bands.Length} band(s) to {profile.GetPresetDisplayName(presetId)}; save command 0x{profile.SaveCommandId:X2} will be sent."
@@ -503,7 +522,7 @@ public sealed class FiioK13DeviceService
         }
 
         var preampPayload = new byte[2];
-        WriteInt16BigEndian(preampPayload, 0, (short)Math.Round(requestedPreamp * 10.0));
+        WriteInt16BigEndian(preampPayload, 0, profile.EncodePreampTenths(requestedPreamp));
         await SendSetOnlyAsync(
             stream,
             inputReportLength,
@@ -535,7 +554,7 @@ public sealed class FiioK13DeviceService
             transportLog,
             cancellationToken).ConfigureAwait(false);
 
-        await Task.Delay(350, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(profile.SaveSettleMs, cancellationToken).ConfigureAwait(false);
         transportLog.Add($"Saved {preset.Name} to {profile.GetPresetDisplayName(presetId)}.");
         return new K13PresetWriteResult(candidate, profile, presetId, bands.Length, requestedPreamp, transportLog);
     }
@@ -548,6 +567,11 @@ public sealed class FiioK13DeviceService
         if (!profile.WritableSlots.Any(slot => slot.Id == presetId))
         {
             throw new InvalidOperationException($"Preset select is limited to writable {profile.DisplayName} USER slots.");
+        }
+
+        if (profile.WalkPlay is not null)
+        {
+            return await SelectWalkPlaySlotAsync(profile, presetId, cancellationToken).ConfigureAwait(false);
         }
 
         var transportLog = new List<string>
@@ -718,12 +742,14 @@ public sealed class FiioK13DeviceService
         CancellationToken cancellationToken = default)
     {
         var profile = SelectedProfile;
-        if (!double.IsFinite(gainDb) || gainDb < profile.MinGainDb || gainDb > profile.MaxGainDb)
+        EnsureFiioProtocol();
+        if (!double.IsFinite(gainDb) || gainDb < profile.MinPreampDb || gainDb > profile.MaxGainDb)
         {
-            throw new ArgumentOutOfRangeException(nameof(gainDb), $"Global gain must be between {profile.MinGainDb:F1} and {profile.MaxGainDb:+0.0;-0.0;0.0} dB.");
+            throw new ArgumentOutOfRangeException(nameof(gainDb), $"Global gain must be between {profile.MinPreampDb:F1} and {profile.MaxGainDb:+0.0;-0.0;0.0} dB.");
         }
 
-        var requested = Math.Round(gainDb, 1);
+        // Devices that top out at 0 dB get a higher request lowered, never sent louder.
+        var requested = profile.NormalizePreamp(gainDb);
         var transportLog = new List<string>
         {
             $"Global gain mode: {profile.DisplayName}, one guarded SET packet to command 0x17, gain={requested:F1} dB. No save command will be sent."
@@ -774,7 +800,7 @@ public sealed class FiioK13DeviceService
         transportLog.Add($"Global gain before write: {before:F1} dB.");
 
         var payload = new byte[2];
-        WriteInt16BigEndian(payload, 0, (short)Math.Round(requested * 10.0));
+        WriteInt16BigEndian(payload, 0, profile.EncodePreampTenths(requested));
 
         await SendSetOnlyAsync(
             stream,
@@ -1350,6 +1376,7 @@ public sealed class FiioK13DeviceService
                     ? candidate.ProductId == expectedProductId
                     : FiioDeviceProfiles.ProductNameMatches(profile, candidate.Product)) &&
                 (profile.HidInterfaceNumber is null || candidate.InterfaceNumber == profile.HidInterfaceNumber) &&
+                (profile.WalkPlay is null || candidate is { VendorId: 0x3302, InputReportLength: WalkPlayCodec.ReportSize, OutputReportLength: WalkPlayCodec.ReportSize }) &&
                 candidate.InputReportLength > 0 &&
                 candidate.OutputReportLength > 0)
             .OrderByDescending(candidate => candidate.ProductId == profile.ProductId)
@@ -1651,7 +1678,7 @@ public sealed class FiioK13DeviceService
             cancellationToken).ConfigureAwait(false);
 
         return response.Length > 7
-            ? ParseSignedTenths(response[6], response[7])
+            ? SelectedProfile.DecodePreampRegister(ParseSignedTenths(response[6], response[7]))
             : 0.0;
     }
 
@@ -1694,6 +1721,7 @@ public sealed class FiioK13DeviceService
         List<string> transportLog,
         CancellationToken cancellationToken)
     {
+        EnsureFiioProtocol();
         await DrainStaleReportsAsync(stream, inputReportLength, transportLog, cancellationToken).ConfigureAwait(false);
 
         var packet = BuildGetPacket(command, data);
@@ -1749,6 +1777,7 @@ public sealed class FiioK13DeviceService
         List<string> transportLog,
         CancellationToken cancellationToken)
     {
+        EnsureFiioProtocol();
         await DrainStaleReportsAsync(stream, inputReportLength, transportLog, cancellationToken).ConfigureAwait(false);
 
         var packet = BuildGetPacket(command, data);
@@ -1791,6 +1820,7 @@ public sealed class FiioK13DeviceService
         List<string> transportLog,
         CancellationToken cancellationToken)
     {
+        EnsureFiioProtocol();
         await DrainStaleReportsAsync(stream, inputReportLength, transportLog, cancellationToken).ConfigureAwait(false);
 
         var packet = BuildSetPacket(command, data);

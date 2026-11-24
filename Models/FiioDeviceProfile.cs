@@ -4,6 +4,13 @@ namespace WolfEQ.Models;
 
 public sealed record FiioDeviceSlot(byte Id, string Name, bool IsWritable);
 
+/// <summary>Per-device WalkPlay details, measured by Contour. <see cref="FiioDeviceProfile.WalkPlay"/> null means the FiiO protocol.</summary>
+public sealed record WalkPlayOptions(
+    byte BandLength = 0x18,
+    bool TrnSequence = false,
+    double ShelfQScale = 1.0,
+    bool WrapCoefficients = false);
+
 public sealed record FiioDeviceProfile(
     string Id,
     string DisplayName,
@@ -30,8 +37,33 @@ public sealed record FiioDeviceProfile(
     // SupportsEqReadback keep unconfirmed devices in guarded save-only mode.
     bool IsVerified = true,
     IReadOnlyList<string>? ProductNameAliases = null,
-    string? ImageId = null)
+    string? ImageId = null,
+    // Some FiiO models play USER presets 12 dB below EQ off: register = wanted preamp + offset.
+    double PreampRegisterOffsetDb = 0,
+    bool PreampWholeDb = false,
+    double? PreampFloorDb = null,
+    double? PreampCeilingDb = null,
+    bool SupportsEqSwitchRead = true,
+    int SaveSettleMs = 350,
+    WalkPlayOptions? WalkPlay = null)
 {
+    public double MinPreampDb => PreampFloorDb ?? MinGainDb;
+
+    public double MaxPreampDb => PreampCeilingDb ?? MaxGainDb;
+
+    /// <summary>The nearest preamp the device can hold. Whole-dB devices round down, so the result is never louder than asked.</summary>
+    public double NormalizePreamp(double preampDb)
+    {
+        var value = double.IsFinite(preampDb) ? preampDb : 0;
+        value = PreampWholeDb ? Math.Floor(value + 1e-6) : Math.Round(value, 1);
+        return Math.Clamp(value, MinPreampDb, MaxPreampDb);
+    }
+
+    public short EncodePreampTenths(double preampDb)
+        => (short)Math.Round((preampDb + PreampRegisterOffsetDb) * 10.0);
+
+    public double DecodePreampRegister(double registerDb) => Math.Round(registerDb - PreampRegisterOffsetDb, 1);
+
     public string DisplayLabel => IsVerified ? DisplayName : $"{DisplayName} (experimental)";
 
     /// <summary>Bundled product picture; profiles without a photo use <see cref="ImageId"/> (e.g. the generic device drawing).</summary>
@@ -83,6 +115,15 @@ public static class FiioDeviceProfiles
         EqFilterType.Peak,
         EqFilterType.LowShelf,
         EqFilterType.HighShelf
+    };
+
+    private static readonly IReadOnlySet<EqFilterType> WalkPlayFilters = new HashSet<EqFilterType>
+    {
+        EqFilterType.Peak,
+        EqFilterType.LowShelf,
+        EqFilterType.HighShelf,
+        EqFilterType.LowPass,
+        EqFilterType.HighPass
     };
 
     private static readonly IReadOnlySet<EqFilterType> AllFiltersExceptBandPass = new HashSet<EqFilterType>
@@ -258,7 +299,6 @@ public static class FiioDeviceProfiles
         SupportsLiveEqWrites: false,
         SupportsEqReadback: false,
         ReloadEqAfterSave: false,
-        SaveCommandId: 0x21,
         ProductNameAliases: ["FIIO BTR17", "BTR17"]);
 
     public static readonly FiioDeviceProfile Btr13 = new(
@@ -317,7 +357,13 @@ public static class FiioDeviceProfiles
             new(0x09, "USER 3", true),
             new(0x0A, "Close EQ", false)
         ],
-        DisabledPresetId: 0x0A);
+        DisabledPresetId: 0x0A,
+        PreampRegisterOffsetDb: 12.0,
+        PreampWholeDb: true,
+        PreampFloorDb: -24.0,
+        PreampCeilingDb: 0.0,
+        SupportsEqSwitchRead: false,
+        SaveSettleMs: 2000);
 
     public static readonly FiioDeviceProfile Ka17 = new(
         Id: "fiio-ka17",
@@ -365,7 +411,13 @@ public static class FiioDeviceProfiles
             new(0x03, "USER 1", true),
             new(0x04, "Off", false)
         ],
-        DisabledPresetId: 0x04);
+        DisabledPresetId: 0x04,
+        // The unit drops off USB for about 2 s after a save.
+        ReloadEqAfterSave: false,
+        PreampRegisterOffsetDb: 12.0,
+        PreampFloorDb: -24.0,
+        PreampCeilingDb: 0.0,
+        SupportsEqSwitchRead: false);
 
     public static readonly FiioDeviceProfile SnowskyMelody = new(
         Id: "snowsky-melody",
@@ -394,7 +446,11 @@ public static class FiioDeviceProfiles
         ],
         DisabledPresetId: 0xF0,
         SupportsEqReadback: false,
-        ReloadEqAfterSave: false);
+        ReloadEqAfterSave: false,
+        PreampRegisterOffsetDb: 12.0,
+        PreampWholeDb: true,
+        PreampFloorDb: -24.0,
+        PreampCeilingDb: 0.0);
 
     public static readonly FiioDeviceProfile SnowskyRetroNano = new(
         Id: "snowsky-retro-nano",
@@ -404,9 +460,10 @@ public static class FiioDeviceProfiles
         BandCount: 10,
         MinGainDb: -12.0,
         MaxGainDb: 12.0,
-        MinQ: 0.1,
-        MaxQ: 10.0,
-        SupportedFilterTypes: AllFilters,
+        // Measured by Contour: Q outside 0.25-8 is refused and band pass has no effect.
+        MinQ: 0.25,
+        MaxQ: 8.0,
+        SupportedFilterTypes: AllFiltersExceptBandPass,
         Slots:
         [
             new(0x00, "Jazz", false),
@@ -440,7 +497,8 @@ public static class FiioDeviceProfiles
     // ── Added from community protocol data (devicePEQ 0BSD, fiioctl MIT). Guarded save-only:
     //    no automatic readback or live writes until confirmed on real hardware. ──
 
-    // K17 / K19: 31-band PEQ, USER 1-10 are presets 7-16, EQ off is 17, save uses command 0x21.
+    // K17 / K19: 31-band PEQ, USER 1-10 are presets 7-16, EQ off is 17. Saved with 0x19: 0x21 is a
+    // factory reset on other FiiO models, so it is never sent.
     // Q range: the two sources disagree (0.1-10 vs 0.4-128), so the overlap 0.4-10 is used.
     private static IReadOnlyList<FiioDeviceSlot> K17FamilySlots() =>
     [
@@ -471,9 +529,7 @@ public static class FiioDeviceProfiles
         SupportsLiveEqWrites: false,
         SupportsEqReadback: false,
         ReloadEqAfterSave: false,
-        SaveCommandId: 0x21,
-        ProductNameAliases: ["FIIO K17", "K17"],
-        ImageId: "fiio-generic");
+        ProductNameAliases: ["FIIO K17", "K17"]);
 
     public static readonly FiioDeviceProfile K19 = K17 with
     {
@@ -503,8 +559,7 @@ public static class FiioDeviceProfiles
         SupportsLiveEqWrites: false,
         SupportsEqReadback: false,
         ReloadEqAfterSave: false,
-        ProductNameAliases: ["FIIO FP3", "FP3"],
-        ImageId: "fiio-generic");
+        ProductNameAliases: ["FIIO FP3", "FP3"]);
 
     // Oak Nano: USB PID 0x4016 from a hardware capture, which also shows 8 bands (not the 10 in config).
     public static readonly FiioDeviceProfile OakNano = new(
@@ -527,8 +582,90 @@ public static class FiioDeviceProfiles
         SupportsLiveEqWrites: false,
         SupportsEqReadback: false,
         ReloadEqAfterSave: false,
-        ProductNameAliases: ["FIIO OAK NANO", "OAK NANO", "OAKNANO"],
-        ImageId: "fiio-generic");
+        ProductNameAliases: ["FIIO OAK NANO", "OAK NANO", "OAKNANO"]);
+
+    // JIEZI and Tiny A: limits and USB IDs measured on hardware by the Contour project (Apache-2.0).
+    // WolfEQ has not tested them itself, so they stay in guarded save-only mode.
+    public static readonly FiioDeviceProfile Jiezi = new(
+        Id: "fiio-jiezi",
+        DisplayName: "JadeAudio JIEZI",
+        ProductId: 0x0151,
+        ReportId: 0x07,
+        BandCount: 10,
+        MinGainDb: -12.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: AllFilters,
+        Slots:
+        [
+            new(0x00, "Jazz", false),
+            new(0x01, "Pop", false),
+            new(0x02, "Rock", false),
+            new(0x03, "Dance", false),
+            new(0x04, "R&B", false),
+            new(0x05, "Classic", false),
+            new(0x06, "HipHop", false),
+            new(0xA0, "USER 1", true),
+            new(0xA1, "USER 2", true),
+            new(0xA2, "USER 3", true),
+            new(0xF0, "Close EQ", false)
+        ],
+        DisabledPresetId: 0xF0,
+        SupportsLiveEqWrites: false,
+        SupportsEqReadback: false,
+        ReloadEqAfterSave: false,
+        ProductNameAliases: ["JadeAudio JIEZI", "JIEZI"]);
+
+    public static readonly FiioDeviceProfile SnowskyTinyA = Jiezi with
+    {
+        Id = "snowsky-tiny-a",
+        DisplayName = "Snowsky Tiny A",
+        ProductId = 0x0147,
+        ProductNameAliases = ["SNOWSKY TINY A", "TINY A"]
+    };
+
+    // WalkPlay DACs (USB vendor 0x3302). Identity, limits and sequences measured by Contour (Apache-2.0).
+    // Not tested by WolfEQ: no live sync. Every save is read back and checked.
+    public static readonly FiioDeviceProfile TrnBlackPearl = new(
+        Id: "trn-black-pearl",
+        DisplayName: "TRN Black Pearl",
+        ProductId: 0x43E8,
+        ReportId: 0x4B,
+        BandCount: 10,
+        MinGainDb: -10.0,
+        MaxGainDb: 10.0,
+        MinQ: 0.1,
+        MaxQ: 10.0,
+        SupportedFilterTypes: CoreFilters,
+        Slots: [new(0x00, "Custom", true)],
+        DisabledPresetId: 0xF0,
+        SupportsLiveEqWrites: false,
+        ReloadEqAfterSave: false,
+        PreampWholeDb: true,
+        PreampFloorDb: -30.0,
+        PreampCeilingDb: 0.0,
+        WalkPlay: new(BandLength: 0x21, TrnSequence: true, ShelfQScale: 1.4142135623730951));
+
+    public static readonly FiioDeviceProfile CrinEarProtocolMax = TrnBlackPearl with
+    {
+        Id = "crinear-protocol-max",
+        DisplayName = "CrinEar Protocol Max",
+        ProductId = 0x43CC,
+        MinGainDb = -12.0,
+        MaxGainDb = 12.0,
+        SupportedFilterTypes = WalkPlayFilters,
+        WalkPlay = new(ShelfQScale: 1.4142135623730951, WrapCoefficients: true)
+    };
+
+    public static readonly FiioDeviceProfile TanchjimSpace2 = TrnBlackPearl with
+    {
+        Id = "tanchjim-space-ii",
+        DisplayName = "Tanchjim SPACE II",
+        ProductId = 0x4381,
+        SupportedFilterTypes = WalkPlayFilters,
+        WalkPlay = new()
+    };
 
     public static IReadOnlyList<FiioDeviceProfile> All { get; } =
     [
@@ -543,9 +680,14 @@ public static class FiioDeviceProfiles
         Ka17,
         Ja11,
         Fp3,
+        Jiezi,
         OakNano,
         SnowskyRetroNano,
-        SnowskyMelody
+        SnowskyMelody,
+        SnowskyTinyA,
+        TrnBlackPearl,
+        CrinEarProtocolMax,
+        TanchjimSpace2
     ];
 
     public static FiioDeviceProfile Default => K13R2R;

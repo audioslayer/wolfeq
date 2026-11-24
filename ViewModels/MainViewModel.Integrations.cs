@@ -279,7 +279,6 @@ public sealed partial class MainViewModel
         _liveDeviceEqSyncTimer.Stop();
         _pendingLiveBandNumbers.Clear();
         _deviceVolumeWriteTimer.Stop();
-        _deviceControlsWriteTimer.Stop();
         var updated = new DeviceBindingSettings
         {
             UsbPath = SelectedUsbDevice.Path,

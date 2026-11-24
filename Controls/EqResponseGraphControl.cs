@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using WolfEQ.Models;
 
 namespace WolfEQ.Controls;
@@ -209,11 +210,14 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
     private readonly DrawingVisual _spectrumVisual = new();
     private readonly DrawingVisual _eqVisual = new();
-    protected override int VisualChildrenCount => 2;
+    // Its own layer, so animating it does not redraw the curve.
+    private readonly DrawingVisual _fxVisual = new();
+    protected override int VisualChildrenCount => 3;
     protected override Visual GetVisualChild(int index) => index switch
     {
         0 => _spectrumVisual,
         1 => _eqVisual,
+        2 => _fxVisual,
         _ => throw new ArgumentOutOfRangeException(nameof(index))
     };
 
@@ -221,12 +225,13 @@ public sealed class EqResponseGraphControl : FrameworkElement
     {
         AddVisualChild(_spectrumVisual);
         AddVisualChild(_eqVisual);
+        AddVisualChild(_fxVisual);
         SetResourceReference(AccentColorProperty, "WolfGreen");
         SetResourceReference(SelectionColorProperty, "WolfCyan");
         SetResourceReference(SurfaceColorProperty, "WolfPanel");
         MinHeight = 250;
         Focusable = true;
-        Cursor = Cursors.Hand;
+        Cursor = Cursors.Arrow;
         SizeChanged += (_, _) =>
         {
             InvalidateVisual();
@@ -257,7 +262,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             }
         }
 
-        control.Cursor = control.IsInteractive ? Cursors.Hand : Cursors.Arrow;
+        control.Cursor = Cursors.Arrow;
     }
 
     private static void OnBandsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -396,10 +401,12 @@ public sealed class EqResponseGraphControl : FrameworkElement
         DrawGrid(foreground, plot, gainScale);
         DrawLabels(foreground, plot, gainScale);
         DrawCompareCurve(foreground, plot, gainScale);
+        DrawFocusedBandShape(foreground, plot, gainScale);
         DrawCurve(foreground, plot, gainScale);
         DrawBands(foreground, plot, gainScale);
         DrawLegend(foreground, plot);
         DrawHoverReadout(foreground, plot, gainScale);
+        RenderEffects();
     }
 
     private float[]? _spectrum;
@@ -558,6 +565,39 @@ public sealed class EqResponseGraphControl : FrameworkElement
         dc.DrawGeometry(null, comparePen, geometry);
     }
 
+    private static bool IsLightBackground()
+        => BandPalette.IsLight(Application.Current.TryFindResource("WolfBackgroundMode"));
+
+    /// <summary>Matches the number drawn on the node, so colour and number always agree.</summary>
+    private Color GetBandColor(EqBand band)
+        => BandPalette.ColorFor(GetDisplayNumber(band) - 1, Bands?.Count ?? 1, IsLightBackground());
+
+    /// <summary>Shades what one band contributes on its own: the dragged, hovered or selected one.</summary>
+    private void DrawFocusedBandShape(DrawingContext dc, Rect plot, GraphGainScale gainScale)
+    {
+        if (!IsInteractive || (_dragBand ?? _hoverBand ?? SelectedBand) is not { Enabled: true } band || Bands?.Contains(band) != true)
+        {
+            return;
+        }
+
+        var color = GetBandColor(band);
+        var line = BuildCurveGeometry(plot, gainScale, frequency => EstimateBandGainDb(frequency, band));
+        var zero = Math.Clamp(GainToY(0, plot, gainScale), plot.Top, plot.Bottom);
+        var area = PathGeometry.CreateFromGeometry(line).Clone();
+        foreach (var figure in area.Figures)
+        {
+            figure.Segments.Add(new LineSegment(new Point(plot.Right, zero), false));
+            figure.Segments.Add(new LineSegment(new Point(plot.Left, zero), false));
+            figure.IsClosed = true;
+            figure.IsFilled = true;
+        }
+
+        dc.PushClip(new RectangleGeometry(plot));
+        dc.DrawGeometry(WithAlpha(color, 0x30), null, area);
+        dc.DrawGeometry(null, new Pen(WithAlpha(color, 0xB0), 1.4), line);
+        dc.Pop();
+    }
+
     private void DrawBands(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
         if (Bands == null)
@@ -565,15 +605,9 @@ public sealed class EqResponseGraphControl : FrameworkElement
             return;
         }
 
-        var accent = GetAccentColor();
-        var selection = GetSelectionColor();
         var activeFill = new SolidColorBrush(ThemeColor("WolfPanel2"));
         var disabledFill = new SolidColorBrush(ThemeColor("WolfPanel"));
-        var activeDragFill = new SolidColorBrush(Lighten(accent, 0.28));
-        var activeOutline = new Pen(new SolidColorBrush(accent), 1.8);
         var disabledOutline = new Pen(new SolidColorBrush(ThemeColor("WolfDim")), 1.5);
-        var hoverOutline = new Pen(WithAlpha(selection, 0xCC), 1.6);
-        var selectionPen = new Pen(new SolidColorBrush(selection), 2.4);
         var bypassSlashPen = new Pen(new SolidColorBrush(ThemeColor("WolfMuted")), 1.5)
         {
             StartLineCap = PenLineCap.Round,
@@ -581,6 +615,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         };
         var typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         var labelBrush = new SolidColorBrush(ThemeColor("WolfText"));
+        var filledLabelBrush = IsLightBackground() ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x0B, 0x10, 0x14));
         const double pixelsPerDip = 1.0;
 
         foreach (var band in Bands)
@@ -591,19 +626,23 @@ public sealed class EqResponseGraphControl : FrameworkElement
             var isActiveDrag = ReferenceEquals(band, _dragBand);
             var isHover = ReferenceEquals(band, _hoverBand);
             var isSelected = IsInteractive && ReferenceEquals(band, SelectedBand);
-            var fill = isActiveDrag ? activeDragFill : band.Enabled ? activeFill : disabledFill;
+            var color = GetBandColor(band);
+            var colorBrush = new SolidColorBrush(color);
+            // The focused node fills with its own colour; the others stay dark with a coloured ring.
+            var isFilled = band.Enabled && (isActiveDrag || isSelected);
+            var fill = isFilled ? colorBrush : band.Enabled ? activeFill : disabledFill;
             var radius = isSelected ? 10.5 : isActiveDrag || isHover ? 9.8 : DotRadius;
 
             if (isSelected)
             {
-                dc.DrawEllipse(WithAlpha(selection, 0x09), null, nodePoint, 25, 25);
-                dc.DrawEllipse(WithAlpha(selection, 0x13), null, nodePoint, 20, 20);
-                dc.DrawEllipse(WithAlpha(selection, 0x20), null, nodePoint, 16, 16);
-                DrawQHandles(dc, nodePoint, band.Q, plot, selection);
+                dc.DrawEllipse(WithAlpha(color, 0x0E), null, nodePoint, 25, 25);
+                dc.DrawEllipse(WithAlpha(color, 0x1A), null, nodePoint, 20, 20);
+                dc.DrawEllipse(WithAlpha(color, 0x28), null, nodePoint, 16, 16);
+                DrawQHandles(dc, band, plot, gainScale, color);
             }
 
-            var outline = band.Enabled ? activeOutline : disabledOutline;
-            dc.DrawEllipse(fill, isHover && !isSelected ? hoverOutline : outline, nodePoint, radius, radius);
+            var outline = band.Enabled ? new Pen(colorBrush, isHover ? 2.6 : 2) : disabledOutline;
+            dc.DrawEllipse(fill, outline, nodePoint, radius, radius);
 
             if (!band.Enabled)
             {
@@ -616,31 +655,68 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
             if (isSelected)
             {
-                dc.DrawEllipse(null, selectionPen, nodePoint, radius + SelectionRingPadding, radius + SelectionRingPadding);
+                dc.DrawEllipse(null, new Pen(colorBrush, 2), nodePoint, radius + SelectionRingPadding, radius + SelectionRingPadding);
             }
 
             var text = new FormattedText($"{GetDisplayNumber(band)}", System.Globalization.CultureInfo.InvariantCulture,
-                FlowDirection.LeftToRight, typeface, 10, labelBrush, pixelsPerDip);
+                FlowDirection.LeftToRight, typeface, 10, isFilled ? filledLabelBrush : labelBrush, pixelsPerDip);
             dc.DrawText(text, new Point(nodePoint.X - text.Width / 2, nodePoint.Y - text.Height / 2));
         }
     }
 
-    private void DrawQHandles(DrawingContext dc, Point center, double q, Rect plot, Color selection)
+    // Wings of light along the curve: their reach is the band's width, and their tips are the handles.
+    private void DrawQHandles(DrawingContext dc, EqBand band, Rect plot, GraphGainScale gainScale, Color color)
     {
-        var halfWidth = Math.Min(GetQHandleHalfWidth(q), Math.Max(QHandleMinHalfWidth, plot.Width * 0.18));
-        var left = new Point(Math.Max(plot.Left + 4, center.X - halfWidth), center.Y);
-        var right = new Point(Math.Min(plot.Right - 4, center.X + halfWidth), center.Y);
-        var pen = new Pen(WithAlpha(selection, 0xD8), 1.6)
+        var (left, right) = GetQHandles(band, plot, gainScale);
+        var center = BandToDisplayPoint(band, plot, gainScale);
+        var wings = new StreamGeometry();
+        using (var context = wings.Open())
         {
-            StartLineCap = PenLineCap.Round,
-            EndLineCap = PenLineCap.Round
-        };
-        var handleBrush = new SolidColorBrush(selection);
+            context.BeginFigure(left, false, false);
+            for (var x = left.X + 3; x < right.X; x += 3)
+            {
+                context.LineTo(QCurvePoint(band, x, plot, gainScale), true, true);
+            }
 
-        dc.DrawLine(pen, left, right);
-        dc.DrawEllipse(handleBrush, null, left, 4, 4);
-        dc.DrawEllipse(handleBrush, null, right, 4, 4);
+            context.LineTo(right, true, true);
+        }
+
+        wings.Freeze();
+        Pen WingPen(byte alpha, double thickness)
+        {
+            // Absolute mapping: the brush must not stretch with a flat curve's zero height.
+            var brush = new LinearGradientBrush { MappingMode = BrushMappingMode.Absolute, StartPoint = new Point(left.X, 0), EndPoint = new Point(right.X, 0) };
+            var middle = right.X > left.X ? Math.Clamp((center.X - left.X) / (right.X - left.X), 0, 1) : 0.5;
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, color.R, color.G, color.B), 0));
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb((byte)(alpha / 3), color.R, color.G, color.B), middle));
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, color.R, color.G, color.B), 1));
+            return new Pen(brush, thickness) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+        }
+
+        dc.PushClip(new RectangleGeometry(plot));
+        dc.DrawGeometry(null, WingPen(0x38, 12), wings);
+        dc.DrawGeometry(null, WingPen(0x60, 7), wings);
+        dc.DrawGeometry(null, WingPen(0xFF, 3), wings);
+        dc.Pop();
+        KnobCursor.DrawOrb(dc, left, 0.62, color, 0.9);
+        KnobCursor.DrawOrb(dc, right, 0.62, color, 0.9);
     }
+
+    private Point QCurvePoint(EqBand band, double x, Rect plot, GraphGainScale gainScale)
+        => band.Enabled
+            ? new Point(x, Math.Clamp(GainToY(EstimateGain(XToFrequency(x, plot)), plot, gainScale), plot.Top, plot.Bottom))
+            : new Point(x, GainToY(band.GainDb, plot, gainScale));
+
+    private (Point Left, Point Right) GetQHandles(EqBand band, Rect plot, GraphGainScale gainScale)
+    {
+        var x = FrequencyToX(band.FrequencyHz, plot);
+        var halfWidth = GetQHandleHalfWidth(band.Q, plot);
+        return (QCurvePoint(band, Math.Max(plot.Left + 4, x - halfWidth), plot, gainScale),
+                QCurvePoint(band, Math.Min(plot.Right - 4, x + halfWidth), plot, gainScale));
+    }
+
+    private static double GetQHandleReach(Rect plot)
+        => Math.Min(QHandleMaxHalfWidth, Math.Max(QHandleMinHalfWidth + 1, plot.Width * 0.18));
 
     private void DrawHoverReadout(DrawingContext dc, Rect plot, GraphGainScale gainScale)
     {
@@ -653,7 +729,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
 
         var editPoint = BandToDisplayPoint(band, plot, gainScale);
-        var selection = GetSelectionColor();
+        var selection = GetBandColor(band);
         var typeface = new Typeface("Segoe UI");
         var titleBrush = new SolidColorBrush(ThemeColor("WolfText"));
         const double pixelsPerDip = 1.0;
@@ -675,6 +751,154 @@ public sealed class EqResponseGraphControl : FrameworkElement
             7);
         dc.DrawText(titleText, new Point(tooltipRect.Left + 10, tooltipRect.Top + 7));
     }
+
+    /// <summary>The flash when a point is grabbed or released: runs 0 to 1, then rests at 0.</summary>
+    public static readonly DependencyProperty GrabFlashProperty = DependencyProperty.Register(
+        nameof(GrabFlash), typeof(double), typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(0d, (d, _) => ((EqResponseGraphControl)d).RenderEffects()));
+    public double GrabFlash { get => (double)GetValue(GrabFlashProperty); set => SetValue(GrabFlashProperty, value); }
+    private EqBand? _flashBand;
+
+    private void Flash(EqBand band)
+    {
+        _flashBand = band;
+        if (!SystemParameters.ClientAreaAnimation) return;
+        BeginAnimation(GrabFlashProperty, new DoubleAnimation(0.01, 1, TimeSpan.FromMilliseconds(480))
+        {
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop
+        });
+    }
+
+    /// <summary>Keeps the numbers (and the wings, for a width change) lit for a moment, then fades to 0.</summary>
+    public static readonly DependencyProperty WidthGlowProperty = DependencyProperty.Register(
+        nameof(WidthGlow), typeof(double), typeof(EqResponseGraphControl),
+        new FrameworkPropertyMetadata(0d, (d, _) => ((EqResponseGraphControl)d).RenderEffects()));
+    public double WidthGlow { get => (double)GetValue(WidthGlowProperty); set => SetValue(WidthGlowProperty, value); }
+    private EqBand? _widthBand;
+    private bool _readoutIsWidth;
+
+    private void ShowReadout(EqBand band, bool width)
+    {
+        _readoutIsWidth = width;
+        _widthBand = band;
+        // Holds for a moment, then fades, also when animations are off.
+        var fade = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        fade.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        fade.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(600))));
+        if (SystemParameters.ClientAreaAnimation)
+            fade.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1000))));
+        BeginAnimation(WidthGlowProperty, fade);
+    }
+
+    private void DrawWidthEffect(DrawingContext dc, EqBand band, double glow, Rect plot, GraphGainScale gainScale)
+    {
+        var color = GetBandColor(band);
+        var (left, right) = GetQHandles(band, plot, gainScale);
+        KnobCursor.DrawOrb(dc, left, 0.62 + 0.45 * glow, color, glow);
+        KnobCursor.DrawOrb(dc, right, 0.62 + 0.45 * glow, color, glow);
+    }
+
+    // Live numbers beside the point. Fixed columns, so the card does not jitter as digits change.
+    private void DrawReadout(DrawingContext dc, EqBand band, double opacity, Rect plot, GraphGainScale gainScale)
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var color = GetBandColor(band);
+        var hasGain = band.FilterType is EqFilterType.Peak or EqFilterType.LowShelf or EqFilterType.HighShelf;
+        var widthChanging = ReferenceEquals(band, _qDragBand) || (_dragBand is null && _readoutIsWidth);
+        var columns = new List<(string Label, string Value, bool Changing)>
+        {
+            ("FREQ", band.FrequencyHz >= 1000 ? (band.FrequencyHz / 1000.0).ToString("0.00", culture) + " kHz" : $"{band.FrequencyHz} Hz", !widthChanging),
+            ("Q", band.Q.ToString("F2", culture), widthChanging || (_dragBand is not null && WidthGlow > 0 && _readoutIsWidth))
+        };
+        if (hasGain) columns.Insert(1, ("GAIN", band.GainDb.ToString("+0.0;-0.0;0.0", culture) + " dB", !widthChanging));
+
+        var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var muted = new SolidColorBrush(ThemeColor("WolfMuted"));
+        var text = new SolidColorBrush(ThemeColor("WolfText"));
+        FormattedText Format(string value, double fontSize, Brush brush)
+            => new(value, culture, FlowDirection.LeftToRight, face, fontSize, brush, 1.0);
+
+        var columnWidths = columns.Select(column => column.Label == "Q" ? 46.0 : 72.0).ToArray();
+        const double padding = 12;
+        const double height = 46;
+        var width = columnWidths.Sum() + padding * 2;
+        var center = BandToDisplayPoint(band, plot, gainScale);
+        // Clear of the point's glow and, when there is room, above it.
+        var y = center.Y - height - 40 < plot.Top ? center.Y + 40 : center.Y - height - 40;
+        y = Math.Clamp(y, plot.Top + 4, Math.Max(plot.Top + 4, plot.Bottom - height - 4));
+        var x = Math.Clamp(center.X - width / 2, plot.Left + 4, Math.Max(plot.Left + 4, plot.Right - width - 4));
+        // On a short graph there may be no room above or below; sit beside the point instead.
+        if (Math.Abs(y + height / 2 - center.Y) < height / 2 + 22)
+        {
+            x = center.X + 46 + width < plot.Right ? center.X + 46 : Math.Max(plot.Left + 4, center.X - 46 - width);
+        }
+
+        dc.PushOpacity(opacity);
+        var card = new Rect(x, y, width, height);
+        dc.DrawRoundedRectangle(null, new Pen(WithAlpha(color, 0x30), 5), card, 11, 11);
+        dc.DrawRoundedRectangle(WithAlpha(ThemeColor("WolfPanel"), 0xF2), new Pen(WithAlpha(color, 0xD0), 1.3), card, 11, 11);
+        var columnX = x + padding;
+        for (var index = 0; index < columns.Count; index++)
+        {
+            var (label, value, changing) = columns[index];
+            var middle = columnX + columnWidths[index] / 2;
+            var labelText = Format(label, 9.5, muted);
+            var valueText = Format(value, 14, changing ? new SolidColorBrush(color) : text);
+            dc.DrawText(labelText, new Point(middle - labelText.Width / 2, y + 6));
+            dc.DrawText(valueText, new Point(middle - valueText.Width / 2, y + 20));
+            columnX += columnWidths[index];
+        }
+
+        dc.Pop();
+    }
+
+    private void RenderEffects()
+    {
+        using var dc = _fxVisual.RenderOpen();
+        if (ActualWidth <= 80 || ActualHeight <= 60) return;
+        var plot = GetPlotRect(new Rect(0, 0, ActualWidth, ActualHeight));
+        var gainScale = GetGainScale();
+        if (_dragBand is { } held)
+        {
+            // The pointer is inside the point now, so the point carries its light.
+            var color = GetBandColor(held);
+            var halo = new RadialGradientBrush();
+            halo.GradientStops.Add(new GradientStop(Color.FromArgb(0, color.R, color.G, color.B), 0.30));
+            halo.GradientStops.Add(new GradientStop(Color.FromArgb(150, color.R, color.G, color.B), 0.45));
+            halo.GradientStops.Add(new GradientStop(Color.FromArgb(0, color.R, color.G, color.B), 1));
+            dc.DrawEllipse(halo, null, BandToDisplayPoint(held, plot, gainScale), Math.Max(26, 10 + GetQHandleHalfWidth(held.Q, plot) * 0.8), 30);
+        }
+
+        // The held light stretches as wide as the band; turning the wheel reshapes it live.
+        var widthBand = _qDragBand ?? _widthBand;
+        var widthGlow = _qDragBand is not null ? 1 : WidthGlow;
+        if (widthGlow > 0 && widthBand is not null && Bands?.Contains(widthBand) == true && (_qDragBand is not null || _readoutIsWidth))
+        {
+            DrawWidthEffect(dc, widthBand, widthGlow, plot, gainScale);
+        }
+
+        if (_dragBand is { } dragged)
+        {
+            DrawReadout(dc, dragged, 1, plot, gainScale);
+        }
+        else if (widthGlow > 0 && widthBand is not null && Bands?.Contains(widthBand) == true)
+        {
+            DrawReadout(dc, widthBand, widthGlow, plot, gainScale);
+        }
+
+        if (GrabFlash > 0 && _flashBand is { } band && Bands?.Contains(band) == true)
+        {
+            var tip = BandToDisplayPoint(band, plot, gainScale);
+            BandKnob.DrawImpact(dc, tip, tip, 62, GrabFlash, GetBandColor(band));
+        }
+    }
+
+    // The same orb as the knobs over a point or width handle; inside the point while dragging.
+    private void UpdateGraphCursor(EqBand? band)
+        => Cursor = !IsInteractive || band is null
+            ? Cursors.Arrow
+            : KnobCursor.For(GetBandColor(band), VisualTreeHelper.GetDpi(this).DpiScaleX);
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
@@ -700,6 +924,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             SelectedBand = qBand;
             _qDragBand = qBand;
             _hoverBand = qBand;
+            Cursor = Cursors.None;
             CaptureMouse();
             UpdateQFromHandle(point, plot, gainScale);
             e.Handled = true;
@@ -727,6 +952,8 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
         _dragBand = band;
         _hoverBand = band;
+        Cursor = Cursors.None;
+        Flash(band);
         CaptureMouse();
         UpdateDraggedBand(point, plot, gainScale);
         e.Handled = true;
@@ -745,7 +972,6 @@ public sealed class EqResponseGraphControl : FrameworkElement
             _hoverPoint = plot.Contains(point) ? point : (Point?)null;
             _hoverBand = _qDragBand;
             UpdateQFromHandle(point, plot, gainScale);
-            Cursor = Cursors.SizeWE;
             InvalidateVisual();
             e.Handled = true;
             return;
@@ -771,7 +997,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         {
             _hoverPoint = hoverPoint;
             _hoverBand = hover;
-            Cursor = IsInteractive && overQHandle ? Cursors.SizeWE : IsInteractive && hover is not null ? Cursors.Hand : Cursors.Arrow;
+            UpdateGraphCursor(overQHandle ? SelectedBand : hover);
             InvalidateVisual();
         }
 
@@ -804,7 +1030,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var plot = GetPlotRect(new Rect(0, 0, ActualWidth, ActualHeight));
         var gainScale = GetGainScale();
         var point = e.GetPosition(this);
-        var band = FindNearestBand(point, plot, gainScale);
+        var band = _dragBand ?? FindNearestBand(point, plot, gainScale);
         if (band is null && SelectedBand is EqBand selected && IsWithinSelectedBandQZone(point, selected, plot, gainScale))
         {
             band = selected;
@@ -817,6 +1043,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var factor = Math.Pow(QWheelFactor, e.Delta / 120.0);
         band.Q = Math.Clamp(band.Q * factor, MinQ, MaxQ);
         SelectedBand = band;
+        ShowReadout(band, width: true);
         e.Handled = true;
         InvalidateVisual();
     }
@@ -902,8 +1129,16 @@ public sealed class EqResponseGraphControl : FrameworkElement
             return;
         }
 
+        var released = _dragBand ?? _qDragBand;
+        if (_dragBand is { } dropped)
+        {
+            Flash(dropped);
+            ShowReadout(dropped, width: false);
+        }
+        if (_qDragBand is { } widened) ShowReadout(widened, width: true);
         _dragBand = null;
         _qDragBand = null;
+        UpdateGraphCursor(IsMouseOver ? released : null);
         if (IsMouseCaptured)
         {
             ReleaseMouseCapture();
@@ -923,7 +1158,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
             ReleaseMouseCapture();
         }
 
-        Cursor = IsInteractive ? Cursors.Hand : Cursors.Arrow;
+        Cursor = Cursors.Arrow;
     }
 
     private void UpdateDraggedBand(Point point, Rect plot, GraphGainScale gainScale)
@@ -1021,10 +1256,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
 
         band = selected;
-        var center = BandToDisplayPoint(selected, plot, gainScale);
-        var halfWidth = Math.Min(GetQHandleHalfWidth(selected.Q), Math.Max(QHandleMinHalfWidth, plot.Width * 0.18));
-        var left = new Point(Math.Max(plot.Left + 4, center.X - halfWidth), center.Y);
-        var right = new Point(Math.Min(plot.Right - 4, center.X + halfWidth), center.Y);
+        var (left, right) = GetQHandles(selected, plot, gainScale);
         return DistanceSquared(point, left) <= QHandleHitRadius * QHandleHitRadius ||
                DistanceSquared(point, right) <= QHandleHitRadius * QHandleHitRadius;
     }
@@ -1032,8 +1264,8 @@ public sealed class EqResponseGraphControl : FrameworkElement
     private bool IsWithinSelectedBandQZone(Point point, EqBand band, Rect plot, GraphGainScale gainScale)
     {
         var center = BandToDisplayPoint(band, plot, gainScale);
-        var halfWidth = Math.Min(GetQHandleHalfWidth(band.Q), Math.Max(QHandleMinHalfWidth, plot.Width * 0.18));
-        return Math.Abs(point.Y - center.Y) <= 14 && Math.Abs(point.X - center.X) <= halfWidth + 8;
+        var halfWidth = GetQHandleHalfWidth(band.Q, plot);
+        return Math.Abs(point.Y - QCurvePoint(band, Math.Clamp(point.X, plot.Left, plot.Right), plot, gainScale).Y) <= 14 && Math.Abs(point.X - center.X) <= halfWidth + 8;
     }
 
     private void UpdateQFromHandle(Point point, Rect plot, GraphGainScale gainScale)
@@ -1044,7 +1276,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
         }
 
         var center = BandToDisplayPoint(band, plot, gainScale);
-        var maxHalfWidth = Math.Min(QHandleMaxHalfWidth, Math.Max(QHandleMinHalfWidth, plot.Width * 0.18));
+        var maxHalfWidth = GetQHandleReach(plot);
         var halfWidth = Math.Clamp(Math.Abs(point.X - center.X), QHandleMinHalfWidth, maxHalfWidth);
         var t = (maxHalfWidth - halfWidth) / Math.Max(1, maxHalfWidth - QHandleMinHalfWidth);
         var logMin = Math.Log(Math.Max(0.01, MinQ));
@@ -1052,12 +1284,13 @@ public sealed class EqResponseGraphControl : FrameworkElement
         band.Q = Math.Clamp(Math.Exp(logMin + t * (logMax - logMin)), MinQ, MaxQ);
     }
 
-    private double GetQHandleHalfWidth(double q)
+    private double GetQHandleHalfWidth(double q, Rect plot)
     {
         var logMin = Math.Log(Math.Max(0.01, MinQ));
         var logMax = Math.Log(Math.Max(MinQ + 0.01, MaxQ));
         var t = Math.Clamp((Math.Log(Math.Clamp(q, MinQ, MaxQ)) - logMin) / (logMax - logMin), 0, 1);
-        return QHandleMaxHalfWidth + (QHandleMinHalfWidth - QHandleMaxHalfWidth) * t;
+        var reach = GetQHandleReach(plot);
+        return reach + (QHandleMinHalfWidth - reach) * t;
     }
 
     private static double DistanceSquared(Point first, Point second)

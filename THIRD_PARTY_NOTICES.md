@@ -43,3 +43,7 @@ WolfEQ's Software EQ mode uses Equalizer APO as its audio engine. The WolfEQ ins
 - Corresponding source: `EqualizerAPO-src-1.4.2.zip` at https://sourceforge.net/projects/equalizerapo/files/1.4.2/
 
 Equalizer APO is a separate program distributed alongside WolfEQ (mere aggregation). WolfEQ does not link to, embed, or modify it: WolfEQ only starts its installer and device selector at the user's request and writes plain-text configuration files that Equalizer APO reads. WolfEQ's MIT license does not apply to Equalizer APO, and the GPL-2.0 does not apply to WolfEQ. Equalizer APO is provided by its author without warranty; see the GPL-2.0 for details.
+
+## Contour
+
+Device limits and USB IDs for the JadeAudio JIEZI, Snowsky Tiny A and Snowsky Retro Nano and the KA15, JA11 and Melody preamp level, plus the limits and save sequences for the TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II, come from measurements published by [Contour](https://github.com/Chronosauros/contour) (Apache License 2.0). No Contour code is included.

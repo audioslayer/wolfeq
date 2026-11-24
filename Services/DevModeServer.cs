@@ -300,7 +300,7 @@ public sealed class DevModeServer : IDisposable
         {
             ScrollBar => false,
             ButtonBase b => !HasAncestor<ScrollBar>(b) && !(b is ToggleButton && b.TemplatedParent is ComboBox),
-            TextBoxBase or PasswordBox or ComboBox or ListBoxItem or TabItem => true,
+            TextBoxBase or PasswordBox or ComboBox or ListBoxItem or TabItem or Controls.BandKnob => true,
             RangeBase r => r is not ProgressBar && !HasAncestor<ScrollBar>(r),
             _ => false
         };

@@ -25,11 +25,17 @@ if exist ".git" (
     if errorlevel 1 (
         echo      No origin remote configured. Skipping pull.
     ) else (
-        git -c safe.directory=* pull --ff-only
+        rem A branch that only exists on this PC has nothing to pull.
+        git -c safe.directory=* rev-parse --abbrev-ref "@{upstream}" >nul 2>nul
         if errorlevel 1 (
-            echo ERROR: Git pull failed. Check your connection or local changes.
-            pause
-            exit /b 1
+            echo      Local-only branch. Skipping pull.
+        ) else (
+            git -c safe.directory=* pull --ff-only
+            if errorlevel 1 (
+                echo ERROR: Git pull failed. Check your connection or local changes.
+                pause
+                exit /b 1
+            )
         )
     )
 ) else (

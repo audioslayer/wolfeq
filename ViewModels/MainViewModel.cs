@@ -33,7 +33,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private readonly DispatcherTimer _profileAutosaveTimer;
     private readonly DispatcherTimer _liveDeviceEqSyncTimer;
     private readonly DispatcherTimer _deviceVolumeWriteTimer;
-    private readonly DispatcherTimer _deviceControlsWriteTimer;
     private readonly DispatcherTimer _editHistoryTimer;
     private readonly HashSet<int> _pendingLiveBandNumbers = [];
     private readonly Dictionary<EqPreset, EqPreset> _savedPresetSnapshots = [];
@@ -46,7 +45,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private string _deviceSelectionStatus = "Auto-detect will choose a supported FiiO device profile.";
     private string _deviceProfileName = "USER 1";
     private string _deviceVolumeDisplay = "Vol --";
-    private string _deviceControlsStatus = "Device controls will read on connect; slider and toggles write immediately when mapped.";
+    private string _deviceControlsStatus = "";
     private string _deviceInputDisplay = "Current input has not been read yet.";
     private string _githubProfileSearchText = "Ananda";
     private string _githubProfileStatus = "Type a headphone name and press Search.";
@@ -57,12 +56,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private bool _isDeviceConnected;
     private bool _topLedOn = true;
     private bool _knobLedOn = true;
-    private bool _deviceHighGain;
-    private bool _deviceDreEnabled;
     private double _preampDb;
     private double _deviceVolume = 50;
-    private double _deviceVolumeLimit = 99;
-    private double _deviceChannelBalance;
     private EqPreset? _selectedPreset;
     private DeviceUserPresetOption _selectedDeviceUserPreset = null!;
     private FiioDeviceProfile _selectedDeviceProfile = FiioDeviceProfiles.Default;
@@ -118,11 +113,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             Interval = TimeSpan.FromMilliseconds(220)
         };
         _deviceVolumeWriteTimer.Tick += DeviceVolumeWriteTimerOnTick;
-        _deviceControlsWriteTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(420)
-        };
-        _deviceControlsWriteTimer.Tick += DeviceControlsWriteTimerOnTick;
         _editHistoryTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(450)
@@ -231,7 +221,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         VolumeUpCommand = new AsyncRelayCommand(VolumeUpAsync, () => CanUseDeviceVolumeControls);
         SetDeviceVolumeCommand = new AsyncRelayCommand(SetDeviceVolumeAsync, () => CanUseDeviceVolumeControls);
         ReadDeviceControlsCommand = new AsyncRelayCommand(ReadDeviceControlsAsync, () => SelectedDeviceSupportsBleDeviceControls);
-        ApplyDeviceControlsCommand = new AsyncRelayCommand(ApplyDeviceControlsAsync, () => SelectedDeviceSupportsBleDeviceControls);
         ResetCommand = new RelayCommand(ResetSelectedPreset, () => SelectedPreset is not null);
         ImportApoFromFileCommand = new RelayCommand(ImportApoFromFile);
         ExportApoToFileCommand = new RelayCommand(ExportApoToFile, () => SelectedPreset is not null);
@@ -387,6 +376,11 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public bool SelectedDeviceSupportsBleInput => SelectedDeviceProfile.HasBleInput;
     public bool SelectedDeviceSupportsBleLighting => SelectedDeviceProfile.HasBleLighting;
     public bool SelectedDeviceSupportsBleDeviceControls => SelectedDeviceProfile.HasBleDeviceControls;
+    // Settings show only what the selected device can do.
+    public bool ShowBluetoothSettings => SelectedDeviceSupportsBleInput || SelectedDeviceSupportsBleLighting;
+    public bool ShowSoundSettings => SelectedDeviceSupportsBleInput || SelectedDeviceSupportsBleDeviceControls;
+    public bool ShowSlotNameSettings => SelectedDeviceProfile.SupportsUsbPresetNames;
+    public bool ShowShortcutSettings => IsSystemEqSelected || SelectedDeviceProfile.WritableSlots.Count > 1;
     public string LoadFromSlotToolTip => SelectedDeviceProfile.SupportsEqReadback
         ? "Read this slot's EQ into the editor"
         : $"{SelectedDeviceProfile.DisplayName} does not support EQ readback; writing to USER slots remains available.";
@@ -778,62 +772,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public double DeviceVolumeLimit
-    {
-        get => _deviceVolumeLimit;
-        set
-        {
-            if (SetField(ref _deviceVolumeLimit, Math.Clamp(Math.Round(value), 0, 99)))
-            {
-                QueueDeviceControlsWrite();
-            }
-        }
-    }
-
-    public double DeviceChannelBalance
-    {
-        get => _deviceChannelBalance;
-        set
-        {
-            if (SetField(ref _deviceChannelBalance, Math.Clamp(Math.Round(value), -10, 10)))
-            {
-                OnPropertyChanged(nameof(DeviceChannelBalanceDisplay));
-                QueueDeviceControlsWrite();
-            }
-        }
-    }
-
-    public string DeviceChannelBalanceDisplay => DeviceChannelBalance switch
-    {
-        < 0 => $"L{Math.Abs(DeviceChannelBalance):0}",
-        > 0 => $"R{DeviceChannelBalance:0}",
-        _ => "Center"
-    };
-
-    public bool DeviceHighGain
-    {
-        get => _deviceHighGain;
-        set
-        {
-            if (SetField(ref _deviceHighGain, value))
-            {
-                QueueDeviceControlsWrite();
-            }
-        }
-    }
-
-    public bool DeviceDreEnabled
-    {
-        get => _deviceDreEnabled;
-        set
-        {
-            if (SetField(ref _deviceDreEnabled, value))
-            {
-                QueueDeviceControlsWrite();
-            }
-        }
-    }
-
     public string DeviceInputDisplay
     {
         get => _deviceInputDisplay;
@@ -946,7 +884,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public ICommand VolumeUpCommand { get; }
     public ICommand SetDeviceVolumeCommand { get; }
     public ICommand ReadDeviceControlsCommand { get; }
-    public ICommand ApplyDeviceControlsCommand { get; }
     public ICommand ResetCommand { get; }
     public ICommand ImportApoFromFileCommand { get; }
     public ICommand ExportApoToFileCommand { get; }
@@ -1625,7 +1562,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private async Task ReadDeviceControlsAsync()
     {
         Status = $"Reading {SelectedDeviceProfile.DisplayName} volume...";
-        AddLog($"{SelectedDeviceProfile.DisplayName} device controls read requested. Volume uses the Windows playback output; gain/DRE/limit packets are not verified.");
+        AddLog($"{SelectedDeviceProfile.DisplayName} device controls read requested. Volume uses the Windows playback output.");
 
         try
         {
@@ -1637,38 +1574,12 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
         catch (OperationCanceledException)
         {
-            Status = "USB HID device controls readback was canceled.";
+            Status = "Volume read was canceled.";
             AddLog(Status);
         }
         catch (Exception ex)
         {
-            Status = $"USB HID device controls readback failed: {ex.Message}";
-            DeviceControlsStatus = Status;
-            AddLog(Status);
-        }
-    }
-
-    private async Task ApplyDeviceControlsAsync()
-    {
-        Status = $"Applying {SelectedDeviceProfile.DisplayName} volume only. Other settings are not mapped yet.";
-        AddLog($"{SelectedDeviceProfile.DisplayName} device controls write requested. Applying volume only to avoid sending unverified packets.");
-
-        try
-        {
-            var volumeSnapshot = await _windowsVolumeService.SetVolumeAsync(WindowsVolumeEndpointNames, (byte)DeviceVolume);
-            ApplyEndpointVolumeSnapshot(volumeSnapshot);
-            DeviceControlsStatus = $"Volume set to {volumeSnapshot.Volume}/99.";
-            Status = DeviceControlsStatus;
-            AddLog(Status);
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "USB HID device controls write was canceled.";
-            AddLog(Status);
-        }
-        catch (Exception ex)
-        {
-            Status = $"USB HID device controls write failed: {ex.Message}";
+            Status = $"Could not read the volume: {ex.Message}";
             DeviceControlsStatus = Status;
             AddLog(Status);
         }
@@ -1846,12 +1757,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         await SetDeviceVolumeAsync();
     }
 
-    private async void DeviceControlsWriteTimerOnTick(object? sender, EventArgs e)
-    {
-        _deviceControlsWriteTimer.Stop();
-        await ApplyDeviceControlsAsync();
-    }
-
     private void QueueDeviceVolumeWrite()
     {
         if (_isApplyingDeviceControlsSnapshot || !IsDeviceConnected || !SelectedDeviceSupportsBleDeviceControls)
@@ -1861,16 +1766,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         _deviceVolumeWriteTimer.Stop();
         _deviceVolumeWriteTimer.Start();
-    }
-
-    private void QueueDeviceControlsWrite()
-    {
-        if (_isApplyingDeviceControlsSnapshot || !IsDeviceConnected || !SelectedDeviceSupportsBleDeviceControls)
-        {
-            return;
-        }
-
-        DeviceControlsStatus = "That setting isn't supported on this device yet. Volume works; gain, volume limit and balance are coming later.";
     }
 
     private void ApplyReadbackSlotName(K13EqReadback snapshot)
@@ -2947,6 +2842,10 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleLighting));
         OnPropertyChanged(nameof(IntegrationSlots));
         OnPropertyChanged(nameof(SelectedDeviceSupportsBleDeviceControls));
+        OnPropertyChanged(nameof(ShowBluetoothSettings));
+        OnPropertyChanged(nameof(ShowSoundSettings));
+        OnPropertyChanged(nameof(ShowSlotNameSettings));
+        OnPropertyChanged(nameof(ShowShortcutSettings));
         OnPropertyChanged(nameof(LoadFromSlotToolTip));
         OnPropertyChanged(nameof(LiveDeviceEqSyncEnabled));
         OnPropertyChanged(nameof(SupportsK13PresetTools));
@@ -5121,50 +5020,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private void ApplyDeviceControlsSnapshot(K13BleDeviceControlsSnapshot snapshot)
-    {
-        _isApplyingDeviceControlsSnapshot = true;
-        try
-        {
-            if (snapshot.Volume is byte volume)
-            {
-                DeviceVolume = volume;
-                DeviceVolumeDisplay = $"Vol {volume}/99";
-            }
-
-            if (snapshot.VolumeLimit is byte volumeLimit and <= 99)
-            {
-                DeviceVolumeLimit = volumeLimit;
-            }
-
-            if (snapshot.GainMode is byte gainMode)
-            {
-                DeviceHighGain = gainMode != 0;
-            }
-
-            if (snapshot.ChannelBalance is sbyte channelBalance)
-            {
-                DeviceChannelBalance = channelBalance;
-            }
-
-            if (snapshot.DreEnabled is bool dreEnabled)
-            {
-                DeviceDreEnabled = dreEnabled;
-            }
-        }
-        finally
-        {
-            _isApplyingDeviceControlsSnapshot = false;
-        }
-    }
-
-    private string FormatDeviceControlsStatus(K13BleDeviceControlsSnapshot snapshot)
-        => $"Device controls: volume {(snapshot.Volume?.ToString() ?? "?")}/99, " +
-           $"limit {(snapshot.VolumeLimit?.ToString() ?? "?")}/99, " +
-           $"gain {(snapshot.GainMode is null ? "?" : snapshot.GainMode == 0 ? "low" : "high")}, " +
-           $"balance {(snapshot.ChannelBalance is null ? "?" : DeviceChannelBalanceDisplay)}, " +
-           $"DRE {(snapshot.DreEnabled is null ? "?" : snapshot.DreEnabled.Value ? "on" : "off")}.";
-
     private static string BuildDeviceEqPresetName(byte presetId, FiioDeviceProfile? profile = null)
         => GetWritableSlotNumber(presetId, profile) is int slotNumber
             ? $"Device Slot {slotNumber}"
@@ -5481,8 +5336,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
                      VolumeDownCommand,
                      VolumeUpCommand,
                      SetDeviceVolumeCommand,
-                     ReadDeviceControlsCommand,
-                     ApplyDeviceControlsCommand
+                     ReadDeviceControlsCommand
                  })
         {
             if (command is AsyncRelayCommand asyncCommand)

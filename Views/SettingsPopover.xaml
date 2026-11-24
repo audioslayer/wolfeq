@@ -420,7 +420,7 @@
                             </DockPanel>
 
                             <!-- Bluetooth: guided find → flash → confirm. Saving happens on "Yes, use it". -->
-                            <Border x:Name="BluetoothCard" Style="{StaticResource SourceTileBorder}" Margin="0,0,0,4">
+                            <Border x:Name="BluetoothCard" Visibility="{Binding ShowBluetoothSettings, Converter={StaticResource BooleanToVisibilityConverter}}" Style="{StaticResource SourceTileBorder}" Margin="0,0,0,4">
                                 <StackPanel>
                                     <DockPanel LastChildFill="True" Margin="0,0,0,10">
                                         <Border DockPanel.Dock="Right" CornerRadius="10" Padding="9,3" VerticalAlignment="Top" Margin="8,0,0,0">
@@ -497,6 +497,7 @@
                                 </StackPanel>
                             </Border>
  </StackPanel>
+ <StackPanel x:Name="SlotNamePanel" Visibility="{Binding ShowSlotNameSettings, Converter={StaticResource BooleanToVisibilityConverter}}">
  <Border Height="1" Background="{DynamicResource WolfLineSoftBrush}" Margin="0,14,0,12"/>
  <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
      <TextBlock Text="USER slot name" Style="{StaticResource TinyLabel}" VerticalAlignment="Center"/>
@@ -506,6 +507,7 @@
  <Button Style="{StaticResource SettingsActionButton}" Tag="Keyboard" Content="Rename" Command="{Binding RenameUserSlotCommand}" DockPanel.Dock="Right" Margin="8,0,0,0"/>
  <TextBox Text="{Binding DeviceProfileName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="8" ToolTip="Up to 8 characters"/>
  </DockPanel>
+ </StackPanel>
  </StackPanel>
 
                             <!-- Software EQ card: replaces the hardware Connections/Controls tabs in Software EQ mode. -->
@@ -638,18 +640,18 @@
                               IsExpanded="False"
                               Foreground="{DynamicResource WolfMutedBrush}"
                               Margin="0,0,0,8"
-                              Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                              Visibility="{Binding ShowSoundSettings, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Margin="0,10,0,0">
                             <DockPanel Margin="0,0,0,12">
-                                <Button Style="{StaticResource QuietButton}" Content="Read from device" Command="{Binding ReadDeviceControlsCommand}" DockPanel.Dock="Right"
-                                        ToolTip="Show the values on your device right now"/>
+                                <Button Style="{StaticResource QuietButton}" Content="Refresh volume" Command="{Binding ReadDeviceControlsCommand}" DockPanel.Dock="Right"
+                                        ToolTip="Show the current volume"/>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="On your device" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
-                                    <controls:HelpTip Title="Sound" Text="These settings live on the device itself. Switching input uses Bluetooth; everything else uses USB."/>
+                                    <TextBlock Text="Sound controls" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                    <controls:HelpTip Title="Sound" Text="Volume is the Windows volume for this device. Switching input, where shown, uses Bluetooth."/>
                                 </StackPanel>
                             </DockPanel>
 
-                            <Grid Margin="0,0,0,14" IsEnabled="{Binding SelectedDeviceSupportsBleInput}">
+                            <Grid x:Name="InputRow" Margin="0,0,0,14" Visibility="{Binding SelectedDeviceSupportsBleInput, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="76"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="Input" Foreground="{DynamicResource WolfTextBrush}"/>
@@ -664,32 +666,12 @@
                                 </StackPanel>
                             </Grid>
 
-                            <StackPanel IsEnabled="{Binding SelectedDeviceSupportsBleDeviceControls}">
+                            <StackPanel Visibility="{Binding SelectedDeviceSupportsBleDeviceControls, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <DockPanel Margin="0,4,0,0">
                                     <TextBlock Text="{Binding DeviceVolume}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/>
                                     <TextBlock Text="Volume" Foreground="{DynamicResource WolfMutedBrush}"/>
                                 </DockPanel>
                                 <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" Margin="0,0,0,6"/>
-                                <DockPanel Margin="0,4,0,0">
-                                    <TextBlock Text="{Binding DeviceVolumeLimit}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Volume limit" Foreground="{DynamicResource WolfMutedBrush}"/>
-                                        <controls:HelpTip Title="Volume limit" Text="The highest the volume can go. Protects sensitive headphones from a sudden loud turn of the knob."/>
-                                    </StackPanel>
-                                </DockPanel>
-                                <controls:StyledSlider Minimum="0" Maximum="99" Value="{Binding DeviceVolumeLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" Margin="0,0,0,6"/>
-                                <DockPanel Margin="0,4,0,0">
-                                    <TextBlock Text="{Binding DeviceChannelBalanceDisplay}" DockPanel.Dock="Right" HorizontalAlignment="Right" Foreground="{DynamicResource WolfTextBrush}"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Balance" Foreground="{DynamicResource WolfMutedBrush}"/>
-                                        <controls:HelpTip Title="Balance" Text="Shifts the sound toward the left or right ear. Leave it centred unless one side sounds louder."/>
-                                    </StackPanel>
-                                </DockPanel>
-                                <controls:StyledSlider Minimum="-10" Maximum="10" Value="{Binding DeviceChannelBalance, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Step="1" AccentColor="{DynamicResource WolfGreen}" ShowLabel="False" CenterOrigin="True" Margin="0,0,0,6"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
-                                    <CheckBox Content="High gain" IsChecked="{Binding DeviceHighGain, Mode=TwoWay}"/>
-                                    <controls:HelpTip Title="High gain" Text="More power for hard-to-drive headphones. Leave it off for IEMs and most closed-backs."/>
-                                </StackPanel>
                             </StackPanel>
                             <!-- Last read/write result: a quiet status line. Long technical errors are capped at three lines; hover shows all of it. -->
                             <Border Margin="0,10,0,0" Padding="10,7" CornerRadius="{StaticResource RadiusControl}" Background="{DynamicResource WolfShellBrush}"
@@ -1060,7 +1042,7 @@
 
                     <!-- Integrations show in both modes: USER slot switching is hardware-only, while
                          Software EQ mode has its own bypass and preset commands. -->
-                    <Expander Header="Shortcuts" Tag="Keyboard" views:SettingsPopover.SectionColor="{StaticResource SectionShortcutsBrush}" views:SettingsPopover.SectionSummary="{Binding IntegrationsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,8">
+                    <Expander x:Name="ShortcutsSection" Header="Shortcuts" Visibility="{Binding ShowShortcutSettings, Converter={StaticResource BooleanToVisibilityConverter}}" Tag="Keyboard" views:SettingsPopover.SectionColor="{StaticResource SectionShortcutsBrush}" views:SettingsPopover.SectionSummary="{Binding IntegrationsSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" Margin="0,0,0,8">
                         <StackPanel Margin="0,10,0,0">
                         <StackPanel x:Name="HardwareStreamDeckPanel" Visibility="{Binding IsHardwareDeviceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">

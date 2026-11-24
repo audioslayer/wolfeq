@@ -69,7 +69,8 @@ public sealed class IntegrationSettingsTests
                 sound.IsExpanded = true;
                 view.UpdateLayout();
                 Assert.Contains(Descendants(sound).OfType<TextBlock>(), t => t.Text == "Input");
-                Assert.Contains(Descendants(sound).OfType<TextBlock>(), t => t.Text == "Volume limit");
+                Assert.Contains(Descendants(sound).OfType<TextBlock>(), t => t.Text == "Volume");
+                Assert.DoesNotContain(Descendants(sound).OfType<TextBlock>(), t => t.Text == "Volume limit");
                 var controlsBitmap = new RenderTargetBitmap(460, 1000, 96, 96, PixelFormats.Pbgra32);
                 controlsBitmap.Render(view);
                 var controlsEncoder = new PngBitmapEncoder();
