@@ -6,9 +6,9 @@
 
 - 🌈 **A color for every band** — Graph nodes, faders, knobs and the band editor share one color per band, warm lows to cool highs. The band you select or hover shows its own shaded shape.
 - 🎚️ **Knobs view** — The new default Band controls view, ahead of Faders and Table. Turn gain, frequency and width, or type exact values. Tiles keep their place while you turn a knob.
-- 🎧 **More devices** — Added the JadeAudio JIEZI and Snowsky Tiny A (save-only), and corrected the Retro Nano's width limits and filter list. Measurements by the Contour project.
+- 🎧 **More devices** — Added the JadeAudio JIEZI and Snowsky Tiny A, and corrected the Retro Nano's width limits and filter list. Measurements by the Contour project.
 - **Tidier settings** — Settings only show what your device supports. Volume limit, balance and high gain are gone: the K13 does not accept them from a PC.
-- 🎧 **First non-FiiO DACs** — Added the TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II. Every save is read back and checked. Not yet tested by WolfEQ on hardware.
+- 🎧 **First non-FiiO DACs** — Added the TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II. Every save is read back and checked.
 
 ### 🐞 Fixed
 
