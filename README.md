@@ -1,6 +1,6 @@
 <p align="center"><img src="Assets/icon/wolfeq.png" width="100" alt="WolfEQ green waveform logo" /></p>
 <h1 align="center">WolfEQ</h1>
-<p align="center"><strong>Your music. Your curve. Your workspace.</strong><br/>A Windows parametric EQ editor for 19 DACs and earphones from FiiO, Snowsky, JadeAudio, TRN, CrinEar and Tanchjim, and for any Windows output through Equalizer APO.</p>
+<p align="center"><strong>Your music. Your curve. Your workspace.</strong><br/>A Windows parametric EQ editor for 25 DACs and earphones from FiiO, Snowsky, JadeAudio, TRN, CrinEar, Tanchjim, Moondrop, JCALLY and Kiwi Ears, and for any Windows output through Equalizer APO.</p>
 <p align="center">
   <a href="https://github.com/audioslayer/wolfeq/releases/latest"><img src="https://img.shields.io/github/v/release/audioslayer/wolfeq?label=latest%20release" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6" alt="Windows 10 / 11" />
@@ -14,21 +14,19 @@
   <a href="https://github.com/audioslayer/wolfeq/issues">Report an issue</a>
 </p>
 
-## ✨ Meet WolfEQ 1.0
+## ✨ Meet WolfEQ 1.1
 
-Every band has its own color, and the light follows your hand. Grab a knob or a point on the graph and your cursor becomes part of it, with the numbers moving beside it. And WolfEQ now speaks to far more than the K13: **19 devices** are supported.
+Every band has its own color, and the light follows your hand. Grab a knob or a point on the graph and your cursor becomes part of it, with the numbers moving beside it. A new setup wizard gets you started, and **25 devices** are supported.
 
-![WolfEQ 1.0 editor with colored bands, knobs and live spectrum](docs/images/editor-1.0.png)
+![WolfEQ editor with colored bands, knobs and live spectrum](docs/images/editor-1.0.png)
 
-| | New in 1.0 |
+| | New in 1.1 |
 |---|---|
-| 🌈 **A color for every band** | Graph points, knobs, faders and the band editor share one color per band, warm lows to cool highs. |
-| 🎚️ **Knobs** | The new default view. Your cursor flies into the knob and the light follows it around the dial. Type exact values any time. |
-| 🪽 **Width wings** | The selected band's wings follow the curve. Drag a tip, or scroll even while dragging a point, to make it wider or narrower. |
-| 🔢 **Live readout** | Frequency, gain and Q appear beside the point as you drag. |
-| 🎧 **More devices** | JadeAudio JIEZI, Snowsky Tiny A, TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II, each with its own picture. |
-| 🔊 **Right level** | The KA15, JA11 and Melody no longer play 12 dB too quiet. |
-| 🎛️ **Tidier settings** | Settings show only what your device can do. |
+| 🧭 **Setup wizard** | Find your device, learn what to know about it, and pick a headphone preset. It never writes to your DAC. |
+| 🎧 **Six new devices** | FiiO K17 R2R and BTR25, CrinEar Protocol Micro, Moondrop Echo-A, JCALLY JM12 and Kiwi Ears AD1 (experimental). |
+| 📐 **Right width** | Peaks on the K13 R2R, and shelves on the KA15, Melody, Tiny A and JIEZI, now play as wide as they look. |
+| 🔌 **K17 and K19** | Saved over the rear RS232 USB port, with all 31 bands read back and checked. |
+| 💾 **Remembers your model** | An unplugged device opens as itself. |
 
 <p align="center"><img src="docs/images/graph-1.0.png" width="85%" alt="The EQ graph with colored bands, the selected band and its width wings" /><br/><em>The selected band, its shape and its width wings</em></p>
 
@@ -72,15 +70,15 @@ Choose **Settings → Look → Background**. Background mode is saved, and accen
 
 **[Get the latest release](https://github.com/audioslayer/wolfeq/releases/latest)**
 
-- **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v1.0.0/WolfEQ-Setup-1.0.0.exe)** — normal installation and shortcuts.
-- **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v1.0.0/WolfEQ-1.0.0-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
+- **[Windows x64 installer](https://github.com/audioslayer/wolfeq/releases/download/v1.1.0/WolfEQ-Setup-1.1.0.exe)** — normal installation and shortcuts.
+- **[Portable Windows x64 ZIP](https://github.com/audioslayer/wolfeq/releases/download/v1.1.0/WolfEQ-1.1.0-win-x64.zip)** — extract everything, then run `WolfEQ.exe`.
 - Both include the .NET runtime and the official Equalizer APO 1.4.2 x64 installer for Software EQ. SHA-256 checksums are supplied with the release.
 
 ## 🔌 First session
 
 Using a supported DAC? Follow the steps below. Using anything else, such as a laptop jack, another DAC, or Bluetooth headphones? Start with [Software EQ](#-software-eq).
 
-1. Connect your DAC over USB. In **Settings → Your device**, refresh the USB list, select your device, and choose **Save USB device**.
+1. Connect your DAC over USB. The setup wizard opens the first time and finds it; run it again any time from **Settings**. You can also select it under **Settings → Your device** and choose **Save USB device**.
 2. For K13 lights and input switching, choose **Find my K13** under Bluetooth. Your K13 flashes green; choose **Yes, use it**.
 3. Open **Library**. Choose a saved preset, or search AutoEQ and OPRA on the **Discover online** tab and check its **Curve** or **Bands** preview.
 4. Choose **Open in editor**. Opening a preset closes the library; browsing alone does not replace your edits.
@@ -192,11 +190,13 @@ Results are also written to `%LOCALAPPDATA%\WolfEQ\automation-result.json`. Use 
 | | Device | What you get |
 |:-:|-|-|
 | <img src="Assets/devices/fiio-k13-r2r.png" width="64" alt="" /> | **FiiO K13 R2R** | 10 bands, USER 1-10. Live sync, load from slot, slot names, lights, USB and COAX input switching. |
-| <img src="Assets/devices/fiio-k17.png" width="64" alt="" /> | **FiiO K17** | 31 bands, USER 1-10. |
-| <img src="Assets/devices/fiio-k19.png" width="64" alt="" /> | **FiiO K19** | 31 bands, USER 1-10. |
+| <img src="Assets/devices/fiio-k17-r2r.png" width="64" alt="" /> | **FiiO K17 R2R** | 31 bands, USER 1-10 over the RS232 USB port. Every save is read back and checked. Experimental. |
+| <img src="Assets/devices/fiio-k17.png" width="64" alt="" /> | **FiiO K17** | 31 bands, USER 1-10 over the RS232 USB port. Every save is read back and checked. |
+| <img src="Assets/devices/fiio-k19.png" width="64" alt="" /> | **FiiO K19** | 31 bands, USER 1-10 over the RS232 USB port. Every save is read back and checked. |
 | <img src="Assets/devices/fiio-br15-r2r.png" width="64" alt="" /> | **FiiO BR15 R2R** | 10 bands, USER 1-10. |
 | <img src="Assets/devices/fiio-qx13.png" width="64" alt="" /> | **FiiO QX13** | 10 bands, USER 1-10. |
 | <img src="Assets/devices/fiio-btr17.png" width="64" alt="" /> | **FiiO BTR17** | 10 bands, USER 1-10. |
+| <img src="Assets/devices/fiio-btr25.png" width="64" alt="" /> | **FiiO BTR25** | 10 bands, USER 1-10. Experimental. |
 | <img src="Assets/devices/fiio-btr13.png" width="64" alt="" /> | **FiiO BTR13** | 10 bands, USER 1-3. |
 | <img src="Assets/devices/fiio-ka15.png" width="64" alt="" /> | **FiiO KA15** | 10 bands, USER 1-3. Live sync and load from slot. |
 | <img src="Assets/devices/fiio-ka17.png" width="64" alt="" /> | **FiiO KA17** | 10 bands, USER 1-3. Live sync and load from slot. |
@@ -209,13 +209,18 @@ Results are also written to `%LOCALAPPDATA%\WolfEQ\automation-result.json`. Use 
 | <img src="Assets/devices/snowsky-tiny-a.png" width="64" alt="" /> | **Snowsky Tiny A** | 10 bands, USER 1-3. |
 | <img src="Assets/devices/trn-black-pearl.png" width="64" alt="" /> | **TRN Black Pearl** | 10 bands, one slot. Load from device; every save is read back and checked. Plug headphones in first or Windows will not see it. |
 | <img src="Assets/devices/crinear-protocol-max.png" width="64" alt="" /> | **CrinEar Protocol Max** | 10 bands, one slot. Load from device; every save is read back and checked. |
+| <img src="Assets/devices/crinear-protocol-micro.png" width="64" alt="" /> | **CrinEar Protocol Micro** | 8 bands, one slot. Load from device; every save is read back and checked. Experimental. |
 | <img src="Assets/devices/tanchjim-space-ii.png" width="64" alt="" /> | **Tanchjim SPACE II** | 10 bands, one slot. Load from device; every save is read back and checked. |
+| <img src="Assets/devices/moondrop-echo-a.png" width="64" alt="" /> | **Moondrop Echo-A** | 8 bands, one slot. Load from device; every save is read back and checked. Experimental. |
+| <img src="Assets/devices/jcally-jm12.png" width="64" alt="" /> | **JCALLY JM12** | 5 bands, one slot, no preamp. Load from device; every save is read back and checked. Restarts after each save and needs a 48 kHz Windows output. Experimental. |
+| <img src="Assets/devices/kiwi-ears-ad1.png" width="64" alt="" /> | **Kiwi Ears AD1** | 5 bands, one slot, no preamp. Load from device; every save is read back and checked. Restarts after each save and needs a 48 kHz Windows output. Experimental. |
 | <img src="Assets/devices/windows-system-eq.png" width="64" alt="" /> | **Any Windows output** | 10 bands through Equalizer APO (installer included). Live edits and bypass. See [Software EQ](#-software-eq). |
 
 **Live sync** plays your edits on the device as you make them. On the others, choose **Write** to save your EQ to a slot.
 
 - For full Windows audio format support, set the K13 to **UAC2.0** mode. With EQ on, FiiO limits the K13 R2R to PCM 192 kHz / 24-bit, turns MQA off, and can briefly reconnect USB when you switch EQ.
-- The K17 and K19 are found when they connect as USB HID. The K15 and K11 R2R are not supported yet.
+- The K17 R2R, K17 and K19 need a second USB cable from their rear RS232 port. They have no preamp, so WolfEQ tells you how far to turn the volume down. The K15 and K11 R2R are not supported yet.
+- **Experimental** devices are built from published work and not yet tested by us on a real unit. Start with a low-gain EQ.
 
 WolfEQ is developed on the K13 R2R. Other devices build on published work by [DevicePEQ](https://github.com/jeromeof/devicePEQ) (0BSD), [Contour](https://github.com/Chronosauros/contour) (Apache-2.0) and fiioctl (MIT). Thank you! See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

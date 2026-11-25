@@ -2,6 +2,8 @@
 
 ## v1.1.0
 
+Setup wizard, filters that play as wide as they look, and 25 supported devices.
+
 ### ✨ New
 
 - 🧭 **Setup wizard** — New users are walked through finding their device, what to know about it, and a headphone preset. It never writes to your DAC. Run it any time from Settings.
@@ -11,6 +13,7 @@
 - 🎚️ **31-band devices** — Band controls keep the selected band in view and start from standard 1/3-octave frequencies.
 - 🎧 **FiiO BTR25 (experimental)** — 10 bands, USER 1-10. Based on FiiO's web app and not yet tested on a real unit, so start with a low-gain EQ.
 - 🎧 **Four more devices (experimental)** — CrinEar Protocol Micro, Moondrop Echo-A, JCALLY JM12 and Kiwi Ears AD1, from measurements by Contour. Every save is read back and checked. The JM12 and AD1 have no preamp, restart after each save, and need a 48 kHz Windows output.
+- 🖼️ **Pictures** — Every new device has its own picture.
 
 ### 🐞 Fixed
 
