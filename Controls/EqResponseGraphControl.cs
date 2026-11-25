@@ -1452,7 +1452,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
     private static double LowShelfMagnitudeDb(double frequency, double a, double sin, double cos, double q)
     {
-        var alpha = ShelfAlpha(a, sin, q);
+        var alpha = sin / (2 * q); // Q-form shelf, as the DACs and Equalizer APO play it
         var beta = 2 * Math.Sqrt(a) * alpha;
         var b0 = a * ((a + 1) - (a - 1) * cos + beta);
         var b1 = 2 * a * ((a - 1) - (a + 1) * cos);
@@ -1465,7 +1465,7 @@ public sealed class EqResponseGraphControl : FrameworkElement
 
     private static double HighShelfMagnitudeDb(double frequency, double a, double sin, double cos, double q)
     {
-        var alpha = ShelfAlpha(a, sin, q);
+        var alpha = sin / (2 * q); // Q-form shelf, as the DACs and Equalizer APO play it
         var beta = 2 * Math.Sqrt(a) * alpha;
         var b0 = a * ((a + 1) + (a - 1) * cos + beta);
         var b1 = -2 * a * ((a - 1) + (a + 1) * cos);
@@ -1474,13 +1474,6 @@ public sealed class EqResponseGraphControl : FrameworkElement
         var a1 = 2 * ((a - 1) - (a + 1) * cos);
         var a2 = (a + 1) - (a - 1) * cos - beta;
         return MagnitudeDb(frequency, b0, b1, b2, a0, a1, a2);
-    }
-
-    private static double ShelfAlpha(double a, double sin, double q)
-    {
-        var slope = Math.Clamp(q, 0.1, 1.0);
-        var root = Math.Max(0, (a + 1 / a) * (1 / slope - 1) + 2);
-        return sin / 2 * Math.Sqrt(root);
     }
 
     private static double MagnitudeDb(

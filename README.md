@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://github.com/audioslayer/wolfeq/releases/latest">Download</a> &bull;
   <a href="CHANGELOG.md">Changelog</a> &bull;
-  <a href="https://discord.com/channels/1467241109657751737/1503967391581995069">Discord app channel</a> &bull;
+  <a href="https://discord.gg/nvkCRtK2Hf">Join the Discord</a> &bull;
   <a href="https://github.com/audioslayer/wolfeq/issues">Report an issue</a>
 </p>
 

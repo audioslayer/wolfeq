@@ -18,7 +18,37 @@ public partial class BandControls : UserControl
         nameof(Profile), typeof(FiioDeviceProfile), typeof(BandControls));
     public static readonly DependencyProperty SelectedBandProperty = DependencyProperty.Register(
         nameof(SelectedBand), typeof(EqBand), typeof(BandControls),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, SelectedBandChanged));
+
+    // With 31 bands the knob/fader rows scroll horizontally; keep the selected band's tile in view.
+    private static void SelectedBandChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is not EqBand band) return;
+        var control = (BandControls)d;
+        control.Dispatcher.BeginInvoke(new Action(() => control.BringBandIntoView(band)), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void BringBandIntoView(EqBand band)
+    {
+        // Selecting by grabbing a knob must not slide it out from under the pointer.
+        if (ViewTabs?.SelectedContent is not DependencyObject root || !IsLoaded || Mouse.LeftButton == MouseButtonState.Pressed) return;
+        foreach (var tile in FindTiles(root))
+        {
+            if (!ReferenceEquals(tile.DataContext, band)) continue;
+            tile.BringIntoView();
+            break;
+        }
+    }
+
+    private static IEnumerable<FrameworkElement> FindTiles(DependencyObject parent)
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is Border { Name: "Tile" } tile) yield return tile;
+            foreach (var nested in FindTiles(child)) yield return nested;
+        }
+    }
 
     public ObservableCollection<EqBand>? Bands { get => (ObservableCollection<EqBand>?)GetValue(BandsProperty); set => SetValue(BandsProperty, value); }
     public FiioDeviceProfile? Profile { get => (FiioDeviceProfile?)GetValue(ProfileProperty); set => SetValue(ProfileProperty, value); }
@@ -102,6 +132,7 @@ public partial class BandControls : UserControl
     }
 
     // Clicking a knob must not scroll the row, or the dial would slide out from under the pointer.
+    // Keep this guard: BringBandIntoView above runs only from selection changes, not from knob drags.
     private void Knob_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
     {
         if (Mouse.LeftButton == MouseButtonState.Pressed) e.Handled = true;

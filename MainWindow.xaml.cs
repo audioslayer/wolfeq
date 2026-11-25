@@ -26,6 +26,7 @@ public partial class MainWindow : Window
             ConfirmationDialog = request => Views.WolfDialog.Confirm(this, request),
             TextPromptDialog = request => Views.WolfDialog.Prompt(this, request)
         };
+        viewModel.RestoreRememberedModel();
         DataContext = viewModel;
 
         viewModel.OnlineProfileOpenedInEditor += (_, _) =>
@@ -54,6 +55,17 @@ public partial class MainWindow : Window
     public void OpenSettings()
     {
         if (!ReferenceEquals(_openOverlayPanel, SettingsHost)) ToggleOverlayPanel(SettingsHost);
+    }
+
+    /// <summary>Setup over a dimmed app. Closes Settings first so finishing lands on the editor.</summary>
+    public void OpenSetupWizard()
+    {
+        if (DataContext is not MainViewModel viewModel) return;
+        CloseOverlayPanel();
+        var root = (UIElement)Content;
+        root.Opacity = 0.45;
+        try { new Views.SetupWizard(viewModel) { Owner = this }.ShowDialog(); }
+        finally { root.Opacity = 1; }
     }
 
     // --- Overlay panels (Library / Settings right slide-overs) ---

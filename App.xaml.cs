@@ -63,6 +63,7 @@ public partial class App : Application
                 }
                 await _viewModel.AutoConnectAndReadDeviceAsync();
                 _ready.TrySetResult();
+                if (_viewModel.ShouldOfferSetup && window.IsVisible) window.OpenSetupWizard();
             }
             else
             {

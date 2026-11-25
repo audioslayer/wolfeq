@@ -11,6 +11,12 @@ public sealed class DeviceBindingSettings
     public string BluetoothName { get; set; } = "K13";
     public string Name { get; set; } = "Desk K13";
     public bool AutoSlotLighting { get; set; }
+    /// <summary>Last used model, so an unplugged device still opens as itself.</summary>
+    public string? ProfileId { get; set; }
+    public bool SetupCompleted { get; set; }
+
+    internal static bool Exists => File.Exists(SettingsPath);
+
     /// <summary>Test hook: keeps tests away from the user's saved device, slot names and lights.</summary>
     internal static string? DataDirectoryOverride { get; set; }
 

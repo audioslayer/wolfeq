@@ -365,6 +365,46 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Taller than the section rows below, with a green wash and a gap, so it reads as its own thing. -->
+                    <Button x:Name="SetupWizardButton" Click="OpenSetupWizard_Click" HorizontalAlignment="Stretch" Margin="0,6,0,20" Cursor="Hand"
+                            AutomationProperties.Name="Setup wizard" AutomationProperties.HelpText="Find your device and headphones, step by step">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Grid x:Name="Card">
+                                    <Border CornerRadius="{StaticResource RadiusCard}" Background="{DynamicResource WolfPanel2Brush}"/>
+                                    <!-- Green wash, strongest behind the icon. -->
+                                    <Border x:Name="Wash" CornerRadius="{StaticResource RadiusCard}" Background="{DynamicResource WolfGreenBrush}" Opacity="0.26">
+                                        <Border.OpacityMask>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#FF000000" Offset="0"/>
+                                                <GradientStop Color="#33000000" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.OpacityMask>
+                                    </Border>
+                                    <DockPanel Margin="16,16">
+                                        <Grid DockPanel.Dock="Left" Width="44" Height="44" Margin="0,0,14,0">
+                                            <Ellipse Fill="{DynamicResource WolfGreenBrush}"/>
+                                            <controls:PhosphorIcon IconName="SlidersHorizontal" IconSize="22" IconBrush="{DynamicResource WolfGreenContrastBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <Border DockPanel.Dock="Right" CornerRadius="16" Height="32" Padding="18,0" Margin="10,0,0,0" VerticalAlignment="Center" Background="{DynamicResource WolfGreenBrush}">
+                                            <TextBlock Text="Start" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource WolfGreenContrastBrush}"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Setup wizard" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource WolfTextBrush}"/>
+                                            <TextBlock Text="Find your device and headphones" FontSize="12.5" Margin="0,2,0,0" Foreground="{DynamicResource WolfMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Grid>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Wash" Property="Opacity" Value="0.4"/></Trigger>
+                                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Wash" Property="Opacity" Value="0.4"/></Trigger>
+                                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Card" Property="Opacity" Value="0.85"/></Trigger>
+                                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Card" Property="Opacity" Value="0.5"/></Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
                     <Expander x:Name="DeviceSection" Header="Your device" Tag="Cpu"
                               views:SettingsPopover.SectionColor="{StaticResource SectionDeviceBrush}"
                               views:SettingsPopover.SectionSummary="{Binding DeviceSectionSummary}" HeaderTemplate="{StaticResource SettingsSectionHeader}" IsExpanded="False" Margin="0,0,0,8">
@@ -417,6 +457,11 @@
                             <DockPanel LastChildFill="True" Margin="0,0,0,12">
                                 <Button Style="{StaticResource SettingsPrimaryButton}" Tag="Link" Content="Save USB device" DockPanel.Dock="Right" Command="{Binding SaveDeviceBindingCommand}" Padding="12,6" Margin="10,0,0,0"/>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="Only this unit is used." Style="{StaticResource DimText}" VerticalAlignment="Center"/><controls:HelpTip Title="Save USB device" Text="Saves the USB device and name above. WolfEQ never talks to another unit. If you move the K13 to a different USB port, pick it again here."/></StackPanel>
+                            </DockPanel>
+
+                            <DockPanel LastChildFill="True" Margin="0,0,0,12">
+                                <Button Style="{StaticResource QuietButton}" Content="Run device diagnostic" Command="{Binding RunHidDiagnosticCommand}" DockPanel.Dock="Right" Padding="12,6" Margin="10,0,0,0" ToolTip="Read-only. Copies a report of your USB device to the clipboard so you can send it to the developer."/>
+                                <TextBlock Text="Device not detected? Copy a report to send to the developer." Style="{StaticResource DimText}" TextWrapping="Wrap" VerticalAlignment="Center"/>
                             </DockPanel>
 
                             <!-- Bluetooth: guided find → flash → confirm. Saving happens on "Yes, use it". -->

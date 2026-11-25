@@ -216,7 +216,9 @@ public sealed partial class MainViewModel
                 Name = moved ? _binding.Name : option.Profile.DisplayName,
                 BluetoothAddress = moved ? _binding.BluetoothAddress : null,
                 BluetoothName = moved ? _binding.BluetoothName : new DeviceBindingSettings().BluetoothName,
-                AutoSlotLighting = _binding.AutoSlotLighting
+                AutoSlotLighting = _binding.AutoSlotLighting,
+                ProfileId = option.Profile.Id,
+                SetupCompleted = _binding.SetupCompleted
             };
             SaveBinding();
             DeviceNickname = _binding.Name;

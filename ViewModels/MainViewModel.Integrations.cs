@@ -107,6 +107,7 @@ public sealed partial class MainViewModel
         ? "Choose the USB device for your DAC and save it."
         : "USB device saved.";
     public ICommand RefreshUsbDevicesCommand => new AsyncRelayCommand(RefreshUsbDevicesAsync);
+    public ICommand RunHidDiagnosticCommand => new AsyncRelayCommand(RunHidDiagnosticAsync);
     // ── Guided Bluetooth setup: find → flash → "did it flash?" → saved. No separate save step. ──
 
     private bool _bluetoothSearching;
@@ -286,7 +287,9 @@ public sealed partial class MainViewModel
             // Bluetooth is saved by its own guided setup; keep whatever is saved.
             BluetoothAddress = _binding.BluetoothAddress,
             BluetoothName = _binding.BluetoothName,
-            AutoSlotLighting = _binding.AutoSlotLighting
+            AutoSlotLighting = _binding.AutoSlotLighting,
+            ProfileId = _binding.ProfileId,
+            SetupCompleted = _binding.SetupCompleted
         };
         if (IsMovedDevice(SelectedUsbDevice.Path, UsbDevices.Select(device => (string?)device.Path)))
             CarryOverDeviceData(_binding.UsbPath!, SelectedUsbDevice.Path);
@@ -307,6 +310,7 @@ public sealed partial class MainViewModel
 
     private void InitializeIntegrations()
     {
+        _isFirstRun = !DeviceBindingSettings.Exists;
         try { _binding = DeviceBindingSettings.Load(); }
         catch (Exception ex) { AddLog($"Device connection settings could not be loaded: {ex.Message}"); }
         DeviceNickname = _binding.Name;
@@ -329,6 +333,8 @@ public sealed partial class MainViewModel
         _bleLightService.SelectedAddress = _binding.BluetoothAddress;
         _slotLightingProfileService.SetDevice(_binding.UsbPath);
         RefreshLocalSlotNames();
+        OnPropertyChanged(nameof(DeviceDockTitle));
+        OnPropertyChanged(nameof(DeviceDockImagePath));
         OnPropertyChanged(nameof(DeviceBindingSummary));
         RaiseBluetoothSetupChanged();
         RefreshStreamDeckScript();
@@ -363,6 +369,37 @@ public sealed partial class MainViewModel
             UsbDevices.Add(new(device.DevicePath, device.Product ?? "USB device"));
         SelectedUsbDevice = UsbDevices.FirstOrDefault(d => string.Equals(d.Path, _binding.UsbPath, StringComparison.OrdinalIgnoreCase));
         Status = "USB scan complete. Select the intended device and save the connection.";
+    });
+
+    // Read-only HID report for unrecognised devices: copied to the clipboard and saved next to wolfeq.log.
+    private async Task RunHidDiagnosticAsync() => await IntegrationOperationAsync(async () =>
+    {
+        Status = "Running device diagnostic...";
+        var version = typeof(MainViewModel).Assembly.GetName().Version?.ToString() ?? "?";
+        var work = Task.Run(() => FiioK13DeviceService.BuildHidDiagnosticReport(version));
+        if (await Task.WhenAny(work, Task.Delay(TimeSpan.FromSeconds(30))) != work)
+        {
+            Status = "Device diagnostic timed out. Unplug and replug the DAC, then try again.";
+            AddLog(Status);
+            return;
+        }
+
+        var report = await work;
+        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WolfEQ", "logs");
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "hid-diagnostic.txt");
+        await File.WriteAllTextAsync(file, report);
+        try
+        {
+            Clipboard.SetText(report);
+            Status = $"Device diagnostic copied to the clipboard and saved to {file}";
+        }
+        catch (Exception)
+        {
+            Status = $"Device diagnostic saved to {file} (clipboard unavailable).";
+        }
+
+        AddLog(Status);
     });
 
     private async Task IntegrationOperationAsync(Func<Task> operation)

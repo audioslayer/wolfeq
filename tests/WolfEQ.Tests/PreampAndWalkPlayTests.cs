@@ -28,7 +28,7 @@ public sealed class PreampAndWalkPlayTests
     [Fact]
     public void OtherFiioDevicesSendTheSamePreampAsBefore()
     {
-        foreach (var profile in FiioDeviceProfiles.All.Where(p => p.PreampRegisterOffsetDb == 0 && p.WalkPlay is null))
+        foreach (var profile in FiioDeviceProfiles.All.Where(p => p.PreampRegisterOffsetDb == 0 && p.WalkPlay is null && p.KtMicro is null))
         {
             for (var db = -30.0; db <= 15; db += 0.1)
             {

@@ -78,6 +78,7 @@ public sealed class IntegrationSettingsTests
                 using var controlsOutput = File.Create(Path.Combine(AppContext.BaseDirectory, "device-controls-settings.png"));
                 controlsEncoder.Save(controlsOutput);
                 VerifyStreamDeckWizard(model);
+                VerifySetupWizard();
                 VerifyTrayFlyout(model);
                 BandControlsViewChecks.Verify(model);
                 StudioViewChecks.Verify(model);
@@ -124,6 +125,37 @@ public sealed class IntegrationSettingsTests
         AssertOnly(2);
         Assert.Equal("Next", next.Content);
         wizard.Close();
+    }
+
+    private static void VerifySetupWizard()
+    {
+        var model = new MainViewModel();
+        model.SelectedDeviceProfile = WolfEQ.Models.FiioDeviceProfiles.K17R2R;
+        var wizard = new SetupWizard(model);
+        var next = (Button)wizard.FindName("NextButton");
+        string[] steps = ["Step1", "Step2", "Step3", "Step4"];
+        var root = (FrameworkElement)wizard.Content;
+        for (var i = 0; i < steps.Length; i++)
+        {
+            Assert.Equal(i, wizard.CurrentStep);
+            for (var other = 0; other < steps.Length; other++)
+                Assert.Equal(other == i ? Visibility.Visible : Visibility.Collapsed, ((FrameworkElement)wizard.FindName(steps[other])).Visibility);
+            if (i == 0) ((Button)wizard.FindName("ShowModelsButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            root.Measure(new Size(692, 704));
+            root.Arrange(new Rect(0, 0, 692, 704));
+            root.UpdateLayout();
+            var bitmap = new RenderTargetBitmap(692, 704, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(root);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var output = File.Create(Path.Combine(AppContext.BaseDirectory, $"setup-{i + 1}.png"));
+            encoder.Save(output);
+            if (i < steps.Length - 1) next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }
+
+        Assert.Equal("Start tuning", next.Content);
+        wizard.Close();
+        Assert.False(model.ShouldOfferSetup);
     }
 
     private static void VerifyTrayFlyout(MainViewModel model)

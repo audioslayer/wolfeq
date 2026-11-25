@@ -14,7 +14,6 @@ public static class WalkPlayCodec
     public const byte CmdGlobalGain = 0x03;
     public const byte CmdPeq = 0x09;
     private const double Q30 = 1073741824.0;
-    private const double DesignRateHz = 96000.0;
     // Register 182/256 is the factory Q on every measured unit.
     private const double FlatQ = 0.7109375;
     private static readonly int[] FlatFrequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
@@ -80,7 +79,14 @@ public static class WalkPlayCodec
     /// <summary>All bands the device holds: the preset's, then factory-flat fillers. Disabled bands become flat peaks.</summary>
     public static IReadOnlyList<K13EqBandReadback> PlanBands(EqPreset preset, FiioDeviceProfile profile)
     {
-        var source = preset.Bands.OrderBy(band => band.Number).Take(profile.BandCount).ToArray();
+        var all = preset.Bands.OrderBy(band => band.Number).ToArray();
+        if (all.Skip(profile.BandCount).Any(band => band.Enabled && Math.Abs(band.GainDb) >= 0.05))
+        {
+            throw new InvalidOperationException(
+                $"{profile.DisplayName} has {profile.BandCount} bands and this EQ uses more. Turn off or flatten the extra bands, then save again.");
+        }
+
+        var source = all.Take(profile.BandCount).ToArray();
         var planned = new List<K13EqBandReadback>();
         for (var index = 0; index < profile.BandCount; index++)
         {
@@ -109,6 +115,29 @@ public static class WalkPlayCodec
         }
 
         return planned;
+    }
+
+    /// <summary>
+    /// Replaces each high shelf with the opposite low shelf at the same frequency, which is the same curve shifted by
+    /// the shelf's gain, and moves that gain into the preamp. Other devices pass through unchanged.
+    /// </summary>
+    public static (IReadOnlyList<K13EqBandReadback> Bands, double PreampDb) Realize(
+        IReadOnlyList<K13EqBandReadback> bands, double preampDb, FiioDeviceProfile profile)
+    {
+        if (!profile.WalkPlay!.EmulateHighShelf) return (bands, profile.NormalizePreamp(preampDb));
+        var shift = bands.Where(band => band.FilterType == (byte)EqFilterType.HighShelf).Sum(band => band.GainDb);
+        if (shift == 0) return (bands, profile.NormalizePreamp(preampDb));
+        var wanted = preampDb + shift;
+        if (wanted > profile.MaxPreampDb + 1e-6 || wanted < profile.MinPreampDb)
+        {
+            throw new InvalidOperationException(
+                $"{profile.DisplayName} makes high shelves with its preamp. Set the preamp between {Math.Max(-24, profile.MinPreampDb - shift):0.#} and {profile.MaxPreampDb - shift:0.#} dB, then save again.");
+        }
+
+        var realized = bands.Select(band => band.FilterType == (byte)EqFilterType.HighShelf
+            ? band with { FilterType = (byte)EqFilterType.LowShelf, GainDb = -band.GainDb }
+            : band).ToArray();
+        return (realized, profile.NormalizePreamp(wanted));
     }
 
     public static Registers ToRegisters(K13EqBandReadback band, WalkPlayOptions options)
@@ -180,7 +209,7 @@ public static class WalkPlayCodec
     {
         var type = (EqFilterType)band.FilterType;
         var a = Math.Pow(10, band.GainDb / 40);
-        var w = 2 * Math.PI * band.FrequencyHz / DesignRateHz;
+        var w = 2 * Math.PI * band.FrequencyHz / options.CoefficientRateHz;
         var c = Math.Cos(w);
         var alpha = Math.Sin(w) / (2 * band.Q);
         var k = 2 * Math.Sqrt(a) * alpha;

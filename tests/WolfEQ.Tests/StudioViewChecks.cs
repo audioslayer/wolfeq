@@ -68,7 +68,7 @@ internal static class StudioViewChecks
         foreach (var profile in model.DeviceProfiles)
         {
             // Exercise the binding without changing saved device preferences or connecting hardware.
-            dock.DataContext = new { SelectedDeviceProfile = profile };
+            dock.DataContext = new { SelectedDeviceProfile = profile, DeviceDockTitle = profile.DisplayLabel, DeviceDockImagePath = profile.ProductImagePath };
             Layout(dock, 1586, 80);
             var bitmap = Assert.IsAssignableFrom<BitmapSource>(deviceImage.Source);
             Assert.Equal(profile.ProductImagePath, bitmap.ToString());
@@ -80,7 +80,7 @@ internal static class StudioViewChecks
         }
         dock.ClearValue(FrameworkElement.DataContextProperty);
         Layout(dock, 1586, 80);
-        Assert.Equal(model.SelectedDeviceProfile.ProductImagePath, deviceImage.Source.ToString());
+        Assert.Equal(model.DeviceDockImagePath, deviceImage.Source.ToString());
         Render(deviceGallery, 420, 620, "studio-device-images");
         var savePopup = (Popup)dock.FindName("SaveLibraryPopup");
         ((TextBox)dock.FindName("LibraryPresetName")).Text = model.SuggestedLibraryName;

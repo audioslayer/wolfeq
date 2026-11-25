@@ -120,9 +120,9 @@
                           IsChecked="{Binding IsOpen, ElementName=DevicePopup, Mode=TwoWay}" Checked="DeviceMenuButton_Checked"
                           ToolTip="Switch device" AutomationProperties.Name="Switch device">
                 <StackPanel Orientation="Horizontal">
-                    <Image x:Name="DeviceProductImage" Source="{Binding SelectedDeviceProfile.ProductImagePath}" Width="48" Height="38" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,14,0" VerticalAlignment="Center" AutomationProperties.Name="{Binding SelectedDeviceProfile.DisplayName}"/>
+                    <Image x:Name="DeviceProductImage" Source="{Binding DeviceDockImagePath}" Width="48" Height="38" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,14,0" VerticalAlignment="Center" AutomationProperties.Name="{Binding DeviceDockTitle}"/>
                     <Ellipse x:Name="SyncStateDot" Width="9" Height="9" Style="{StaticResource ConnectionToneDot}" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding SelectedDeviceProfile.DisplayLabel}" FontWeight="SemiBold" FontSize="15"/><TextBlock x:Name="ConnectionStatusText" Text="{Binding ConnectionText}" FontSize="12" Style="{StaticResource ConnectionToneText}" Margin="0,2,0,0"/></StackPanel>
+                    <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding DeviceDockTitle}" FontWeight="SemiBold" FontSize="15"/><TextBlock x:Name="ConnectionStatusText" Text="{Binding ConnectionText}" FontSize="12" Style="{StaticResource ConnectionToneText}" Margin="0,2,0,0"/></StackPanel>
                     <Path Data="M0,0 L5,5 L10,0" Stroke="{DynamicResource WolfMutedBrush}" StrokeThickness="1.5" Margin="16,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
             </ToggleButton>

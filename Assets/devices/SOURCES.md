@@ -31,6 +31,19 @@ Product pictures from FiiO, CrinEar and retailer listings, cropped, resized to 3
 | crinear-protocol-max | [Original](https://cdn.shopify.com/s/files/1/0578/7412/0752/files/Crinear_Protocol_max_front.png) |
 | tanchjim-space-ii | [Original](https://cdn.shopify.com/s/files/1/0421/5432/8214/files/tanchjim-space-ii-portable-dac-amplifier-grey.webp) |
 
+## Added 2026-11-24
+
+Product pictures from FiiO, Kiwi Ears and retailer listings, cropped (the JM12 also rotated), resized to 300x260 and given a transparent background. Product imagery belongs to its respective owner.
+
+| Device profile | Source |
+| --- | --- |
+| fiio-btr25 | [Original](https://nwzimg.wezhan.net/contents/sitefiles3600/18000638/images/174438970.png) |
+| fiio-k17-r2r | [Original](https://nwzimg.wezhan.net/contents/sitefiles3600/18000638/images/174293999.png) |
+| kiwi-ears-ad1 | [Original](https://cdn.shopify.com/s/files/1/0582/0317/7110/files/KiwiEarsAD1_1_2494cbac-4aa6-4213-a7c9-aea470a634aa.jpg) |
+| crinear-protocol-micro | [Original](https://cdn.shopify.com/s/files/1/0040/7201/3924/files/CrinearProtocolMicro5.png) |
+| moondrop-echo-a | [Original](https://cdn.shopify.com/s/files/1/0013/3896/6076/files/1_4a2a51f8-20b0-4562-808b-949a3df9fd4d.png) |
+| jcally-jm12 | [Original](https://cdn.shopify.com/s/files/1/0578/7412/0752/files/Jcally_JM12.png) |
+
 ## Original WolfEQ assets
 
 | Device profile | Source |

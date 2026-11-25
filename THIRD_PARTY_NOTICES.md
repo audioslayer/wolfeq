@@ -46,4 +46,4 @@ Equalizer APO is a separate program distributed alongside WolfEQ (mere aggregati
 
 ## Contour
 
-Device limits and USB IDs for the JadeAudio JIEZI, Snowsky Tiny A and Snowsky Retro Nano and the KA15, JA11 and Melody preamp level, plus the limits and save sequences for the TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II, come from measurements published by [Contour](https://github.com/Chronosauros/contour) (Apache License 2.0). No Contour code is included.
+Device limits and USB IDs for the JadeAudio JIEZI, Snowsky Tiny A and Snowsky Retro Nano and the KA15, JA11 and Melody preamp level, plus the limits and save sequences for the TRN Black Pearl, CrinEar Protocol Max and Tanchjim SPACE II, as well as the peak and shelf Q scales and the limits, registers and save sequences for the CrinEar Protocol Micro, Moondrop Echo-A, JCALLY JM12 and Kiwi Ears AD1, come from measurements published by [Contour](https://github.com/Chronosauros/contour) (Apache License 2.0). No Contour code is included.

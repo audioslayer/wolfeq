@@ -5,10 +5,10 @@ namespace WolfEQ.Services;
 
 public sealed partial class FiioK13DeviceService
 {
-    /// <summary>WalkPlay DACs never receive a FiiO frame: every FiiO send path checks this first.</summary>
+    /// <summary>WalkPlay, KT Micro and serial DSP devices never receive a FiiO HID frame: every FiiO send path checks this first.</summary>
     private void EnsureFiioProtocol()
     {
-        if (SelectedProfile.WalkPlay is not null)
+        if (SelectedProfile.WalkPlay is not null || SelectedProfile.UsesDspSerial || SelectedProfile.KtMicro is not null)
         {
             throw new InvalidOperationException($"{SelectedProfile.DisplayName} does not support this control.");
         }
@@ -26,7 +26,7 @@ public sealed partial class FiioK13DeviceService
             return new K13EqReadback(
                 candidate,
                 profile,
-                slot,
+                profile.WalkPlay!.EchoSlot ? (byte)0 : slot,
                 null,
                 preamp,
                 true,
@@ -42,8 +42,7 @@ public sealed partial class FiioK13DeviceService
         CancellationToken cancellationToken)
     {
         var options = profile.WalkPlay!;
-        var preamp = profile.NormalizePreamp(preset.PreampDb);
-        var bands = WalkPlayCodec.PlanBands(preset, profile);
+        var (bands, preamp) = WalkPlayCodec.Realize(WalkPlayCodec.PlanBands(preset, profile), preset.PreampDb, profile);
         var log = new List<string> { $"WalkPlay save: {profile.DisplayName}, {bands.Count} band(s), preamp {preamp:F0} dB." };
         var (stream, inputLength, outputLength, candidate) =
             await OpenSelectedHidAsync("WalkPlay save", log, cancellationToken).ConfigureAwait(false);
@@ -53,7 +52,7 @@ public sealed partial class FiioK13DeviceService
 
             // A full read first proves this is the expected layout before anything is written.
             var (slot, _, _) = await ReadWalkPlayStateAsync(stream, profile, log, cancellationToken).ConfigureAwait(false);
-            if (slot != presetId)
+            if (!options.EchoSlot && slot != presetId)
             {
                 throw new InvalidOperationException($"{profile.DisplayName} reports an unexpected slot ({slot}). Nothing was written.");
             }

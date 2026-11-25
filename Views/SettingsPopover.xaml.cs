@@ -118,6 +118,12 @@ public partial class SettingsPopover : UserControl
         wizard.ShowDialog();
     }
 
+    private void OpenSetupWizard_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (Window.GetWindow(this) is MainWindow window) window.OpenSetupWizard();
+    }
+
     /// <summary>From the Lights banner or the hero's Bluetooth chip: open Your device and scroll to the Bluetooth card.</summary>
     private void SetUpBluetooth_Click(object sender, RoutedEventArgs e)
     {

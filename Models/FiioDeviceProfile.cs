@@ -9,7 +9,15 @@ public sealed record WalkPlayOptions(
     byte BandLength = 0x18,
     bool TrnSequence = false,
     double ShelfQScale = 1.0,
-    bool WrapCoefficients = false);
+    bool WrapCoefficients = false,
+    double CoefficientRateHz = 96000.0,
+    // No high shelf in the DSP: sent as the opposite low shelf, with the gain moved into the preamp.
+    bool EmulateHighShelf = false,
+    // The slot byte has no known meaning; it is sent back as read.
+    bool EchoSlot = false);
+
+/// <summary>A KT Micro device. Its chip's USB IDs are shared, so the exact USB product name is required too.</summary>
+public sealed record KtMicroOptions(ushort VendorId, ushort ProductId, string ProductName);
 
 public sealed record FiioDeviceProfile(
     string Id,
@@ -45,8 +53,39 @@ public sealed record FiioDeviceProfile(
     double? PreampCeilingDb = null,
     bool SupportsEqSwitchRead = true,
     int SaveSettleMs = 350,
-    WalkPlayOptions? WalkPlay = null)
+    WalkPlayOptions? WalkPlay = null,
+    // K17 family: the EQ is reached through the rear RS232 USB port, not HID.
+    bool UsesDspSerial = false,
+    // Measured by Contour: these filters play Q = register / scale, so the register holds the wanted Q x scale.
+    double PeakQScale = 1.0,
+    double ShelfQScale = 1.0,
+    KtMicroOptions? KtMicro = null,
+    // Wait after switching slot, before the first band is written.
+    int SelectSettleMs = 0)
 {
+    public bool HasNoPreamp => UsesDspSerial || KtMicro is not null;
+
+    public double QScale(EqFilterType type) => type switch
+    {
+        EqFilterType.Peak => PeakQScale,
+        EqFilterType.LowShelf or EqFilterType.HighShelf => ShelfQScale,
+        _ => 1.0
+    };
+
+    /// <summary>The highest real Q the register can hold for this filter (the register itself stops at <see cref="MaxQ"/>).</summary>
+    public double MaxQFor(EqFilterType type) => Math.Floor(MaxQ / QScale(type) * 100 + 1e-6) / 100;
+
+    public ushort EncodeQRegister(EqFilterType type, double q) => (ushort)Math.Round(q * QScale(type) * 100);
+
+    public double DecodeQRegister(EqFilterType type, double register) => Math.Round(register / QScale(type), 2);
+
+    /// <summary>Some devices read a Q back slightly off (990 as 989, 605 as 607), so a match allows 1 + 0.4% register steps.</summary>
+    public bool QMatches(EqFilterType type, double requested, double actual)
+    {
+        var register = EncodeQRegister(type, requested);
+        return Math.Abs(register - EncodeQRegister(type, actual)) <= 1 + register / 250;
+    }
+
     public double MinPreampDb => PreampFloorDb ?? MinGainDb;
 
     public double MaxPreampDb => PreampCeilingDb ?? MaxGainDb;
@@ -108,6 +147,8 @@ public sealed record FiioDeviceProfile(
 
 public static class FiioDeviceProfiles
 {
+    private const double Sqrt2 = 1.4142135623730951;
+
     private static readonly IReadOnlySet<EqFilterType> AllFilters = Enum.GetValues<EqFilterType>().ToHashSet();
 
     private static readonly IReadOnlySet<EqFilterType> CoreFilters = new HashSet<EqFilterType>
@@ -177,7 +218,8 @@ public static class FiioDeviceProfiles
         HasBleLighting: true,
         HasBleDeviceControls: true,
         SupportsUsbPresetNames: true,
-        IsVerified: true);
+        IsVerified: true,
+        PeakQScale: Sqrt2);
 
     // Community configurations below are adapted from Pragmatic Audio's 0BSD-licensed
     // DevicePEQ project and cross-checked against FiiO's published PEQ documentation.
@@ -301,6 +343,19 @@ public static class FiioDeviceProfiles
         ReloadEqAfterSave: false,
         ProductNameAliases: ["FIIO BTR17", "BTR17"]);
 
+    // BTR25: layout and commands from FiiO's web app, where it shares the BTR19's handling. Nobody has tested it
+    // yet, so it is save-only and matched by name (its USB product ID is not published).
+    public static readonly FiioDeviceProfile Btr25 = Btr17 with
+    {
+        Id = "fiio-btr25",
+        DisplayName = "FiiO BTR25",
+        ProductId = null,
+        SupportedFilterTypes = AllFilters,
+        ProductNameAliases = ["FIIO BTR25", "BTR25"],
+        IsVerified = false,
+        SelectSettleMs = 1000
+    };
+
     public static readonly FiioDeviceProfile Btr13 = new(
         Id: "fiio-btr13",
         DisplayName: "FiiO BTR13",
@@ -363,7 +418,8 @@ public static class FiioDeviceProfiles
         PreampFloorDb: -24.0,
         PreampCeilingDb: 0.0,
         SupportsEqSwitchRead: false,
-        SaveSettleMs: 2000);
+        SaveSettleMs: 2000,
+        ShelfQScale: Sqrt2);
 
     public static readonly FiioDeviceProfile Ka17 = new(
         Id: "fiio-ka17",
@@ -450,7 +506,8 @@ public static class FiioDeviceProfiles
         PreampRegisterOffsetDb: 12.0,
         PreampWholeDb: true,
         PreampFloorDb: -24.0,
-        PreampCeilingDb: 0.0);
+        PreampCeilingDb: 0.0,
+        ShelfQScale: Sqrt2);
 
     public static readonly FiioDeviceProfile SnowskyRetroNano = new(
         Id: "snowsky-retro-nano",
@@ -497,9 +554,8 @@ public static class FiioDeviceProfiles
     // ── Added from community protocol data (devicePEQ 0BSD, fiioctl MIT). Guarded save-only:
     //    no automatic readback or live writes until confirmed on real hardware. ──
 
-    // K17 / K19: 31-band PEQ, USER 1-10 are presets 7-16, EQ off is 17. Saved with 0x19: 0x21 is a
-    // factory reset on other FiiO models, so it is never sent.
-    // Q range: the two sources disagree (0.1-10 vs 0.4-128), so the overlap 0.4-10 is used.
+    // K17 / K19: 31-band PEQ over the RS232 USB port, as FiiO's web control does it. USER 1-10 are presets 7-16,
+    // EQ off is 17. There is no preamp. Q 0.4-128 in the device's own steps; 10 is the editor's limit.
     private static IReadOnlyList<FiioDeviceSlot> K17FamilySlots() =>
     [
         new(0x00, "Jazz", false),
@@ -529,13 +585,25 @@ public static class FiioDeviceProfiles
         SupportsLiveEqWrites: false,
         SupportsEqReadback: false,
         ReloadEqAfterSave: false,
-        ProductNameAliases: ["FIIO K17", "K17"]);
+        ProductNameAliases: ["FIIO K17", "K17"],
+        UsesDspSerial: true);
 
     public static readonly FiioDeviceProfile K19 = K17 with
     {
         Id = "fiio-k19",
         DisplayName = "FiiO K19",
         ProductNameAliases = ["FIIO K19", "K19"]
+    };
+
+    // K17 R2R (USB 0x2972:0x0140). Its HID interface only echoes what it is sent; the EQ is on the RS232 USB port.
+    public static readonly FiioDeviceProfile K17R2R = K17 with
+    {
+        Id = "fiio-k17-r2r",
+        DisplayName = "FiiO K17 R2R",
+        ProductId = 0x0140,
+        HidInterfaceNumber = 3,
+        ProductNameAliases = ["FIIO K17 R2R", "K17 R2R", "K17R2R"],
+        IsVerified = false
     };
 
     // FP3: 10 bands, one USER slot (0xA0). No EQ-off preset is known; DisabledPresetId is only a placeholder.
@@ -615,7 +683,8 @@ public static class FiioDeviceProfiles
         SupportsLiveEqWrites: false,
         SupportsEqReadback: false,
         ReloadEqAfterSave: false,
-        ProductNameAliases: ["JadeAudio JIEZI", "JIEZI"]);
+        ProductNameAliases: ["JadeAudio JIEZI", "JIEZI"],
+        ShelfQScale: Sqrt2);
 
     public static readonly FiioDeviceProfile SnowskyTinyA = Jiezi with
     {
@@ -667,14 +736,65 @@ public static class FiioDeviceProfiles
         WalkPlay = new()
     };
 
+    // Protocol Micro and Echo-A: measured by Contour, saving over a replug is not. The DSP plays the coefficients at 93,750 Hz.
+    public static readonly FiioDeviceProfile CrinEarProtocolMicro = TrnBlackPearl with
+    {
+        Id = "crinear-protocol-micro",
+        DisplayName = "CrinEar Protocol Micro",
+        ProductId = 0xC20F,
+        BandCount = 8,
+        SupportedFilterTypes = WalkPlayFilters,
+        ImageId = null,
+        IsVerified = false,
+        WalkPlay = new(CoefficientRateHz: 93750.0, EmulateHighShelf: true, EchoSlot: true)
+    };
+
+    public static readonly FiioDeviceProfile MoondropEchoA = CrinEarProtocolMicro with
+    {
+        Id = "moondrop-echo-a",
+        DisplayName = "Moondrop Echo-A",
+        ProductId = 0x12C5
+    };
+
+    // KT Micro devices: registers and limits measured by Contour. Each save restarts the device.
+    public static readonly FiioDeviceProfile JcallyJm12 = new(
+        Id: "jcally-jm12",
+        DisplayName: "JCALLY JM12",
+        ProductId: null,
+        ReportId: 0x4B,
+        BandCount: 5,
+        MinGainDb: -12.0,
+        MaxGainDb: 12.0,
+        MinQ: 0.2,
+        MaxQ: 10.0,
+        SupportedFilterTypes: CoreFilters,
+        Slots: [new(0x00, "Custom", true)],
+        DisabledPresetId: 0xF0,
+        HidInterfaceNumber: 3,
+        SupportsLiveEqWrites: false,
+        ReloadEqAfterSave: false,
+        PreampFloorDb: -24.0,
+        PreampCeilingDb: 0.0,
+        IsVerified: false,
+        KtMicro: new(0x31B2, 0x0111, "KT02H20 HIFI Audio"));
+
+    public static readonly FiioDeviceProfile KiwiEarsAd1 = JcallyJm12 with
+    {
+        Id = "kiwi-ears-ad1",
+        DisplayName = "Kiwi Ears AD1",
+        KtMicro = new(0x3302, 0x20E3, "AD1")
+    };
+
     public static IReadOnlyList<FiioDeviceProfile> All { get; } =
     [
         K13R2R,
+        K17R2R,
         K17,
         K19,
         Br15R2R,
         Qx13,
         Btr17,
+        Btr25,
         Btr13,
         Ka15,
         Ka17,
@@ -687,7 +807,11 @@ public static class FiioDeviceProfiles
         SnowskyTinyA,
         TrnBlackPearl,
         CrinEarProtocolMax,
-        TanchjimSpace2
+        TanchjimSpace2,
+        CrinEarProtocolMicro,
+        MoondropEchoA,
+        JcallyJm12,
+        KiwiEarsAd1
     ];
 
     public static FiioDeviceProfile Default => K13R2R;
@@ -718,6 +842,11 @@ public static class FiioDeviceProfiles
         if (string.IsNullOrWhiteSpace(productName))
         {
             return false;
+        }
+
+        if (profile.KtMicro is { } ktMicro)
+        {
+            return string.Equals(productName.Trim(), ktMicro.ProductName, StringComparison.OrdinalIgnoreCase);
         }
 
         var normalized = NormalizeProductName(productName);

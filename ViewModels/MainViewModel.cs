@@ -178,6 +178,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         _selectedKnobLedColorOption = LedColorOptions.First(option => option.Value == 0x03);
         _selectedTopLedModeOption = LedModeOptions[0];
         _selectedKnobLedModeOption = LedModeOptions[0];
+        // First: an unreadable settings file is logged while the rest is still being set up.
+        DeviceLog = [];
         InitializeIntegrations();
         InitializeSettingsSummaries();
         InitializeConnectionStatus();
@@ -201,7 +203,6 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         GitHubProfiles = [];
         WindowsAudioQuickFormats = [];
         ResetWindowsAudioQuickFormats();
-        DeviceLog = [];
         AddLog("Ready. Device reads, USER switching, input, lighting, EQ on/off, live preamp, and single-band EQ writes are guarded.");
         AddLog($"File log: {_log.LogFilePath}");
 
@@ -263,7 +264,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             OpenUrl("ms-settings:sound-defaultoutputproperties", "Windows output settings"));
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync);
         OpenReleasesCommand = new RelayCommand(() => OpenUrl("https://github.com/audioslayer/wolfeq/releases", "WolfEQ releases"));
-        OpenDiscordCommand = new RelayCommand(() => OpenUrl("https://discord.com/channels/1467241109657751737/1503967391581995069", "WolfEQ Discord channel"));
+        OpenDiscordCommand = new RelayCommand(() => OpenUrl("https://discord.gg/nvkCRtK2Hf", "WolfEQ Discord channel"));
         OpenBuyMeCoffeeCommand = new RelayCommand(() => OpenUrl("https://www.buymeacoffee.com/audioslayer", "Buy Me a Coffee"));
 
         EditorSession.Changed += OnEditorSessionChanged;
@@ -394,7 +395,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string BandInspectorHint => BuildBandInspectorHint();
     public string DeviceBandEditorTitle => $"{Bands.Count}-Band PEQ";
     public double BandCardWidth => Bands.Count > 24 ? 124 : Bands.Count > 16 ? 138 : 168;
-    public bool SupportsK13PresetTools => Bands.Count == 10 && SelectedDeviceProfile.BandCount == 10;
+    public bool SupportsK13PresetTools => Bands.Count == 10 && SelectedDeviceProfile.BandCount == 10; // 31-band K17 deliberately excluded: the preset tools are 10-band only.
     public bool IsK13R2RSelected => SelectedDeviceProfile.Id == FiioDeviceProfiles.K13R2R.Id;
     public int FilteredPresetCount => FilteredPresets.Cast<EqPreset>().Count();
     public int GitHubProfileCount => GitHubProfiles.Count;
@@ -1002,17 +1003,18 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             else
             {
                 DeviceSelectionStatus = result.Candidates.Count == 0
-                    ? "No supported FiiO/SNOWSKY HID device found."
-                    : "FiiO/SNOWSKY HID device found, but no known profile matched. Pick one manually.";
+                    ? "No supported device found."
+                    : "A device was found, but its model is not known. Pick one manually.";
             }
 
             SetConnectionState(result.IsDetected);
+            if (result.IsDetected && !IsSystemEqSelected) RememberModel(SelectedDeviceProfile);
 
             AddLog($"Scanned {result.ScannedDeviceCount} HID interface(s).");
 
             if (result.Candidates.Count == 0)
             {
-                AddLog("No supported FiiO/SNOWSKY HID candidates found.");
+                AddLog("No supported HID candidates found.");
             }
 
             if (result.MatchedProfile is not null && result.MatchedCandidate is not null)
@@ -1146,12 +1148,17 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             {
                 var source = snapshot.Bands[index];
                 var band = Bands[index];
+                var type = ToEqFilterType(source.FilterType);
+                // A device may read Q back a step off; keep ours for an unchanged band so repeated saves cannot drift.
+                var isSameBand = band.Enabled && band.FilterType == type && band.FrequencyHz == source.FrequencyHz
+                    && Math.Abs(band.GainDb - source.GainDb) < 0.05
+                    && snapshot.Profile.QMatches(type, band.Q, source.Q);
                 band.Number = source.Number;
                 band.Enabled = true;
-                band.FilterType = ToEqFilterType(source.FilterType);
+                band.FilterType = type;
                 band.FrequencyHz = source.FrequencyHz;
                 band.GainDb = source.GainDb;
-                band.Q = source.Q;
+                if (!isSameBand) band.Q = source.Q;
             }
 
             PreampDb = snapshot.GlobalGainDb;
@@ -2381,7 +2388,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
                 ? $"Wrote '{preset.Name}' to {slotDisplay}; the device is reconnecting. Click Detect if it does not come back."
                 : editedDuringWrite
                     ? $"Wrote '{preset.Name}' to {slotDisplay}. Edits made during the write are not on the device yet."
-                    : $"Wrote '{preset.Name}' to {slotDisplay}.";
+                    : $"Wrote '{preset.Name}' to {slotDisplay}.{NoPreampNote(preset.PreampDb)}{QLimitNote(preset)}";
             AddLog(Status);
         }
         catch (OperationCanceledException)
@@ -2391,6 +2398,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception or ArgumentException)
         {
+            LogDspTransport(ex);
             Status = $"Device write failed: {ex.Message}";
             AddLog(Status);
         }
@@ -2402,6 +2410,28 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
     private bool _lastSlotSwitchConfirmed;
     private bool _lastSlotLightingSucceeded = true;
+
+    private string NoPreampNote(double preampDb)
+        => SelectedDeviceProfile.HasNoPreamp && preampDb < 0
+            ? $" {SelectedDeviceProfile.DisplayName} has no preamp, so turn its volume down about {-preampDb:0.#} dB to avoid clipping."
+            : string.Empty;
+
+    private string QLimitNote(EqPreset preset)
+    {
+        var profile = SelectedDeviceProfile;
+        var band = preset.Bands.OrderBy(candidate => candidate.Number).Take(profile.BandCount)
+            .FirstOrDefault(candidate => candidate.Enabled && profile.QScale(candidate.FilterType) > 1
+                                         && candidate.Q > profile.MaxQFor(candidate.FilterType) + 0.005);
+        return band is null
+            ? string.Empty
+            : $" Band {band.Number} was saved at Q {profile.MaxQFor(band.FilterType):0.##}, the narrowest {profile.DisplayName} can play.";
+    }
+
+    private void LogDspTransport(Exception ex)
+    {
+        if (ex is not K13DspVerificationException dsp) return;
+        foreach (var line in dsp.TransportLog) AddLog($"  {line}");
+    }
 
     private async Task SwitchSlotAsync(object? parameter)
     {
@@ -2491,6 +2521,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception)
         {
+            LogDspTransport(ex);
             Status = $"Slot switch failed: {ex.Message}";
             SetConnectionState(false);
             AddLog(Status);
@@ -2661,7 +2692,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         var slotDisplay = await WritePresetToSlotAsync(preset);
         if (slotDisplay is not null)
         {
-            Status = $"Saved '{preset.Name}' to your library and wrote it to {slotDisplay}.";
+            Status = $"Saved '{preset.Name}' to your library and wrote it to {slotDisplay}.{NoPreampNote(preset.PreampDb)}{QLimitNote(preset)}";
             GitHubProfileStatus = $"Saved {preset.Name} and wrote it to {slotDisplay}";
             AddLog(Status);
         }
@@ -2889,12 +2920,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             {
                 var index = Bands.Count;
                 var template = index < flat.Bands.Count ? flat.Bands[index] : flat.Bands[^1];
+                var frequency = bandCount == ThirdOctaveFrequencies.Length ? ThirdOctaveFrequencies[index] : template.FrequencyHz;
                 Bands.Add(new EqBand
                 {
                     Number = index + 1,
                     Enabled = true,
                     FilterType = EqFilterType.Peak,
-                    FrequencyHz = template.FrequencyHz,
+                    FrequencyHz = frequency,
                     GainDb = 0,
                     Q = 1
                 });
@@ -2990,7 +3022,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             }
 
             Status = reloadedHardware
-                ? $"Wrote '{preset.Name}' to {slotDisplay}."
+                ? $"Wrote '{preset.Name}' to {slotDisplay}.{NoPreampNote(preset.PreampDb)}{QLimitNote(preset)}"
                 : $"Wrote '{preset.Name}' to {slotDisplay}; the device is reconnecting. Click Detect if it does not come back.";
             AddLog(Status);
             return slotDisplay;
@@ -3003,6 +3035,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or TimeoutException or Win32Exception or ArgumentException)
         {
+            LogDspTransport(ex);
             Status = $"Device write failed: {ex.Message}";
             AddLog(Status);
             return null;
@@ -5089,6 +5122,10 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         return null;
     }
+
+    // ISO 1/3-octave centres, 20 Hz - 20 kHz (31 bands) for the K17/K19.
+    private static readonly int[] ThirdOctaveFrequencies =
+        [20, 25, 31, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000];
 
     private static EqPreset CreateFlatPresetModel(string name = "Flat") => new()
     {

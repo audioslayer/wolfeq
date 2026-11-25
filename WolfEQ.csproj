@@ -8,9 +8,9 @@
     <ApplicationIcon>Assets\icon\wolfeq.ico</ApplicationIcon>
     <AssemblyName>WolfEQ</AssemblyName>
     <RootNamespace>WolfEQ</RootNamespace>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
     <!-- Pinned Equalizer APO installer (KTD14). Keep in sync with build-installer.bat and
          ApoProcessLauncher.PinnedInstallerFileName; a test checks all three agree. -->
     <EqualizerApoInstallerFileName>EqualizerAPO-x64-1.4.2.exe</EqualizerApoInstallerFileName>
@@ -19,6 +19,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tools\**\*.cs" />

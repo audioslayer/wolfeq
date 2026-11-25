@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.1.0
+
+### ✨ New
+
+- 🧭 **Setup wizard** — New users are walked through finding their device, what to know about it, and a headphone preset. It never writes to your DAC. Run it any time from Settings.
+- 🔌 **Your model is remembered** — An unplugged device opens as itself instead of a K13, and a new install says "No device selected".
+- 🎧 **FiiO K17 R2R, K17 and K19** — These now save over the rear RS232 USB port, the way FiiO's own web control does, with all 31 bands read back and checked. Connect a second USB cable from that port. They have no preamp, so WolfEQ tells you how far to turn the volume down. **The K17 R2R is still experimental.**
+- 🩺 **Run device diagnostic** — Settings → USB. A read-only report of your USB device (copied to the clipboard and saved as `hid-diagnostic.txt`) to help us support more devices.
+- 🎚️ **31-band devices** — Band controls keep the selected band in view and start from standard 1/3-octave frequencies.
+- 🎧 **FiiO BTR25 (experimental)** — 10 bands, USER 1-10. Based on FiiO's web app and not yet tested on a real unit, so start with a low-gain EQ.
+- 🎧 **Four more devices (experimental)** — CrinEar Protocol Micro, Moondrop Echo-A, JCALLY JM12 and Kiwi Ears AD1, from measurements by Contour. Every save is read back and checked. The JM12 and AD1 have no preamp, restart after each save, and need a 48 kHz Windows output.
+
+### 🐞 Fixed
+
+- 🚀 **Startup crash** — WolfEQ no longer crashes at launch when its saved device file cannot be read.
+- 📐 **Filter width (Q)** — Some devices play filters 1.41 times wider than asked. WolfEQ now corrects peaks on the K13 R2R, and shelves on the KA15, Melody, Tiny A and JIEZI, using Contour's measurements. Loading from a slot converts back.
+- 📈 **Shelf curves** — The graph now draws shelves the way your device and Equalizer APO play them, including above Q 1.
+
+### ⚠️ Good to know
+
+- EQs already on your device sound the same until you save them again. After that, the corrected filters are narrower and match the graph.
+- On those filters the narrowest Q is now 7.07. WolfEQ tells you if a saved band reaches that limit.
+- An EQ you loaded from a slot into your Library with an older version keeps its old Q. Load it from the slot again before you save.
+
 ## v1.0.0
 
 WolfEQ reaches 1.0. Every band has its own color, your cursor becomes part of the knob you turn, and 19 devices are supported, including the first from outside FiiO.
@@ -115,7 +139,7 @@ Both include the .NET runtime and the official Equalizer APO 1.4.2 installer. Eq
 
 ---
 
-💚 Tell us how it sounds in the [WolfEQ Discord channel](https://discord.com/channels/1467241109657751737/1503967391581995069) or [report an issue](https://github.com/audioslayer/wolfeq/issues).
+💚 Tell us how it sounds in the [WolfEQ Discord channel](https://discord.gg/nvkCRtK2Hf) or [report an issue](https://github.com/audioslayer/wolfeq/issues).
 
 
 ## v0.7.0-beta
@@ -188,7 +212,7 @@ K13 R2R remains the primary verified device. Other listed FiiO/Snowsky profiles 
 
 ---
 
-💚 **Thanks for the feedback that shaped this update.** Share your setup in the [WolfEQ Discord channel](https://discord.com/channels/1467241109657751737/1503967391581995069) or [report an issue](https://github.com/audioslayer/wolfeq/issues).
+💚 **Thanks for the feedback that shaped this update.** Share your setup in the [WolfEQ Discord channel](https://discord.gg/nvkCRtK2Hf) or [report an issue](https://github.com/audioslayer/wolfeq/issues).
 
 
 ## v0.6.0-beta

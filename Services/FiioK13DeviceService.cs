@@ -24,6 +24,10 @@ public sealed partial class FiioK13DeviceService
         new(0x3302, 0x43E8),
         new(0x3302, 0x43CC),
         new(0x3302, 0x4381),
+        new(0x3302, 0xC20F),
+        new(0x3302, 0x12C5),
+        new(0x3302, 0x20E3),
+        new(0x31B2, 0x0111),
         new(0x0A12, 0x4007),
         new(0x0666, 0x0888),
         new(0x31B2, 0xFFF8)
@@ -41,7 +45,12 @@ public sealed partial class FiioK13DeviceService
             {
                 var profile = FiioDeviceProfiles.Match(c.ProductId, c.Product, c.InterfaceNumber);
                 return profile is not null && SelectReadbackCandidate(new[] { c }, profile) is not null;
-            }).ToArray();
+            })
+            // A serial device is only identified over HID, so its several HID collections are one device.
+            .DistinctBy(c => FiioDeviceProfiles.Match(c.ProductId, c.Product, c.InterfaceNumber) is { UsesDspSerial: true } serial
+                ? serial.Id
+                : c.DevicePath, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private IReadOnlyList<HidDeviceCandidate> RestrictToSelectedDevice(IReadOnlyList<HidDeviceCandidate> candidates)
     {
@@ -157,6 +166,16 @@ public sealed partial class FiioK13DeviceService
         if (profile.WalkPlay is not null)
         {
             return await ReadWalkPlayEqAsync(profile, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (profile.UsesDspSerial)
+        {
+            return await ReadDspSerialEqAsync(profile, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (profile.KtMicro is not null)
+        {
+            return await ReadKtMicroEqAsync(profile, cancellationToken).ConfigureAwait(false);
         }
 
         var transportLog = new List<string>
@@ -281,12 +300,7 @@ public sealed partial class FiioK13DeviceService
                 throw new InvalidOperationException($"Band {index + 1} response was too short: {FormatHex(response)}");
             }
 
-            bands.Add(new K13EqBandReadback(
-                Number: response[6] + 1,
-                FrequencyHz: ParseUInt16BigEndian(response[9], response[10]),
-                GainDb: ParseSignedTenths(response[7], response[8]),
-                Q: ParseHundredths(response[11], response[12]),
-                FilterType: response[13]));
+            bands.Add(DecodeBand(response, profile));
         }
 
         transportLog.Add(
@@ -449,6 +463,16 @@ public sealed partial class FiioK13DeviceService
             return await SaveWalkPlayPresetAsync(profile, preset, presetId, cancellationToken).ConfigureAwait(false);
         }
 
+        if (profile.UsesDspSerial)
+        {
+            return await SaveDspSerialPresetAsync(profile, preset, presetId, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (profile.KtMicro is not null)
+        {
+            return await SaveKtMicroPresetAsync(profile, preset, presetId, cancellationToken).ConfigureAwait(false);
+        }
+
         var bands = preset.Bands
             .OrderBy(band => band.Number)
             .Take(profile.BandCount)
@@ -507,6 +531,7 @@ public sealed partial class FiioK13DeviceService
             [presetId],
             transportLog,
             cancellationToken).ConfigureAwait(false);
+        await Task.Delay(profile.SelectSettleMs, cancellationToken).ConfigureAwait(false);
 
         var activePresetId = await WaitForPresetIdAsync(
             stream,
@@ -540,7 +565,7 @@ public sealed partial class FiioK13DeviceService
                 inputReportLength,
                 outputReportLength,
                 CmdEqBandItem,
-                EncodeBand(band),
+                EncodeBand(band, profile),
                 transportLog,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -572,6 +597,16 @@ public sealed partial class FiioK13DeviceService
         if (profile.WalkPlay is not null)
         {
             return await SelectWalkPlaySlotAsync(profile, presetId, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (profile.UsesDspSerial)
+        {
+            return await SelectDspSerialPresetAsync(profile, presetId, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (profile.KtMicro is not null)
+        {
+            return await SelectKtMicroSlotAsync(profile, presetId, cancellationToken).ConfigureAwait(false);
         }
 
         var transportLog = new List<string>
@@ -897,7 +932,7 @@ public sealed partial class FiioK13DeviceService
             inputReportLength,
             outputReportLength,
             CmdEqBandItem,
-            EncodeBand(requested),
+            EncodeBand(requested, profile),
             transportLog,
             cancellationToken).ConfigureAwait(false);
 
@@ -1018,26 +1053,24 @@ public sealed partial class FiioK13DeviceService
             transportLog);
     }
 
-    public static byte[] EncodeBand(EqBand band)
-    {
-        var buffer = new byte[7];
-        WriteUInt16BigEndian(buffer, 0, (ushort)band.FrequencyHz);
-        WriteInt16BigEndian(buffer, 2, (short)Math.Round(band.GainDb * 10));
-        WriteUInt16BigEndian(buffer, 4, (ushort)Math.Round(band.Q * 100));
-        buffer[6] = (byte)band.FilterType;
-        return buffer;
-    }
-
-    public static byte[] EncodeBand(K13EqBandReadback band)
+    public static byte[] EncodeBand(K13EqBandReadback band, FiioDeviceProfile profile)
     {
         var buffer = new byte[8];
         buffer[0] = (byte)(band.Number - 1);
         WriteInt16BigEndian(buffer, 1, (short)Math.Round(band.GainDb * 10));
         WriteUInt16BigEndian(buffer, 3, (ushort)band.FrequencyHz);
-        WriteUInt16BigEndian(buffer, 5, (ushort)Math.Round(band.Q * 100));
+        WriteUInt16BigEndian(buffer, 5, profile.EncodeQRegister((EqFilterType)band.FilterType, band.Q));
         buffer[7] = band.FilterType;
         return buffer;
     }
+
+    public static K13EqBandReadback DecodeBand(byte[] response, FiioDeviceProfile profile)
+        => new(
+            Number: response[6] + 1,
+            FrequencyHz: ParseUInt16BigEndian(response[9], response[10]),
+            GainDb: ParseSignedTenths(response[7], response[8]),
+            Q: profile.DecodeQRegister((EqFilterType)response[13], ParseHundredths(response[11], response[12])),
+            FilterType: response[13]);
 
     private static K13EqBandReadback ToReadbackBand(EqBand band)
         => new(
@@ -1048,7 +1081,11 @@ public sealed partial class FiioK13DeviceService
             (byte)band.FilterType);
 
     private K13EqBandReadback NormalizeBand(K13EqBandReadback band)
-        => band with
+    {
+        var type = SelectedProfile.SupportsFilter((EqFilterType)band.FilterType)
+            ? (EqFilterType)band.FilterType
+            : EqFilterType.Peak;
+        return band with
         {
             FrequencyHz = Math.Clamp(band.FrequencyHz, 20, 20000),
             GainDb = Math.Clamp(
@@ -1058,17 +1095,16 @@ public sealed partial class FiioK13DeviceService
             Q = Math.Clamp(
                 Math.Round(double.IsFinite(band.Q) ? band.Q : 1, 2),
                 SelectedProfile.MinQ,
-                SelectedProfile.MaxQ),
-            FilterType = SelectedProfile.SupportsFilter((EqFilterType)band.FilterType)
-                ? band.FilterType
-                : (byte)EqFilterType.Peak
+                SelectedProfile.MaxQFor(type)),
+            FilterType = (byte)type
         };
+    }
 
-    private static bool BandsMatch(K13EqBandReadback requested, K13EqBandReadback actual)
+    private bool BandsMatch(K13EqBandReadback requested, K13EqBandReadback actual)
         => requested.Number == actual.Number
            && requested.FrequencyHz == actual.FrequencyHz
            && Math.Abs(requested.GainDb - actual.GainDb) < 0.05
-           && Math.Abs(requested.Q - actual.Q) < 0.005
+           && SelectedProfile.QMatches((EqFilterType)requested.FilterType, requested.Q, actual.Q)
            && requested.FilterType == actual.FilterType;
 
     private static string FormatBand(K13EqBandReadback band)
@@ -1376,9 +1412,11 @@ public sealed partial class FiioK13DeviceService
                     ? candidate.ProductId == expectedProductId
                     : FiioDeviceProfiles.ProductNameMatches(profile, candidate.Product)) &&
                 (profile.HidInterfaceNumber is null || candidate.InterfaceNumber == profile.HidInterfaceNumber) &&
+                (profile.KtMicro is not { } ktMicro || (candidate.VendorId == ktMicro.VendorId && candidate.ProductId == ktMicro.ProductId
+                    && candidate is { InputReportLength: KtMicroCodec.ReportSize, OutputReportLength: KtMicroCodec.ReportSize })) &&
                 (profile.WalkPlay is null || candidate is { VendorId: 0x3302, InputReportLength: WalkPlayCodec.ReportSize, OutputReportLength: WalkPlayCodec.ReportSize }) &&
-                candidate.InputReportLength > 0 &&
-                candidate.OutputReportLength > 0)
+                // Serial devices are only identified over HID, never driven by it.
+                (profile.UsesDspSerial || (candidate.InputReportLength > 0 && candidate.OutputReportLength > 0)))
             .OrderByDescending(candidate => candidate.ProductId == profile.ProductId)
             .ThenByDescending(candidate => FiioDeviceProfiles.ProductNameMatches(profile, candidate.Product))
             .ThenByDescending(candidate => profile.HidInterfaceNumber is not null && candidate.InterfaceNumber == profile.HidInterfaceNumber)
@@ -1403,7 +1441,7 @@ public sealed partial class FiioK13DeviceService
         if (candidate is null)
         {
             throw new InvalidOperationException(
-                $"No writable FiiO/SNOWSKY HID interface found for {label}. Candidates: {detection.Candidates.Count}.");
+                $"No writable HID interface found for {label}. Candidates: {detection.Candidates.Count}.");
         }
 
         var inputReportLength = candidate.InputReportLength ?? 33;
@@ -1704,12 +1742,7 @@ public sealed partial class FiioK13DeviceService
             throw new InvalidOperationException($"Band {bandNumber} response was too short: {FormatHex(response)}");
         }
 
-        return new K13EqBandReadback(
-            Number: response[6] + 1,
-            FrequencyHz: ParseUInt16BigEndian(response[9], response[10]),
-            GainDb: ParseSignedTenths(response[7], response[8]),
-            Q: ParseHundredths(response[11], response[12]),
-            FilterType: response[13]);
+        return DecodeBand(response, SelectedProfile);
     }
 
     private async Task<byte[]> SendGetAsync(
@@ -2224,7 +2257,7 @@ public sealed record HidDetectionResult(
 
             if (Candidates.Count == 0)
             {
-                return $"No supported FiiO/SNOWSKY HID device found. Scanned {ScannedDeviceCount} HID interface(s).";
+                return $"No supported device found. Scanned {ScannedDeviceCount} HID interface(s).";
             }
 
             if (MatchedProfile is not null && MatchedCandidate is not null)
@@ -2232,7 +2265,7 @@ public sealed record HidDetectionResult(
                 return $"Detected {MatchedProfile.DisplayLabel} on {MatchedCandidate.InterfaceDisplay}.";
             }
 
-            return "FiiO/SNOWSKY HID device found. Choose a matching device profile in Settings.";
+            return "A supported device was found. Choose its model in Settings.";
         }
     }
 

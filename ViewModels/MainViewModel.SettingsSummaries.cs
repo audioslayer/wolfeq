@@ -178,6 +178,8 @@ public sealed partial class MainViewModel
         Add(nameof(DeviceSectionSummary),
             nameof(IsSystemEqSelected), nameof(SelectedDeviceProfile), nameof(SystemEqStatusText),
             nameof(IsDeviceConnected), nameof(ConnectionText), nameof(DeviceBindingSummary));
+        Add(nameof(DeviceDockTitle), nameof(IsSystemEqSelected), nameof(SelectedDeviceProfile), nameof(IsDeviceConnected));
+        Add(nameof(DeviceDockImagePath), nameof(IsSystemEqSelected), nameof(SelectedDeviceProfile), nameof(IsDeviceConnected));
         Add(nameof(LightsSectionSummary),
             nameof(IsSystemEqSelected), nameof(SelectedDeviceProfile), nameof(SelectedDeviceSupportsBleLighting),
             nameof(TopLedOn), nameof(KnobLedOn), nameof(TopLedSummary), nameof(KnobLedSummary),
