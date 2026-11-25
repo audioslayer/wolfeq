@@ -28,6 +28,8 @@ Every band has its own color, and the light follows your hand. Grab a knob or a 
 | 🔌 **K17 and K19** | Saved over the rear RS232 USB port, with all 31 bands read back and checked. |
 | 💾 **Remembers your model** | An unplugged device opens as itself. |
 
+<p align="center"><img src="docs/images/setup-wizard-1.1.png" width="90%" alt="The setup wizard: pick your device, then learn what to know about it" /><br/><em>The setup wizard</em></p>
+
 <p align="center"><img src="docs/images/graph-1.0.png" width="85%" alt="The EQ graph with colored bands, the selected band and its width wings" /><br/><em>The selected band, its shape and its width wings</em></p>
 
 <table>

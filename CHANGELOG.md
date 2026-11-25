@@ -1,31 +1,31 @@
 # Changelog
 
-## v1.1.0
+## v1.1.0 — Setup wizard and 6 more devices
 
-Setup wizard, filters that play as wide as they look, and 25 supported devices.
+A setup wizard gets you started, filters now play as wide as they look, and 25 devices are supported, six of them new and experimental.
 
 ### ✨ New
 
-- 🧭 **Setup wizard** — New users are walked through finding their device, what to know about it, and a headphone preset. It never writes to your DAC. Run it any time from Settings.
-- 🔌 **Your model is remembered** — An unplugged device opens as itself instead of a K13, and a new install says "No device selected".
-- 🎧 **FiiO K17 R2R, K17 and K19** — These now save over the rear RS232 USB port, the way FiiO's own web control does, with all 31 bands read back and checked. Connect a second USB cable from that port. They have no preamp, so WolfEQ tells you how far to turn the volume down. **The K17 R2R is still experimental.**
-- 🩺 **Run device diagnostic** — Settings → USB. A read-only report of your USB device (copied to the clipboard and saved as `hid-diagnostic.txt`) to help us support more devices.
-- 🎚️ **31-band devices** — Band controls keep the selected band in view and start from standard 1/3-octave frequencies.
-- 🎧 **FiiO BTR25 (experimental)** — 10 bands, USER 1-10. Based on FiiO's web app and not yet tested on a real unit, so start with a low-gain EQ.
-- 🎧 **Four more devices (experimental)** — CrinEar Protocol Micro, Moondrop Echo-A, JCALLY JM12 and Kiwi Ears AD1, from measurements by Contour. Every save is read back and checked. The JM12 and AD1 have no preamp, restart after each save, and need a 48 kHz Windows output.
-- 🖼️ **Pictures** — Every new device has its own picture.
+- 🧭 **Setup wizard** — Find your device, learn what to know about it, and pick a headphone preset. It never writes to your DAC. New users see it once; run it any time from Settings.
+- 🎧 **Six new devices (experimental)** — FiiO K17 R2R, FiiO BTR25, CrinEar Protocol Micro, Moondrop Echo-A, JCALLY JM12 and Kiwi Ears AD1, each with its own picture.
+- 🔌 **K17 R2R, K17 and K19 over RS232** — These now save over the rear RS232 USB port, the way FiiO's own web control does, with all 31 bands read back and checked.
+- 💾 **Your model is remembered** — An unplugged device opens as itself, and a new install says "No device selected".
+- 🎚️ **31-band devices** — Band controls keep the selected band in view.
+- 🩺 **Device diagnostic** — Settings → USB. A read-only report that helps us support more devices.
 
 ### 🐞 Fixed
 
-- 🚀 **Startup crash** — WolfEQ no longer crashes at launch when its saved device file cannot be read.
-- 📐 **Filter width (Q)** — Some devices play filters 1.41 times wider than asked. WolfEQ now corrects peaks on the K13 R2R, and shelves on the KA15, Melody, Tiny A and JIEZI, using Contour's measurements. Loading from a slot converts back.
-- 📈 **Shelf curves** — The graph now draws shelves the way your device and Equalizer APO play them, including above Q 1.
+- 📐 **Filter width (Q)** — Peaks on the K13 R2R, and shelves on the KA15, Melody, Tiny A and JIEZI, played 1.41 times wider than asked. They now match the graph.
+- 📈 **Shelf curves** — The graph draws shelves the way your device plays them.
+- 🚀 **Startup crash** — WolfEQ no longer crashes when its saved device file cannot be read.
 
 ### ⚠️ Good to know
 
-- EQs already on your device sound the same until you save them again. After that, the corrected filters are narrower and match the graph.
-- On those filters the narrowest Q is now 7.07. WolfEQ tells you if a saved band reaches that limit.
+- EQs already on your device sound the same until you save them again. After that, the corrected filters are narrower and match the graph. Their narrowest Q is now 7.07.
 - An EQ you loaded from a slot into your Library with an older version keeps its old Q. Load it from the slot again before you save.
+- **K17 R2R, K17 and K19:** connect a second USB cable from the rear RS232 port. They have no preamp, so WolfEQ tells you how far to turn the volume down.
+- **JM12 and AD1:** no preamp. They restart after each save and need a 48 kHz Windows output.
+- The six experimental devices and the RS232 saving are built from published work and have not been tested by us on real units. Start with a low-gain EQ and your volume down, and tell us how it goes.
 
 ## v1.0.0
 
